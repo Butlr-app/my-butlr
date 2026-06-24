@@ -5,11 +5,15 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useProperties, type Property } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
+import { useSearch } from '@/lib/searchContext'
 import { Link } from 'react-router-dom'
-import { MapPin, Plus, Loader2, Trash2 } from 'lucide-react'
+import { MapPin, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+
+const PAGE_SIZE = 9
 
 const statusMap = {
   active: { variant: 'success' as const, label: 'Active' },
@@ -29,34 +33,90 @@ const emptyForm = {
 }
 
 export function Properties() {
-  const { data: properties, loading, insert, remove } = useProperties()
+  const { data: properties, loading, insert, update, remove } = useProperties()
   const { user } = useAuth()
   const { toast } = useToast()
+  const { query } = useSearch()
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [page, setPage] = useState(0)
+
+  const filtered = properties.filter(p => {
+    if (!query) return true
+    const q = query.toLowerCase()
+    return p.name.toLowerCase().includes(q) || (p.location ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q)
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  const validate = () => {
+    const errs: Record<string, string> = {}
+    if (!form.name.trim()) errs.name = 'Name is required'
+    if (form.bedrooms < 0) errs.bedrooms = 'Must be positive'
+    if (form.bathrooms < 0) errs.bathrooms = 'Must be positive'
+    if (form.max_guests < 0) errs.max_guests = 'Must be positive'
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  const openCreate = () => {
+    setEditingId(null)
+    setForm(emptyForm)
+    setErrors({})
+    setShowForm(true)
+  }
+
+  const openEdit = (p: Property) => {
+    setEditingId(p.id)
+    setForm({
+      name: p.name,
+      location: p.location ?? '',
+      type: p.type,
+      status: p.status,
+      bedrooms: p.bedrooms,
+      bathrooms: p.bathrooms,
+      max_guests: p.max_guests,
+      description: p.description ?? '',
+    })
+    setErrors({})
+    setShowForm(true)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validate()) return
     setSaving(true)
     try {
-      await insert({ ...form, owner_id: user?.id ?? null })
-      toast('Property created')
+      if (editingId) {
+        await update(editingId, form)
+        toast('Property updated')
+      } else {
+        await insert({ ...form, owner_id: user?.id ?? null })
+        toast('Property created')
+      }
       setShowForm(false)
       setForm(emptyForm)
+      setEditingId(null)
     } catch (err) {
       toast((err as Error).message, 'error')
     }
     setSaving(false)
   }
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await remove(id)
+      await remove(deleteTarget.id)
       toast('Property deleted')
     } catch (err) {
       toast((err as Error).message, 'error')
     }
+    setDeleteTarget(null)
   }
 
   if (loading) {
@@ -73,75 +133,93 @@ export function Properties() {
         <div>
           <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Portfolio</p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(true)}>
+        <Button size="sm" onClick={openCreate}>
           <Plus className="w-4 h-4 mr-1" /> Add property
         </Button>
       </div>
 
-      {properties.length === 0 ? (
+      {filtered.length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground mb-4">No properties yet. Add your first property to get started.</p>
-          <Button size="sm" onClick={() => setShowForm(true)}>Add property</Button>
+          <p className="text-sm text-muted-foreground mb-4">
+            {query ? 'No properties match your search.' : 'No properties yet. Add your first property to get started.'}
+          </p>
+          {!query && <Button size="sm" onClick={openCreate}>Add property</Button>}
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {properties.map(property => (
-            <Card key={property.id} className="overflow-hidden">
-              <div className="aspect-[16/9] bg-muted flex items-center justify-center">
-                {property.image_url ? (
-                  <img src={property.image_url} alt={property.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-muted-foreground font-mono">IMAGE</span>
-                )}
-              </div>
-              <div className="p-5 space-y-3">
-                <div>
-                  <h3 className="text-base font-semibold">{property.name}</h3>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3 h-3" />
-                    {property.location || 'No location'}
-                  </p>
+        <>
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {paginated.map(property => (
+              <Card key={property.id} className="overflow-hidden">
+                <div className="aspect-[16/9] bg-muted flex items-center justify-center">
+                  {property.image_url ? (
+                    <img src={property.image_url} alt={property.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground font-mono">IMAGE</span>
+                  )}
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Badge variant={statusMap[property.status]?.variant ?? 'muted'}>
-                    {statusMap[property.status]?.label ?? property.status}
-                  </Badge>
-                  <Badge variant="muted">{property.type}</Badge>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
+                <div className="p-5 space-y-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Bedrooms</p>
-                    <p className="text-sm font-mono font-medium">{property.bedrooms}</p>
+                    <h3 className="text-base font-semibold">{property.name}</h3>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3" />
+                      {property.location || 'No location'}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Bathrooms</p>
-                    <p className="text-sm font-mono font-medium">{property.bathrooms}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Max Guests</p>
-                    <p className="text-sm font-mono font-medium">{property.max_guests}</p>
-                  </div>
-                </div>
 
-                <div className="flex gap-2 pt-2">
-                  <Link to={`/app/properties/${property.id}`} className="flex-1">
-                    <Button variant="secondary" size="sm" className="w-full">Open property</Button>
-                  </Link>
-                  <Button variant="secondary" size="sm" onClick={() => handleDelete(property.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={statusMap[property.status]?.variant ?? 'muted'}>
+                      {statusMap[property.status]?.label ?? property.status}
+                    </Badge>
+                    <Badge variant="muted">{property.type}</Badge>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Bedrooms</p>
+                      <p className="text-sm font-mono font-medium">{property.bedrooms}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Bathrooms</p>
+                      <p className="text-sm font-mono font-medium">{property.bathrooms}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Max Guests</p>
+                      <p className="text-sm font-mono font-medium">{property.max_guests}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Link to={`/app/properties/${property.id}`} className="flex-1">
+                      <Button variant="secondary" size="sm" className="w-full">Open property</Button>
+                    </Link>
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(property)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setDeleteTarget({ id: property.id, name: property.name })}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
+              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
+            </div>
+          )}
+        </>
       )}
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="New Property">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Edit Property' : 'New Property'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input label="Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Villa French Way" />
+          <div>
+            <Input label="Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Villa French Way" />
+            {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+          </div>
           <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Saint-Tropez, France" />
           <div className="grid grid-cols-2 gap-4">
             <Select
@@ -167,9 +245,18 @@ export function Properties() {
             />
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <Input label="Bedrooms" type="number" min={0} value={form.bedrooms} onChange={e => setForm(f => ({ ...f, bedrooms: Number(e.target.value) }))} />
-            <Input label="Bathrooms" type="number" min={0} value={form.bathrooms} onChange={e => setForm(f => ({ ...f, bathrooms: Number(e.target.value) }))} />
-            <Input label="Max Guests" type="number" min={0} value={form.max_guests} onChange={e => setForm(f => ({ ...f, max_guests: Number(e.target.value) }))} />
+            <div>
+              <Input label="Bedrooms" type="number" min={0} value={form.bedrooms} onChange={e => setForm(f => ({ ...f, bedrooms: Number(e.target.value) }))} />
+              {errors.bedrooms && <p className="text-xs text-destructive mt-1">{errors.bedrooms}</p>}
+            </div>
+            <div>
+              <Input label="Bathrooms" type="number" min={0} value={form.bathrooms} onChange={e => setForm(f => ({ ...f, bathrooms: Number(e.target.value) }))} />
+              {errors.bathrooms && <p className="text-xs text-destructive mt-1">{errors.bathrooms}</p>}
+            </div>
+            <div>
+              <Input label="Max Guests" type="number" min={0} value={form.max_guests} onChange={e => setForm(f => ({ ...f, max_guests: Number(e.target.value) }))} />
+              {errors.max_guests && <p className="text-xs text-destructive mt-1">{errors.max_guests}</p>}
+            </div>
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium">Description</label>
@@ -184,11 +271,19 @@ export function Properties() {
             <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
             <Button type="submit" disabled={saving}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              Create
+              {editingId ? 'Save changes' : 'Create'}
             </Button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete property"
+        message={`Delete "${deleteTarget?.name}"? This action cannot be undone.`}
+      />
     </div>
   )
 }

@@ -7,7 +7,10 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { useReservations, useProperties, type Reservation } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
-import { Plus, Loader2 } from 'lucide-react'
+import { useSearch } from '@/lib/searchContext'
+import { Plus, Loader2, Download } from 'lucide-react'
+
+const PAGE_SIZE = 20
 
 const emptyForm = {
   guest_name: '',
@@ -26,10 +29,35 @@ export function Reservations() {
   const { data: reservations, loading, insert, update } = useReservations()
   const { data: properties } = useProperties()
   const { toast } = useToast()
+  const { query } = useSearch()
   const [selected, setSelected] = useState<Reservation | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [page, setPage] = useState(0)
+
+  const filtered = reservations.filter(r => {
+    if (!query) return true
+    const q = query.toLowerCase()
+    return r.guest_name.toLowerCase().includes(q) || (r.property?.name ?? '').toLowerCase().includes(q)
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  const exportCSV = () => {
+    const headers = ['Guest', 'Property', 'Arrival', 'Departure', 'Guests', 'Amount', 'Status', 'Payment', 'Contract']
+    const rows = reservations.map(r => [r.guest_name, r.property?.name ?? '', r.arrival, r.departure, String(r.guests_count), String(r.total_amount), r.status, r.payment_status, r.contract_status])
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `reservations-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast('CSV exported')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,17 +98,23 @@ export function Reservations() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">All Reservations</p>
-        <Button size="sm" onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-1" /> New reservation
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={exportCSV}>
+            <Download className="w-4 h-4 mr-1" /> Export CSV
+          </Button>
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4 mr-1" /> New reservation
+          </Button>
+        </div>
       </div>
 
-      {reservations.length === 0 ? (
+      {filtered.length === 0 ? (
         <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground mb-4">No reservations yet.</p>
-          <Button size="sm" onClick={() => setShowForm(true)}>Create reservation</Button>
+          <p className="text-sm text-muted-foreground mb-4">{query ? 'No reservations match your search.' : 'No reservations yet.'}</p>
+          {!query && <Button size="sm" onClick={() => setShowForm(true)}>Create reservation</Button>}
         </Card>
       ) : (
+        <>
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -98,7 +132,7 @@ export function Reservations() {
                 </tr>
               </thead>
               <tbody>
-                {reservations.map(r => (
+                {paginated.map(r => (
                   <tr
                     key={r.id}
                     className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors h-14"
@@ -129,6 +163,15 @@ export function Reservations() {
             </table>
           </div>
         </Card>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
+              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
+            </div>
+          )}
+        </>
       )}
 
       <Modal open={!!selected} onClose={() => setSelected(null)} title="Reservation Detail">

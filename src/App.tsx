@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { RoleProvider } from './lib/roleContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AuthProvider } from './lib/authContext'
+import { SearchProvider } from './lib/searchContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <AuthProvider>
     <RoleProvider>
+    <SearchProvider>
     <ToastProvider>
     <BrowserRouter>
       <Routes>
@@ -54,6 +56,7 @@ export default function App() {
       </Routes>
     </BrowserRouter>
     </ToastProvider>
+    </SearchProvider>
     </RoleProvider>
     </AuthProvider>
   )

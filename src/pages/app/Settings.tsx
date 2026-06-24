@@ -1,12 +1,46 @@
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useProfile } from '@/lib/useSupabase'
+import { useToast } from '@/components/ui/Toast'
+import { Loader2 } from 'lucide-react'
 
 const settingsTabs = ['Account', 'Team', 'Roles', 'Properties', 'Branding', 'Payments', 'Services', 'Notifications']
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState('Account')
+  const { profile, loading, updateProfile } = useProfile()
+  const { toast } = useToast()
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    company: '',
+  })
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        full_name: profile.full_name ?? '',
+        email: profile.email ?? '',
+        phone: profile.phone ?? '',
+        company: profile.company ?? '',
+      })
+    }
+  }, [profile])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await updateProfile(form)
+      toast('Profile updated')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
+  }
 
   return (
     <div className="space-y-6">
@@ -33,13 +67,22 @@ export function Settings() {
       {activeTab === 'Account' && (
         <Card className="p-6 max-w-xl">
           <h3 className="text-base font-semibold mb-6">Account Settings</h3>
-          <div className="space-y-4">
-            <Input label="Full name" defaultValue="Jean Dupont" />
-            <Input label="Email" type="email" defaultValue="jean@mybutlr.com" />
-            <Input label="Phone" type="tel" defaultValue="+33 6 12 34 56 78" />
-            <Input label="Company" defaultValue="My Butlr SAS" />
-            <Button size="sm">Save changes</Button>
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Input label="Full name" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
+              <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              <Input label="Phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <Input label="Company" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                Save changes
+              </Button>
+            </div>
+          )}
         </Card>
       )}
 
@@ -51,9 +94,7 @@ export function Settings() {
           </div>
           <div className="space-y-3">
             {[
-              { name: 'Jean Dupont', email: 'jean@mybutlr.com', role: 'Owner' },
-              { name: 'Sophie Martin', email: 'sophie@mybutlr.com', role: 'House Manager' },
-              { name: 'Pierre Duval', email: 'pierre@mybutlr.com', role: 'Concierge' },
+              { name: profile?.full_name ?? 'You', email: profile?.email ?? '', role: profile?.role ?? 'Owner' },
             ].map(member => (
               <div key={member.email} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                 <div>

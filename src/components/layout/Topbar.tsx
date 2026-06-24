@@ -1,11 +1,13 @@
-import { Search, Bell, Moon, Sun, User, LogOut } from 'lucide-react'
+import { Search, Bell, Moon, Sun, User, LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
+import { useSearch } from '@/lib/searchContext'
 
 interface TopbarProps {
   title: string
+  onMenuClick?: () => void
 }
 
 const roles: { value: Role; label: string }[] = [
@@ -17,10 +19,11 @@ const roles: { value: Role; label: string }[] = [
   { value: 'guest', label: 'Guest' },
 ]
 
-export function Topbar({ title }: TopbarProps) {
+export function Topbar({ title, onMenuClick }: TopbarProps) {
   const [dark, setDark] = useState(true)
   const { role, setRole } = useRole()
   const { signOut, user } = useAuth()
+  const { query, setQuery } = useSearch()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -34,25 +37,34 @@ export function Topbar({ title }: TopbarProps) {
   }
 
   return (
-    <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-card/80 backdrop-blur-sm sticky top-0 z-30">
-      <h1 className="text-lg font-bold">{title}</h1>
-
+    <header className="h-14 border-b border-border flex items-center justify-between px-3 sm:px-6 bg-card/80 backdrop-blur-sm sticky top-0 z-30">
       <div className="flex items-center gap-3">
+        {onMenuClick && (
+          <button onClick={onMenuClick} className="p-2 rounded-md hover:bg-muted transition-colors lg:hidden">
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <h1 className="text-lg font-bold">{title}</h1>
+      </div>
+
+      <div className="flex items-center gap-1 sm:gap-3">
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
-          className="h-8 px-2 bg-muted border-0 rounded-md text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-8 px-2 bg-muted border-0 rounded-md text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-ring hidden sm:block"
         >
           {roles.map(r => (
             <option key={r.value} value={r.value}>{r.label}</option>
           ))}
         </select>
 
-        <div className="relative">
+        <div className="relative hidden sm:block">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
             className="h-9 pl-9 pr-4 bg-muted border-0 rounded-md text-sm w-56 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -66,7 +78,7 @@ export function Topbar({ title }: TopbarProps) {
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" title={user?.email ?? ''}>
+        <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hidden sm:flex" title={user?.email ?? ''}>
           <User className="w-4 h-4" />
         </button>
 

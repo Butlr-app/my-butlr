@@ -154,7 +154,7 @@ function useTable<T>(table: string) {
   const insert = async (row: Partial<T>) => {
     const { data: inserted, error: err } = await supabase
       .from(table)
-      .insert(row)
+      .insert(row as Record<string, unknown>)
       .select()
       .single()
     if (err) throw new Error(err.message)
@@ -165,7 +165,7 @@ function useTable<T>(table: string) {
   const update = async (id: string, changes: Partial<T>) => {
     const { data: updated, error: err } = await supabase
       .from(table)
-      .update(changes)
+      .update(changes as Record<string, unknown>)
       .eq('id', id)
       .select()
       .single()

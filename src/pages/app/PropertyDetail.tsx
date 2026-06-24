@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { useProperties, useReservations, useTasks, type Property } from '@/lib/useSupabase'
+import { useProperties, useReservations, useTasks } from '@/lib/useSupabase'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
