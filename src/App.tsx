@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { RoleProvider } from './lib/roleContext'
+import { AuthProvider } from './lib/authContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
 import { Login } from './pages/Login'
@@ -21,6 +23,7 @@ import { Settings } from './pages/app/Settings'
 
 export default function App() {
   return (
+    <AuthProvider>
     <RoleProvider>
     <BrowserRouter>
       <Routes>
@@ -30,8 +33,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* App pages */}
-        <Route path="/app" element={<AppLayout />}>
+        {/* Protected app pages */}
+        <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="properties" element={<Properties />} />
           <Route path="properties/:id" element={<PropertyDetail />} />
@@ -49,5 +52,6 @@ export default function App() {
       </Routes>
     </BrowserRouter>
     </RoleProvider>
+    </AuthProvider>
   )
 }

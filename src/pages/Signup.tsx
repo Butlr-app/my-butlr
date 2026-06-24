@@ -2,9 +2,50 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { useAuth } from '@/lib/authContext'
+import { useState } from 'react'
 
 export function Signup() {
   const navigate = useNavigate()
+  const { signUp } = useAuth()
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const form = new FormData(e.currentTarget)
+    const fullName = form.get('fullName') as string
+    const email = form.get('email') as string
+    const password = form.get('password') as string
+
+    const { error } = await signUp(email, password, fullName)
+    setLoading(false)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setSuccess(true)
+      setTimeout(() => navigate('/app'), 1500)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+            <span className="text-success text-lg">✓</span>
+          </div>
+          <h2 className="text-lg font-semibold mb-2">Account created</h2>
+          <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6 py-16">
@@ -14,15 +55,13 @@ export function Signup() {
           <p className="text-sm text-muted-foreground mt-2">Create your account</p>
         </div>
 
-        <form
-          onSubmit={(e) => { e.preventDefault(); navigate('/app') }}
-          className="space-y-4"
-        >
-          <Input label="Full name" placeholder="Jean Dupont" required />
-          <Input label="Email" type="email" placeholder="you@company.com" required />
-          <Input label="Password" type="password" placeholder="••••••••" required />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input label="Full name" name="fullName" placeholder="Jean Dupont" required />
+          <Input label="Email" name="email" type="email" placeholder="you@company.com" required />
+          <Input label="Password" name="password" type="password" placeholder="••••••••" required />
           <Select
             label="Role"
+            name="role"
             options={[
               { value: 'owner', label: 'Owner' },
               { value: 'house_manager', label: 'House Manager' },
@@ -31,8 +70,11 @@ export function Signup() {
               { value: 'partner', label: 'Partner' },
             ]}
           />
-          <Button type="submit" size="md" className="w-full">
-            Create account
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
+          <Button type="submit" size="md" className="w-full" disabled={loading}>
+            {loading ? 'Creating account...' : 'Create account'}
           </Button>
         </form>
 

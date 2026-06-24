@@ -1,6 +1,8 @@
-import { Search, Bell, Moon, Sun, User } from 'lucide-react'
+import { Search, Bell, Moon, Sun, User, LogOut } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
+import { useAuth } from '@/lib/authContext'
 
 interface TopbarProps {
   title: string
@@ -18,6 +20,13 @@ const roles: { value: Role; label: string }[] = [
 export function Topbar({ title }: TopbarProps) {
   const [dark, setDark] = useState(true)
   const { role, setRole } = useRole()
+  const { signOut, user } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login')
+  }
 
   const toggleTheme = () => {
     setDark(!dark)
@@ -57,8 +66,12 @@ export function Topbar({ title }: TopbarProps) {
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+        <button className="w-8 h-8 rounded-full bg-muted flex items-center justify-center" title={user?.email ?? ''}>
           <User className="w-4 h-4" />
+        </button>
+
+        <button onClick={handleSignOut} className="p-2 rounded-md hover:bg-muted transition-colors" title="Sign out">
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
     </header>
