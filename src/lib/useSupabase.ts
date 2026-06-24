@@ -455,8 +455,9 @@ export function useNotifications() {
   useEffect(() => { fetchNotifications() }, [fetchNotifications])
 
   useEffect(() => {
+    const channelName = `notifications-realtime-${crypto.randomUUID()}`
     const channel = supabase
-      .channel('notifications-realtime')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
         setNotifications(prev => [payload.new as Notification, ...prev])
       })
