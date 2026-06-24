@@ -201,12 +201,40 @@ CREATE POLICY "Authenticated manage calendar" ON calendar_events FOR ALL TO auth
 CREATE POLICY "Authenticated manage property_amenities" ON property_amenities FOR ALL TO authenticated USING (true);
 CREATE POLICY "Authenticated manage property_rooms" ON property_rooms FOR ALL TO authenticated USING (true);
 
+-- ─── Notifications table ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL DEFAULT 'system' CHECK (type IN ('reservation', 'task', 'payment', 'system')),
+  title TEXT NOT NULL,
+  message TEXT,
+  read BOOLEAN NOT NULL DEFAULT false,
+  related_id UUID,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users read own notifications" ON notifications FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR user_id IS NULL);
+CREATE POLICY "Users update own notifications" ON notifications FOR UPDATE TO authenticated
+  USING (user_id = auth.uid() OR user_id IS NULL);
+CREATE POLICY "Authenticated insert notifications" ON notifications FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+-- Enable Realtime for notifications
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+
 -- Function to handle new user registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email);
+  INSERT INTO public.profiles (id, full_name, email, role)
+  VALUES (
+    new.id,
+    new.raw_user_meta_data->>'full_name',
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'role', 'owner')
+  );
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

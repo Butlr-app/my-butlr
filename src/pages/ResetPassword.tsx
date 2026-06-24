@@ -1,12 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { useAuth } from '@/lib/authContext'
+import { supabase } from '@/lib/supabase'
 import { useState } from 'react'
 
-export function Login() {
+export function ResetPassword() {
   const navigate = useNavigate()
-  const { signIn } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -16,16 +15,28 @@ export function Login() {
     setLoading(true)
 
     const form = new FormData(e.currentTarget)
-    const email = form.get('email') as string
     const password = form.get('password') as string
+    const confirm = form.get('confirm') as string
 
-    const { error } = await signIn(email, password)
+    if (password !== confirm) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      setLoading(false)
+      return
+    }
+
+    const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
 
     if (error) {
       setError(error.message)
     } else {
-      navigate('/app')
+      navigate('/login')
     }
   }
 
@@ -34,29 +45,23 @@ export function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-xl font-bold tracking-tight">butlr</span>
-          <p className="text-sm text-muted-foreground mt-2">Sign in to your account</p>
+          <p className="text-sm text-muted-foreground mt-2">Set a new password</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input label="Email" name="email" type="email" placeholder="you@company.com" required />
-          <Input label="Password" name="password" type="password" placeholder="••••••••" required />
+          <Input label="New password" name="password" type="password" placeholder="Min. 6 characters" required />
+          <Input label="Confirm password" name="confirm" type="password" placeholder="Repeat password" required />
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}
           <Button type="submit" size="md" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Updating...' : 'Update password'}
           </Button>
         </form>
 
-        <div className="text-center mt-6 space-y-2">
-          <p className="text-sm text-muted-foreground">
-            <Link to="/forgot-password" className="text-foreground hover:underline">Forgot your password?</Link>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            No account?{' '}
-            <Link to="/signup" className="text-foreground hover:underline">Create one</Link>
-          </p>
-        </div>
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          <Link to="/login" className="text-foreground hover:underline">Back to login</Link>
+        </p>
       </div>
     </div>
   )

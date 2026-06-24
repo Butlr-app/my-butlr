@@ -2,7 +2,8 @@ import { cn } from '@/lib/utils'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
-  Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X
+  Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
+  FilePlus, Receipt
 } from 'lucide-react'
 
 const navItems = [
@@ -16,6 +17,8 @@ const navItems = [
   { to: '/app/partners', icon: Handshake, label: 'Partners' },
   { to: '/app/payments', icon: CreditCard, label: 'Payments' },
   { to: '/app/contracts', icon: FileText, label: 'Contracts' },
+  { to: '/app/contracts/generate', icon: FilePlus, label: 'Contract Gen.' },
+  { to: '/app/invoices/generate', icon: Receipt, label: 'Invoice Gen.' },
   { to: '/app/reports', icon: BarChart3, label: 'Reports' },
   { to: '/app/settings', icon: Settings, label: 'Settings' },
 ]
