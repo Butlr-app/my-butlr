@@ -201,6 +201,19 @@ CREATE POLICY "Authenticated manage calendar" ON calendar_events FOR ALL TO auth
 CREATE POLICY "Authenticated manage property_amenities" ON property_amenities FOR ALL TO authenticated USING (true);
 CREATE POLICY "Authenticated manage property_rooms" ON property_rooms FOR ALL TO authenticated USING (true);
 
+-- ─── Contract Templates (user-customizable contract models) ──────────────────
+CREATE TABLE IF NOT EXISTS contract_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  template_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE contract_templates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated manage contract_templates" ON contract_templates FOR ALL TO authenticated USING (true);
+
 -- ─── Notifications table ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
