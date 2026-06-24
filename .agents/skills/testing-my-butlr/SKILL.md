@@ -1,6 +1,6 @@
 ---
 name: testing-my-butlr-dashboard
-description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. Use when verifying CRUD, search, metrics, responsive layout, or profile settings changes.
+description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. Use when verifying CRUD, search, metrics, responsive layout, profile settings, PDF generators, auth flows, notifications, or SEO changes.
 ---
 
 # Testing My Butlr — Dashboard E2E
@@ -178,6 +178,71 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 - Always destructure `{ error }` from Supabase operations and check it
 - Supabase client does NOT throw on errors — it returns `{ data, error }` silently
 - If you don't check `error`, the caller's try/catch never triggers and success toasts fire on failure
+
+### 15. Contract Generator — Form + Validation + PDF
+- Navigate to `/app/contracts/generate`
+- Validation: clear tenant name, leave dates empty, click "Generate PDF" — expect toast "Please fill in tenant name and dates"
+- Auto-fill: select reservation from dropdown — tenant name, dates, rent, property auto-populate
+- Preview card shows "CONTRAT DE LOCATION SAISONNIERE", Bailleur SAS EBSCOPAL, Locataire name, Loyer amount
+- Generate PDF: triggers download `contrat-*.pdf` + toast "Contract PDF generated"
+
+### 16. Invoice Generator — Dynamic Lines + VAT + PDF
+- Navigate to `/app/invoices/generate`
+- Validation: leave client name empty, click "Generate PDF" — expect toast "Please fill in client name"
+- Fill client name, add line item (description, unit price, qty, VAT 20%)
+- Verify totals: Total HT = sum(price*qty), TVA = HT*0.20, Total TTC = HT + TVA
+- Add second line: totals recalculate dynamically
+- Remove line (trash icon): totals recalculate
+- Generate PDF: download `facture-FC-YYYY-XXX.pdf` + toast "Invoice PDF generated"
+
+### 17. Auth — Forgot Password + Signup Roles
+- Navigate to `/login` — verify "Forgot your password?" link exists
+- Click link → `/forgot-password` page: logo, "Reset your password", email input, "Send reset link", "Back to login"
+- Navigate to `/signup` — verify Role dropdown with 5 options: Owner, House Manager, Concierge, Agency, Partner
+
+### 18. Notifications Bell + 404 Page
+- While logged in, verify bell icon in topbar
+- Click bell → dropdown with "Notifications" header and close (X) button
+- Empty state shows "No notifications"
+- Navigate to `/nonexistent-page` — shows "404", "Page not found", Home + Go to dashboard buttons
+
+### 19. SEO Static Files
+- Navigate to `/robots.txt` — should contain `Disallow: /app/` and `Sitemap: https://mybutlr.com/sitemap.xml`
+- Navigate to `/sitemap.xml` — valid XML with `<url>` entries for /, /early-access, /login, /signup
+
+### 20. Settings — Account + Password Validation
+- Navigate to `/app/settings`
+- Account tab: profile pre-filled (name, email)
+- Clear name → save → toast "Name is required"
+- Password < 6 chars → toast "Password must be at least 6 characters"
+- Passwords don't match → toast "Passwords do not match"
+- Properties tab: seed properties visible; Services tab: seed services visible
+
+## Important Learnings (continued)
+
+### PDF Generator Testing
+- PDF "Generate" buttons trigger jsPDF `doc.save()` which downloads a file — verify by checking the download bar or filesystem
+- Contract filenames are slugified: `contrat-{property}-{tenant}.pdf`
+- Invoice filenames include year and random number: `facture-FC-YYYY-XXX.pdf`
+- Validation prevents generation — no file should download on validation failure
+
+### Notification Bell UI
+- The bell icon uses Lucide's `Bell` component inside a `<button>` in the Topbar
+- Click toggles `notifOpen` state to show/hide dropdown
+- Dropdown closes on outside click (mousedown event listener)
+- When no notifications exist, shows "No notifications" text
+- Unread count badge only appears when `unreadCount > 0`
+
+### Auth Page Testing
+- Must sign out first to access login/signup/forgot-password pages (ProtectedRoute redirects logged-in users)
+- Forgot password page sends Supabase `resetPasswordForEmail` — actual email delivery depends on Supabase config
+- Signup role dropdown uses native `<select>` element with 5 options
+
+### Transient Toast Capture
+- Toast messages appear and auto-dismiss quickly (3-5 seconds)
+- For reliable verification, use Playwright DOM queries immediately after the action: `page.locator('text=Expected message').count() > 0`
+- Screenshots may miss transient toasts — always supplement with Playwright DOM verification
+- The toast component renders at the bottom-right of the viewport
 
 ## Troubleshooting
 
