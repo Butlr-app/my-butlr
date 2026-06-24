@@ -1,32 +1,94 @@
-# React + TypeScript + Vite
+# My Butlr — Luxury Property Management SaaS
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+My Butlr is a premium property management platform for luxury villas, yachts, and concierge services. Built with React, TypeScript, Supabase, and Tailwind CSS.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Property Management** — Full CRUD for luxury properties (villas, yachts, apartments, chalets)
+- **Reservation Management** — Booking lifecycle with status tracking, payments, and contracts
+- **Service Marketplace** — Curated catalog of premium services with commission-based revenue
+- **Guest Portal** — Digital concierge for guests to browse services and make requests
+- **Contract Generator** — Auto-generate French seasonal rental contracts (PDF)
+- **Invoice Generator** — Create complementary invoices for services, repairs, and purchases
+- **Multi-role Dashboards** — 6 roles: Owner, House Manager, Concierge, Agency, Partner, Guest
+- **Task Management** — Kanban board with priority, assignment, and status tracking
+- **Calendar** — Multi-property calendar with reservations, maintenance, and events
+- **Partner Network** — CRM for service providers and partners
+- **Payments & Contracts** — Digital contracts, deposits, and payment tracking
+- **Notifications** — Real-time in-app notifications via Supabase Realtime
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React 19 + TypeScript 6 + Vite 8 + Tailwind CSS 4
+- **Backend**: Supabase (PostgreSQL + Auth + Storage + Realtime)
+- **UI**: shadcn/ui + Radix UI primitives
+- **Routing**: React Router v7
+- **PDF**: jsPDF + jspdf-autotable
 
-## Expanding the Oxlint configuration
+## Getting Started
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### Prerequisites
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+- Node.js 18+
+- npm or pnpm
+
+### Installation
+
+1. Clone the repo:
+```bash
+git clone https://github.com/Butlr-app/my-butlr.git
+cd my-butlr
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Fill in your Supabase URL and anon key
+```
+
+4. Run the dev server:
+```bash
+npm run dev
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key |
+
+### Database Setup
+
+Run the SQL in `supabase/schema.sql` in your Supabase SQL editor to create the schema and enable RLS.
+
+## Design System
+
+My Butlr uses a monochrome design system (black/white/grey only) with:
+- **Typography**: Inter + Geist Mono
+- **No brand colors** — pure monochrome aesthetic
+- **Premium minimalist** aesthetic for luxury market
+
+## Deployment
+
+```bash
+npm run build
+npm run preview  # local preview of production build
+```
+
+Deploy to Vercel, Netlify, or any static host.
+
+## Contributing
+
+1. Create a branch from `main`
+2. Make your changes
+3. Push and open a pull request
+
+## License
+
+MIT — Butlr-app © 2026

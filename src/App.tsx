@@ -18,6 +18,8 @@ import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
 import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
+import { ContractGenerate } from './pages/app/ContractGenerate'
+import { InvoiceGenerate } from './pages/app/InvoiceGenerate'
 import { Reports } from './pages/app/Reports'
 import { Settings } from './pages/app/Settings'
 
@@ -46,6 +48,8 @@ export default function App() {
           <Route path="partners" element={<Partners />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
+          <Route path="contracts/generate" element={<ContractGenerate />} />
+          <Route path="invoices/generate" element={<InvoiceGenerate />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
         </Route>
