@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { usePayments, type Payment } from '@/lib/useSupabase'
+import { usePayments, useNotifications, type Payment } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Plus, Loader2, Trash2, Pencil, Download } from 'lucide-react'
@@ -24,6 +24,7 @@ const emptyForm = {
 
 export function Payments() {
   const { data: payments, loading, insert, update, remove } = usePayments()
+  const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
   const [showForm, setShowForm] = useState(false)
@@ -88,6 +89,14 @@ export function Payments() {
         toast('Payment updated')
       } else {
         await insert({ ...form, amount: Number(form.amount) })
+        await insertNotification({
+          user_id: null,
+          type: 'payment',
+          title: 'Payment recorded',
+          message: `${form.type} payment of €${Number(form.amount).toLocaleString()} from ${form.guest_name}`,
+          data: { guest_name: form.guest_name, amount: form.amount },
+          related_id: null,
+        }).catch(() => {})
         toast('Payment recorded')
       }
       setShowForm(false)

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { useTasks, useProperties, type Task } from '@/lib/useSupabase'
+import { useTasks, useProperties, useNotifications, type Task } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
@@ -29,6 +29,7 @@ const emptyForm = {
 export function Tasks() {
   const { data: tasks, loading, insert, update, remove } = useTasks()
   const { data: properties } = useProperties()
+  const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
   const [showForm, setShowForm] = useState(false)
@@ -93,6 +94,14 @@ export function Tasks() {
           due_date: form.due_date || null,
           status: 'todo',
         })
+        await insertNotification({
+          user_id: null,
+          type: 'task',
+          title: 'New task assigned',
+          message: `Task: ${form.title}${form.due_date ? ` (due ${form.due_date})` : ''}`,
+          data: { title: form.title },
+          related_id: null,
+        }).catch(() => {})
         toast('Task created')
       }
       setShowForm(false)
