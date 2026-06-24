@@ -83,6 +83,7 @@ export function Tasks() {
           ...form,
           property_id: form.property_id || null,
           due_date: form.due_date || null,
+          status: editingStatus,
         })
         toast('Task updated')
       } else {

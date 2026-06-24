@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useCalendarEvents, useProperties, type CalendarEvent } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { Plus, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -33,6 +34,7 @@ export function CalendarPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,13 +54,15 @@ export function CalendarPage() {
     setSaving(false)
   }
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await remove(id)
+      await remove(deleteTarget.id)
       toast('Event deleted')
     } catch (err) {
       toast((err as Error).message, 'error')
     }
+    setDeleteTarget(null)
   }
 
   const year = currentMonth.getFullYear()
@@ -139,9 +143,9 @@ export function CalendarPage() {
                       {dayEvents.slice(0, 3).map(evt => (
                         <button
                           key={evt.id}
-                          onClick={() => handleDelete(evt.id)}
+                          onClick={() => setDeleteTarget({ id: evt.id, title: evt.title })}
                           className={`block w-full text-left text-[10px] px-1 py-0.5 rounded border truncate ${typeColors[evt.type]}`}
-                          title={`${evt.title} (${propertyMap[evt.property_id ?? ''] ?? ''}) - Click to remove`}
+                          title={`${evt.title} (${propertyMap[evt.property_id ?? ''] ?? ''})`}
                         >
                           {evt.title}
                         </button>
@@ -233,6 +237,14 @@ export function CalendarPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete event"
+        message={`Delete event "${deleteTarget?.title}"? This action cannot be undone.`}
+      />
     </div>
   )
 }

@@ -195,14 +195,18 @@ export function useProperties() {
 export function useReservations() {
   const base = useTable<Reservation>('reservations')
   const [withProperty, setWithProperty] = useState<Reservation[]>([])
+  const [enriching, setEnriching] = useState(true)
   const [propertiesMap, setPropertiesMap] = useState<Record<string, Property>>({})
 
   useEffect(() => {
     async function enrich() {
+      if (base.loading) return
       if (base.data.length === 0) {
         setWithProperty([])
+        setEnriching(false)
         return
       }
+      setEnriching(true)
       const propIds = [...new Set(base.data.map(r => r.property_id).filter(Boolean))]
       if (propIds.length > 0) {
         const { data: props } = await supabase
@@ -216,11 +220,12 @@ export function useReservations() {
       } else {
         setWithProperty(base.data)
       }
+      setEnriching(false)
     }
     enrich()
-  }, [base.data])
+  }, [base.data, base.loading])
 
-  return { ...base, data: withProperty, propertiesMap }
+  return { ...base, loading: base.loading || enriching, data: withProperty, propertiesMap }
 }
 
 export function useServices() {
@@ -335,9 +340,12 @@ export function useDashboardKPIs() {
         .reduce((sum, p) => sum + Number(p.amount), 0)
 
       const totalProps = properties.length
-      const occupiedProps = reservations.filter(r =>
-        r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress')
-      ).length
+      const occupiedProps = new Set(
+        reservations
+          .filter(r => r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress'))
+          .map(r => r.property_id)
+          .filter(Boolean)
+      ).size
       const occupancyRate = totalProps > 0 ? Math.round((occupiedProps / totalProps) * 100) : 0
 
       setKpis({ activeStays, upcomingArrivals, guestRequests, serviceRevenue, pendingTasks, occupancyRate })

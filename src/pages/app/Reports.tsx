@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/Card'
 import { MetricCard } from '@/components/ui/MetricCard'
-import { usePayments, useReservations, useProperties, usePartners, useServices } from '@/lib/useSupabase'
+import { usePayments, useReservations, useProperties, usePartners } from '@/lib/useSupabase'
 import { Loader2 } from 'lucide-react'
 
 export function Reports() {
@@ -8,9 +8,7 @@ export function Reports() {
   const { data: reservations, loading: lRes } = useReservations()
   const { data: properties, loading: lProp } = useProperties()
   const { data: partners, loading: lPart } = usePartners()
-  const { data: services, loading: lSvc } = useServices()
-
-  const loading = lPay || lRes || lProp || lPart || lSvc
+  const loading = lPay || lRes || lProp || lPart
 
   if (loading) {
     return (
@@ -25,20 +23,22 @@ export function Reports() {
 
   const today = new Date().toISOString().split('T')[0]
   const totalProps = properties.length
-  const occupiedProps = reservations.filter(r =>
-    r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress')
-  ).length
+  const occupiedProps = new Set(
+    reservations
+      .filter(r => r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress'))
+      .map(r => r.property_id)
+      .filter(Boolean)
+  ).size
   const occupancyRate = totalProps > 0 ? Math.round((occupiedProps / totalProps) * 100) : 0
 
   const completedRes = reservations.filter(r => r.status === 'completed' || r.status === 'in_progress')
   const avgSpend = completedRes.length > 0 ? Math.round(completedRes.reduce((s, r) => s + Number(r.total_amount), 0) / completedRes.length) : 0
 
-  // Service revenue by category
-  const svcMap = Object.fromEntries(services.map(s => [s.name, s.category ?? 'Other']))
+  // Service revenue by property
   const svcRevenue: Record<string, number> = {}
   payments.filter(p => p.type === 'service' && p.status === 'paid').forEach(p => {
-    const cat = svcMap[p.property_name ?? ''] ?? 'Other'
-    svcRevenue[cat] = (svcRevenue[cat] || 0) + Number(p.amount)
+    const label = p.property_name || 'Other'
+    svcRevenue[label] = (svcRevenue[label] || 0) + Number(p.amount)
   })
   const totalSvcRev = Object.values(svcRevenue).reduce((s, v) => s + v, 0) || 1
   const svcBreakdown = Object.entries(svcRevenue)

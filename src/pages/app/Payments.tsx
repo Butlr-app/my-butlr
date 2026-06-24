@@ -20,7 +20,6 @@ const emptyForm = {
   amount: 0,
   status: 'pending' as Payment['status'],
   date: '',
-  description: '',
 }
 
 export function Payments() {
@@ -72,7 +71,6 @@ export function Payments() {
       amount: p.amount,
       status: p.status,
       date: p.date,
-      description: '',
     })
     setErrors({})
     setShowForm(true)
@@ -282,7 +280,6 @@ export function Payments() {
               {errors.date && <p className="text-xs text-destructive mt-1">{errors.date}</p>}
             </div>
           </div>
-          <Input label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
             <Button type="submit" disabled={saving}>
