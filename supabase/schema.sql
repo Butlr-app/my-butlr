@@ -146,9 +146,10 @@ CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.ui
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Properties: owners see their own, team sees all
+-- Properties: any authenticated user can manage (prototype); owner_id kept for future multi-tenancy
 CREATE POLICY "Authenticated users can view properties" ON properties FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Owners can manage properties" ON properties FOR ALL USING (owner_id = auth.uid());
+CREATE POLICY "Authenticated manage properties" ON properties FOR ALL TO authenticated USING (true);
 
 -- Broad read access for authenticated users on operational tables
 CREATE POLICY "Authenticated read reservations" ON reservations FOR SELECT TO authenticated USING (true);
