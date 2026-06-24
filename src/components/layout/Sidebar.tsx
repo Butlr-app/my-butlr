@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { NavLink } from 'react-router-dom'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
@@ -7,20 +8,20 @@ import {
 } from 'lucide-react'
 
 const navItems = [
-  { to: '/app', icon: LayoutDashboard, label: 'Overview', end: true },
-  { to: '/app/properties', icon: Building2, label: 'Properties' },
-  { to: '/app/reservations', icon: CalendarDays, label: 'Reservations' },
-  { to: '/app/guest-portal', icon: Users, label: 'Guest Portal' },
-  { to: '/app/services', icon: ConciergeBell, label: 'Services' },
-  { to: '/app/tasks', icon: ClipboardList, label: 'Tasks' },
-  { to: '/app/calendar', icon: Calendar, label: 'Calendar' },
-  { to: '/app/partners', icon: Handshake, label: 'Partners' },
-  { to: '/app/payments', icon: CreditCard, label: 'Payments' },
-  { to: '/app/contracts', icon: FileText, label: 'Contracts' },
-  { to: '/app/contracts/generate', icon: FilePlus, label: 'Contract Gen.' },
-  { to: '/app/invoices/generate', icon: Receipt, label: 'Invoice Gen.' },
-  { to: '/app/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/app/settings', icon: Settings, label: 'Settings' },
+  { to: '/app', icon: LayoutDashboard, label: 'Overview', page: 'dashboard', end: true },
+  { to: '/app/properties', icon: Building2, label: 'Properties', page: 'properties' },
+  { to: '/app/reservations', icon: CalendarDays, label: 'Reservations', page: 'reservations' },
+  { to: '/app/guest-portal', icon: Users, label: 'Guest Portal', page: 'guest-portal' },
+  { to: '/app/services', icon: ConciergeBell, label: 'Services', page: 'services' },
+  { to: '/app/tasks', icon: ClipboardList, label: 'Tasks', page: 'tasks' },
+  { to: '/app/calendar', icon: Calendar, label: 'Calendar', page: 'calendar' },
+  { to: '/app/partners', icon: Handshake, label: 'Partners', page: 'partners' },
+  { to: '/app/payments', icon: CreditCard, label: 'Payments', page: 'payments' },
+  { to: '/app/contracts', icon: FileText, label: 'Contracts', page: 'contracts' },
+  { to: '/app/contracts/generate', icon: FilePlus, label: 'Contract Gen.', page: 'contracts' },
+  { to: '/app/invoices/generate', icon: Receipt, label: 'Invoice Gen.', page: 'contracts' },
+  { to: '/app/reports', icon: BarChart3, label: 'Reports', page: 'reports' },
+  { to: '/app/settings', icon: Settings, label: 'Settings', page: 'settings' },
 ]
 
 interface SidebarProps {
@@ -31,6 +32,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
+  const { isVisible } = useRoleFilter()
+
+  const visibleItems = navItems.filter(item => isVisible(item.page))
+
   return (
     <>
       {mobileOpen && (
@@ -61,7 +66,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         </div>
 
         <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-          {navItems.map(item => (
+          {visibleItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}

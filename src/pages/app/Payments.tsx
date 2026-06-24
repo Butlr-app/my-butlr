@@ -10,6 +10,7 @@ import { usePayments, type Payment } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Plus, Loader2, Trash2, Pencil, Download } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
 
@@ -23,9 +24,11 @@ const emptyForm = {
 }
 
 export function Payments() {
-  const { data: payments, loading, insert, update, remove } = usePayments()
+  const { data: rawPayments, loading, insert, update, remove } = usePayments()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterPayments } = useRoleFilter()
+  const payments = filterPayments(rawPayments)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)

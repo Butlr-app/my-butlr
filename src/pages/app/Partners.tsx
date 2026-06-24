@@ -10,6 +10,7 @@ import { usePartners, type Partner } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Star, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
 
@@ -24,9 +25,11 @@ const emptyForm = {
 }
 
 export function Partners() {
-  const { data: partners, loading, insert, update, remove } = usePartners()
+  const { data: rawPartners, loading, insert, update, remove } = usePartners()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterPartners } = useRoleFilter()
+  const partners = filterPartners(rawPartners)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)

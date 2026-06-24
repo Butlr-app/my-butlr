@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Link } from 'react-router-dom'
 import { MapPin, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 9
 
@@ -35,10 +36,12 @@ const emptyForm = {
 }
 
 export function Properties() {
-  const { data: properties, loading, insert, update, remove } = useProperties()
+  const { data: rawProperties, loading, insert, update, remove } = useProperties()
   const { user } = useAuth()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterProperties } = useRoleFilter()
+  const properties = filterProperties(rawProperties)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -156,11 +159,14 @@ export function Properties() {
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {paginated.map(property => (
               <Card key={property.id} className="overflow-hidden">
-                <div className="aspect-[16/9] bg-muted flex items-center justify-center">
+                <div className="aspect-[16/9] bg-muted flex items-center justify-center relative overflow-hidden">
                   {property.image_url ? (
-                    <img src={property.image_url} alt={property.name} className="w-full h-full object-cover" />
+                    <img src={property.image_url} alt={property.name} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <span className="text-xs text-muted-foreground font-mono">IMAGE</span>
+                    <div className="flex flex-col items-center gap-1">
+                      <MapPin className="w-5 h-5 text-muted-foreground/40" />
+                      <span className="text-[10px] text-muted-foreground/40 font-mono">No image</span>
+                    </div>
                   )}
                 </div>
                 <div className="p-5 space-y-3">

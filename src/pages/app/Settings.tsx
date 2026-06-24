@@ -9,6 +9,7 @@ import { useProfile, useProperties, useServices, usePayments, type Property, typ
 import { useToast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 
 const settingsTabs = ['Account', 'Team', 'Properties', 'Payments', 'Services']
 
@@ -111,6 +112,19 @@ function AccountTab({ profile, loading, updateProfile, toast }: {
       <Card className="p-6">
         <h3 className="text-base font-semibold mb-6">Profile</h3>
         <div className="space-y-4">
+          <ImageUpload
+            variant="avatar"
+            storagePath="avatars"
+            currentUrl={profile?.avatar_url}
+            onUploaded={async (url) => {
+              try {
+                await updateProfile({ avatar_url: url })
+                toast('Avatar updated')
+              } catch (err) {
+                toast((err as Error).message, 'error')
+              }
+            }}
+          />
           <Input label="Full name" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} required />
           <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           <Input label="Phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
