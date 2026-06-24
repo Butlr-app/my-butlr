@@ -3,6 +3,7 @@ import { RoleProvider } from './lib/roleContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AuthProvider } from './lib/authContext'
 import { SearchProvider } from './lib/searchContext'
+import { LanguageProvider } from './i18n/LanguageContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
@@ -22,6 +23,7 @@ import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
 import { Reports } from './pages/app/Reports'
 import { Settings } from './pages/app/Settings'
+import { SearchResults } from './pages/app/SearchResults'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { ContractGenerator } from './pages/app/ContractGenerator'
@@ -32,6 +34,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 export default function App() {
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <AuthProvider>
     <RoleProvider>
     <SearchProvider>
@@ -63,6 +66,7 @@ export default function App() {
           <Route path="invoices/generate" element={<InvoiceGenerator />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="search" element={<SearchResults />} />
         </Route>
 
         {/* 404 */}
@@ -73,6 +77,7 @@ export default function App() {
     </SearchProvider>
     </RoleProvider>
     </AuthProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   )
 }
