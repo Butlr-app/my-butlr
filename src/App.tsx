@@ -28,6 +28,10 @@ import { ContractGenerator } from './pages/app/ContractGenerator'
 import { InvoiceGenerator } from './pages/app/InvoiceGenerator'
 import { NotFound } from './pages/NotFound'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { PrivacyPolicy } from './pages/PrivacyPolicy'
+import { Terms } from './pages/Terms'
+import { Onboarding } from './pages/app/Onboarding'
+import { CookieConsent } from './components/CookieConsent'
 
 export default function App() {
   return (
@@ -45,6 +49,11 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<Terms />} />
+
+        {/* Onboarding wizard */}
+        <Route path="/app/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
         {/* Protected app pages */}
         <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -69,6 +78,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
+    <CookieConsent />
     </ToastProvider>
     </SearchProvider>
     </RoleProvider>
