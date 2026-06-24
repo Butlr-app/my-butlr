@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -35,6 +35,8 @@ export function Reservations() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [page, setPage] = useState(0)
+
+  useEffect(() => { setPage(0) }, [query])
 
   const filtered = reservations.filter(r => {
     if (!query) return true
@@ -80,6 +82,7 @@ export function Reservations() {
   const handleStatusChange = async (id: string, status: Reservation['status']) => {
     try {
       await update(id, { status })
+      setSelected(prev => prev ? { ...prev, status } : prev)
       toast(`Status updated to ${status}`)
     } catch (err) {
       toast((err as Error).message, 'error')

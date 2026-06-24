@@ -230,11 +230,13 @@ export function usePropertyAmenities(propertyId: string | undefined) {
 
   const saveAmenities = async (keys: string[]) => {
     if (!propertyId) return
-    await supabase.from('property_amenities').delete().eq('property_id', propertyId)
+    const { error: delError } = await supabase.from('property_amenities').delete().eq('property_id', propertyId)
+    if (delError) throw new Error(delError.message)
     if (keys.length > 0) {
-      await supabase.from('property_amenities').insert(
+      const { error: insError } = await supabase.from('property_amenities').insert(
         keys.map(k => ({ property_id: propertyId, amenity_key: k }))
       )
+      if (insError) throw new Error(insError.message)
     }
     setAmenityKeys(keys)
   }

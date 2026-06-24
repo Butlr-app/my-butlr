@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -33,6 +33,8 @@ export function Services() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [page, setPage] = useState(0)
+
+  useEffect(() => { setPage(0) }, [query])
 
   const filtered = services.filter(s => {
     if (!query) return true
