@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { RoleProvider } from './lib/roleContext'
+import { ToastProvider } from './components/ui/Toast'
 import { AuthProvider } from './lib/authContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Landing } from './pages/Landing'
@@ -25,6 +26,7 @@ export default function App() {
   return (
     <AuthProvider>
     <RoleProvider>
+    <ToastProvider>
     <BrowserRouter>
       <Routes>
         {/* Public pages */}
@@ -51,6 +53,7 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
     </RoleProvider>
     </AuthProvider>
   )
