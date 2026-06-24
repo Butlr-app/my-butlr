@@ -13,10 +13,29 @@ export interface Property {
   bedrooms: number
   bathrooms: number
   max_guests: number
+  surface_m2: number
+  units: number
   description: string | null
   image_url: string | null
   created_at: string
   updated_at: string
+}
+
+export interface PropertyAmenity {
+  id: string
+  property_id: string
+  amenity_key: string
+  created_at: string
+}
+
+export interface PropertyRoom {
+  id: string
+  property_id: string
+  room_type: string
+  room_name: string | null
+  variant: 'private' | 'shared'
+  bedding: Array<{ type: string; count: number }>
+  created_at: string
 }
 
 export interface Reservation {
@@ -190,6 +209,87 @@ function useTable<T>(table: string) {
 
 export function useProperties() {
   return useTable<Property>('properties')
+}
+
+export function usePropertyAmenities(propertyId: string | undefined) {
+  const [amenityKeys, setAmenityKeys] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchAmenities = useCallback(async () => {
+    if (!propertyId) { setAmenityKeys([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('property_amenities')
+      .select('amenity_key')
+      .eq('property_id', propertyId)
+    setAmenityKeys((data ?? []).map(r => (r as PropertyAmenity).amenity_key))
+    setLoading(false)
+  }, [propertyId])
+
+  useEffect(() => { fetchAmenities() }, [fetchAmenities])
+
+  const saveAmenities = async (keys: string[]) => {
+    if (!propertyId) return
+    await supabase.from('property_amenities').delete().eq('property_id', propertyId)
+    if (keys.length > 0) {
+      await supabase.from('property_amenities').insert(
+        keys.map(k => ({ property_id: propertyId, amenity_key: k }))
+      )
+    }
+    setAmenityKeys(keys)
+  }
+
+  return { amenityKeys, loading, saveAmenities, refetch: fetchAmenities }
+}
+
+export function usePropertyRooms(propertyId: string | undefined) {
+  const [rooms, setRooms] = useState<PropertyRoom[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchRooms = useCallback(async () => {
+    if (!propertyId) { setRooms([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('property_rooms')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: true })
+    setRooms((data ?? []) as PropertyRoom[])
+    setLoading(false)
+  }, [propertyId])
+
+  useEffect(() => { fetchRooms() }, [fetchRooms])
+
+  const addRoom = async (room: Omit<PropertyRoom, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase
+      .from('property_rooms')
+      .insert(room)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setRooms(prev => [...prev, data as PropertyRoom])
+    return data as PropertyRoom
+  }
+
+  const updateRoom = async (id: string, changes: Partial<PropertyRoom>) => {
+    const { data, error } = await supabase
+      .from('property_rooms')
+      .update(changes as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setRooms(prev => prev.map(r => r.id === id ? (data as PropertyRoom) : r))
+    return data as PropertyRoom
+  }
+
+  const removeRoom = async (id: string) => {
+    const { error } = await supabase.from('property_rooms').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setRooms(prev => prev.filter(r => r.id !== id))
+  }
+
+  return { rooms, loading, addRoom, updateRoom, removeRoom, refetch: fetchRooms }
 }
 
 export function useReservations() {

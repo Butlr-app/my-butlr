@@ -29,6 +29,8 @@ const emptyForm = {
   bedrooms: 0,
   bathrooms: 0,
   max_guests: 0,
+  surface_m2: 0,
+  units: 1,
   description: '',
 }
 
@@ -81,6 +83,8 @@ export function Properties() {
       bedrooms: p.bedrooms,
       bathrooms: p.bathrooms,
       max_guests: p.max_guests,
+      surface_m2: p.surface_m2 ?? 0,
+      units: p.units ?? 1,
       description: p.description ?? '',
     })
     setErrors({})
@@ -257,6 +261,10 @@ export function Properties() {
               <Input label="Max Guests" type="number" min={0} value={form.max_guests} onChange={e => setForm(f => ({ ...f, max_guests: Number(e.target.value) }))} />
               {errors.max_guests && <p className="text-xs text-destructive mt-1">{errors.max_guests}</p>}
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Surface (m²)" type="number" min={0} value={form.surface_m2} onChange={e => setForm(f => ({ ...f, surface_m2: Number(e.target.value) }))} />
+            <Input label="Units" type="number" min={1} value={form.units} onChange={e => setForm(f => ({ ...f, units: Number(e.target.value) }))} />
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium">Description</label>

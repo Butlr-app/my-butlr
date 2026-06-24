@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS properties (
   bedrooms INTEGER DEFAULT 0,
   bathrooms INTEGER DEFAULT 0,
   max_guests INTEGER DEFAULT 0,
+  surface_m2 INTEGER DEFAULT 0,
+  units INTEGER DEFAULT 1,
   description TEXT,
   image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -130,6 +132,26 @@ CREATE TABLE IF NOT EXISTS calendar_events (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Property Amenities (many-to-many: property <-> amenity keys)
+CREATE TABLE IF NOT EXISTS property_amenities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  amenity_key TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(property_id, amenity_key)
+);
+
+-- Property Rooms (bedding, room types, variants)
+CREATE TABLE IF NOT EXISTS property_rooms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  room_type TEXT NOT NULL,
+  room_name TEXT,
+  variant TEXT DEFAULT 'private',
+  bedding JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
@@ -140,6 +162,8 @@ ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_amenities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_rooms ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (allow authenticated users to read all, write own)
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
@@ -173,6 +197,9 @@ CREATE POLICY "Authenticated manage contracts" ON contracts FOR ALL TO authentic
 
 CREATE POLICY "Authenticated read calendar" ON calendar_events FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated manage calendar" ON calendar_events FOR ALL TO authenticated USING (true);
+
+CREATE POLICY "Authenticated manage property_amenities" ON property_amenities FOR ALL TO authenticated USING (true);
+CREATE POLICY "Authenticated manage property_rooms" ON property_rooms FOR ALL TO authenticated USING (true);
 
 -- Function to handle new user registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()
