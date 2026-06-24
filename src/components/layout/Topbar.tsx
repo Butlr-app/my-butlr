@@ -18,7 +18,7 @@ const roles: { value: Role; label: string }[] = [
 ]
 
 export function Topbar({ title }: TopbarProps) {
-  const [dark, setDark] = useState(true)
+  const [dark, setDark] = useState(false)
   const { role, setRole } = useRole()
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
