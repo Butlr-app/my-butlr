@@ -21,8 +21,15 @@ export function Signup() {
     const fullName = form.get('fullName') as string
     const email = form.get('email') as string
     const password = form.get('password') as string
+    const role = form.get('role') as string
 
-    const { error } = await signUp(email, password, fullName)
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      setLoading(false)
+      return
+    }
+
+    const { error } = await signUp(email, password, fullName, role)
     setLoading(false)
 
     if (error) {

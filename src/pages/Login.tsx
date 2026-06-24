@@ -48,10 +48,15 @@ export function Login() {
           </Button>
         </form>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          No account?{' '}
-          <Link to="/signup" className="text-foreground hover:underline">Create one</Link>
-        </p>
+        <div className="text-center mt-6 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            <Link to="/forgot-password" className="text-foreground hover:underline">Forgot your password?</Link>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            No account?{' '}
+            <Link to="/signup" className="text-foreground hover:underline">Create one</Link>
+          </p>
+        </div>
       </div>
     </div>
   )
