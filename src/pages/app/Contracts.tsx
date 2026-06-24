@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { useContracts, type Contract } from '@/lib/useSupabase'
+import { useContracts, useNotifications, type Contract } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
-import { Plus, Loader2, Trash2, FileText, Pencil, Download } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { Plus, Loader2, Trash2, FileText, Pencil, Download, Send, Link2, Copy, Archive } from 'lucide-react'
 
 const PAGE_SIZE = 20
 
@@ -23,8 +24,10 @@ const emptyForm = {
 
 export function Contracts() {
   const { data: contracts, loading, insert, update, remove } = useContracts()
+  const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
+  const [signingLink, setSigningLink] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -97,7 +100,7 @@ export function Contracts() {
     const flow: Record<string, string> = {
       draft: 'sent',
       sent: 'signed',
-      signed: 'expired',
+      signed: 'archived',
     }
     const next = flow[current]
     if (!next) return
@@ -106,6 +109,51 @@ export function Contracts() {
       toast(`Contract ${next}`)
     } catch (err) {
       toast((err as Error).message, 'error')
+    }
+  }
+
+  const generateSigningLink = async (contract: Contract) => {
+    try {
+      let token = contract.signing_token
+      if (!token) {
+        token = crypto.randomUUID()
+        await update(contract.id, { signing_token: token })
+      }
+      const link = `${window.location.origin}/sign/${token}`
+      setSigningLink(link)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const sendForSignature = async (contract: Contract) => {
+    try {
+      let token = contract.signing_token
+      if (!token) {
+        token = crypto.randomUUID()
+        await update(contract.id, { signing_token: token, status: 'sent' })
+      } else {
+        await update(contract.id, { status: 'sent' })
+      }
+      const { data: { user } } = await supabase.auth.getUser()
+      await insertNotification({
+        user_id: user?.id ?? null,
+        type: 'system',
+        title: `Contract sent for signature`,
+        message: `Contract for ${contract.guest_name} has been sent for signature`,
+        data: { contract_id: contract.id },
+        related_id: null,
+      })
+      toast('Contract sent for signature')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const copyLink = () => {
+    if (signingLink) {
+      navigator.clipboard.writeText(signingLink)
+      toast('Link copied to clipboard')
     }
   }
 
@@ -156,8 +204,8 @@ export function Contracts() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-4 gap-4">
-        {(['draft', 'sent', 'signed', 'expired'] as const).map(status => {
+      <div className="grid sm:grid-cols-5 gap-4">
+        {(['draft', 'sent', 'signed', 'archived', 'expired'] as const).map(status => {
           const count = contracts.filter(c => c.status === status).length
           return (
             <Card key={status} className="p-5">
@@ -207,6 +255,7 @@ export function Contracts() {
                           <Badge variant={
                             c.status === 'signed' ? 'success' :
                             c.status === 'sent' ? 'info' :
+                            c.status === 'archived' ? 'muted' :
                             c.status === 'expired' ? 'muted' : 'warning'
                           }>
                             {c.status}
@@ -214,11 +263,26 @@ export function Contracts() {
                         </button>
                       </td>
                       <td className="px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <div className="flex items-center justify-end gap-1">
+                          {c.status === 'draft' && (
+                            <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send for signature">
+                              <Send className="w-4 h-4" />
+                            </button>
+                          )}
+                          {(c.status === 'draft' || c.status === 'sent') && (
+                            <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Get signing link">
+                              <Link2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {c.status === 'signed' && (
+                            <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Archive">
+                              <Archive className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors">
+                          <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -274,6 +338,7 @@ export function Contracts() {
                 { value: 'draft', label: 'Draft' },
                 { value: 'sent', label: 'Sent' },
                 { value: 'signed', label: 'Signed' },
+                { value: 'archived', label: 'Archived' },
                 { value: 'expired', label: 'Expired' },
               ]}
             />
@@ -286,6 +351,26 @@ export function Contracts() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Signing Link Modal */}
+      <Modal open={!!signingLink} onClose={() => setSigningLink(null)} title="Signing Link">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Share this link with the signer. They can sign the contract without logging in.</p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={signingLink ?? ''}
+              className="flex-1 h-10 px-3 bg-muted border border-input rounded-sm text-sm font-mono"
+            />
+            <Button size="sm" onClick={copyLink}>
+              <Copy className="w-4 h-4 mr-1" /> Copy
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setSigningLink(null)}>Close</Button>
+          </div>
+        </div>
       </Modal>
 
       <ConfirmModal

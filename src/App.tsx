@@ -26,6 +26,9 @@ import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { ContractGenerator } from './pages/app/ContractGenerator'
 import { InvoiceGenerator } from './pages/app/InvoiceGenerator'
+import { Invoices } from './pages/app/Invoices'
+import { NotificationsPage } from './pages/app/NotificationsPage'
+import { ContractSigning } from './pages/ContractSigning'
 import { NotFound } from './pages/NotFound'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
@@ -46,6 +49,9 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
+        {/* Public signing page */}
+        <Route path="/sign/:token" element={<ContractSigning />} />
+
         {/* Protected app pages */}
         <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
@@ -60,7 +66,9 @@ export default function App() {
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
           <Route path="contracts/generate" element={<ContractGenerator />} />
+          <Route path="invoices" element={<Invoices />} />
           <Route path="invoices/generate" element={<InvoiceGenerator />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
         </Route>

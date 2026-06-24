@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt
+  FilePlus, Receipt, Bell
 } from 'lucide-react'
 
 const navItems = [
@@ -18,7 +18,9 @@ const navItems = [
   { to: '/app/payments', icon: CreditCard, label: 'Payments' },
   { to: '/app/contracts', icon: FileText, label: 'Contracts' },
   { to: '/app/contracts/generate', icon: FilePlus, label: 'Contract Gen.' },
-  { to: '/app/invoices/generate', icon: Receipt, label: 'Invoice Gen.' },
+  { to: '/app/invoices', icon: Receipt, label: 'Invoices' },
+  { to: '/app/invoices/generate', icon: FilePlus, label: 'Invoice Gen.' },
+  { to: '/app/notifications', icon: Bell, label: 'Notifications' },
   { to: '/app/reports', icon: BarChart3, label: 'Reports' },
   { to: '/app/settings', icon: Settings, label: 'Settings' },
 ]
