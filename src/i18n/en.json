@@ -140,7 +140,9 @@
     "done": "Done",
     "high": "High",
     "medium": "Medium",
-    "low": "Low"
+    "low": "Low",
+    "priority": "Priority",
+    "dueDate": "Due Date"
   },
   "partners": {
     "title": "Partners",

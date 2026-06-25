@@ -140,7 +140,9 @@
     "done": "Terminé",
     "high": "Haute",
     "medium": "Moyenne",
-    "low": "Basse"
+    "low": "Basse",
+    "priority": "Priorité",
+    "dueDate": "Date d'échéance"
   },
   "partners": {
     "title": "Partenaires",

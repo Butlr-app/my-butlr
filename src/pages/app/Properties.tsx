@@ -6,12 +6,16 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { ExportButton } from '@/components/ExportButton'
+import { CsvImportModal } from '@/components/CsvImportModal'
+import { FilterSidebar } from '@/components/FilterSidebar'
 import { useProperties, type Property } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
+import { useTranslation } from '@/i18n/LanguageContext'
 import { Link } from 'react-router-dom'
-import { MapPin, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { MapPin, Plus, Loader2, Trash2, Pencil, Filter, Upload } from 'lucide-react'
 
 const PAGE_SIZE = 9
 
@@ -38,7 +42,7 @@ export function Properties() {
   const { data: properties, loading, insert, update, remove } = useProperties()
   const { user } = useAuth()
   const { toast } = useToast()
-  const { query } = useSearch()
+  const { query, filters } = useSearch()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -46,13 +50,21 @@ export function Properties() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [page, setPage] = useState(0)
+  const [showImport, setShowImport] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const { t } = useTranslation()
 
   useEffect(() => { setPage(0) }, [query])
 
   const filtered = properties.filter(p => {
-    if (!query) return true
-    const q = query.toLowerCase()
-    return p.name.toLowerCase().includes(q) || (p.location ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q)
+    if (query) {
+      const q = query.toLowerCase()
+      if (!(p.name.toLowerCase().includes(q) || (p.location ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q))) return false
+    }
+    if (filters.propertyType && filters.propertyType.length > 0 && !filters.propertyType.includes(p.type)) return false
+    if (filters.propertyLocation && !(p.location ?? '').toLowerCase().includes(filters.propertyLocation.toLowerCase())) return false
+    if (filters.propertyBedrooms !== undefined && p.bedrooms < filters.propertyBedrooms) return false
+    return true
   })
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -133,15 +145,48 @@ export function Properties() {
     )
   }
 
+  const exportColumns: { key: keyof Property; label: string }[] = [
+    { key: 'name', label: t('common.name') },
+    { key: 'location', label: t('common.location') },
+    { key: 'type', label: t('common.type') },
+    { key: 'status', label: t('common.status') },
+    { key: 'bedrooms', label: t('properties.bedrooms') },
+    { key: 'bathrooms', label: t('properties.bathrooms') },
+    { key: 'max_guests', label: t('properties.maxGuests') },
+    { key: 'surface_m2', label: t('properties.surface') },
+  ]
+
+  const importFields = [
+    { key: 'name', label: t('common.name'), required: true },
+    { key: 'location', label: t('common.location') },
+    { key: 'type', label: t('common.type') },
+    { key: 'status', label: t('common.status') },
+    { key: 'bedrooms', label: t('properties.bedrooms') },
+    { key: 'bathrooms', label: t('properties.bathrooms') },
+    { key: 'max_guests', label: t('properties.maxGuests') },
+    { key: 'surface_m2', label: t('properties.surface') },
+    { key: 'description', label: t('common.description') },
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="flex">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Portfolio</p>
+          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('properties.title')}</p>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add property
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
+          </Button>
+          <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`properties-${new Date().toISOString().split('T')[0]}`} />
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-1" /> {t('common.import')}
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> {t('properties.addProperty')}
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -294,6 +339,15 @@ export function Properties() {
         title="Delete property"
         message={`Delete "${deleteTarget?.name}"? This action cannot be undone.`}
       />
+
+      <CsvImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        targetTable="properties"
+        targetFields={importFields}
+      />
+    </div>
+    <FilterSidebar page="properties" open={showFilters} onClose={() => setShowFilters(false)} />
     </div>
   )
 }
