@@ -5,13 +5,19 @@ import { useDashboardKPIs, useReservations, useTasks, usePayments } from '@/lib/
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 export function Dashboard() {
   const { role } = useRole()
+  const { filterReservations, filterTasks, filterPayments } = useRoleFilter()
   const { kpis } = useDashboardKPIs()
-  const { data: reservations, loading: loadingRes } = useReservations()
-  const { data: tasks, loading: loadingTasks } = useTasks()
-  const { data: payments, loading: loadingPay } = usePayments()
+  const { data: rawReservations, loading: loadingRes } = useReservations()
+  const { data: rawTasks, loading: loadingTasks } = useTasks()
+  const { data: rawPayments, loading: loadingPay } = usePayments()
+
+  const reservations = filterReservations(rawReservations)
+  const tasks = filterTasks(rawTasks)
+  const payments = filterPayments(rawPayments)
 
   const loading = loadingRes || loadingTasks || loadingPay
 

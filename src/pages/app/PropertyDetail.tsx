@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { useProperties, useReservations, useTasks, usePropertyAmenities, usePropertyRooms, type PropertyRoom } from '@/lib/useSupabase'
+import { useProperties, useReservations, useTasks, usePropertyAmenities, usePropertyRooms, usePropertyImages, type PropertyRoom } from '@/lib/useSupabase'
+import { ImageUpload, ImageGallery } from '@/components/ui/ImageUpload'
 import { useToast } from '@/components/ui/Toast'
 import { AMENITY_CATEGORIES, ROOM_TYPES, BEDDING_TYPES } from '@/data/amenities'
 import {
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
-const tabs = ['Overview', 'Amenities', 'Rooms', 'Bookings', 'Tasks', 'Services', 'Documents']
+const tabs = ['Overview', 'Photos', 'Amenities', 'Rooms', 'Bookings', 'Tasks', 'Services', 'Documents']
 
 const statusMap: Record<string, { variant: 'success' | 'muted' | 'warning'; label: string }> = {
   active: { variant: 'success', label: 'Active' },
@@ -45,6 +46,7 @@ export function PropertyDetail() {
   const { data: tasks } = useTasks()
   const { amenityKeys, loading: amenitiesLoading, saveAmenities } = usePropertyAmenities(id)
   const { rooms, loading: roomsLoading, addRoom, updateRoom, removeRoom } = usePropertyRooms(id)
+  const { images, loading: imagesLoading, addImage, removeImage } = usePropertyImages(id)
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('Overview')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['essentials']))
@@ -296,6 +298,40 @@ export function PropertyDetail() {
               <p className="text-sm text-muted-foreground">{property.description}</p>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* ─── Photos Tab ──────────────────────────────────────────── */}
+      {activeTab === 'Photos' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">
+              Photo Gallery {images.length > 0 && `(${images.length})`}
+            </p>
+          </div>
+          <ImageUpload
+            storagePath={`properties/${id}`}
+            onUploaded={async (url, storagePath) => {
+              try {
+                await addImage({ property_id: id!, url, storage_path: storagePath, caption: null, sort_order: images.length })
+                toast('Photo uploaded')
+              } catch (err) {
+                toast((err as Error).message, 'error')
+              }
+            }}
+          />
+          <ImageGallery
+            images={images}
+            loading={imagesLoading}
+            onRemove={async (imgId) => {
+              try {
+                await removeImage(imgId)
+                toast('Photo removed')
+              } catch (err) {
+                toast((err as Error).message, 'error')
+              }
+            }}
+          />
         </div>
       )}
 

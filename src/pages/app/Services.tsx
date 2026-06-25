@@ -9,7 +9,8 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useServices, type Service } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
-import { Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { Plus, Loader2, Trash2, Pencil, ConciergeBell } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 12
 
@@ -23,9 +24,11 @@ const emptyForm = {
 }
 
 export function Services() {
-  const { data: services, loading, insert, update, remove } = useServices()
+  const { data: rawServices, loading, insert, update, remove } = useServices()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterServices } = useRoleFilter()
+  const services = filterServices(rawServices)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -145,11 +148,14 @@ export function Services() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {paginated.map(service => (
               <Card key={service.id} className="overflow-hidden flex flex-col">
-                <div className="aspect-square bg-muted flex items-center justify-center">
+                <div className="aspect-square bg-muted flex items-center justify-center relative overflow-hidden">
                   {service.image_url ? (
-                    <img src={service.image_url} alt={service.name} className="w-full h-full object-cover" />
+                    <img src={service.image_url} alt={service.name} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <span className="text-xs text-muted-foreground font-mono">IMAGE</span>
+                    <div className="flex flex-col items-center gap-1">
+                      <ConciergeBell className="w-5 h-5 text-muted-foreground/40" />
+                      <span className="text-[10px] text-muted-foreground/40 font-mono">No image</span>
+                    </div>
                   )}
                 </div>
                 <div className="p-4 flex-1 flex flex-col">
