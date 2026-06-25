@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
+import { CheckInForm } from '@/components/CheckInForm'
 import { useReservations, useServices, useContracts, useMessages, useServiceRequests } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
@@ -24,7 +25,7 @@ export function GuestPortal() {
 
   const loading = lRes || lSvc
 
-  const [activeSection, setActiveSection] = useState<'overview' | 'services' | 'messages'>('overview')
+  const [activeSection, setActiveSection] = useState<'overview' | 'check-in' | 'services' | 'messages'>('overview')
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [requestForm, setRequestForm] = useState({
     service_name: '',
@@ -130,7 +131,7 @@ export function GuestPortal() {
       )}
 
       <div className="flex gap-2 border-b border-border pb-0">
-        {(['overview', 'services', 'messages'] as const).map(section => (
+        {(['overview', 'check-in', 'services', 'messages'] as const).map(section => (
           <button
             key={section}
             onClick={() => setActiveSection(section)}
@@ -141,6 +142,7 @@ export function GuestPortal() {
             }`}
           >
             {section === 'overview' && 'Overview'}
+            {section === 'check-in' && 'Check-in'}
             {section === 'services' && 'Services'}
             {section === 'messages' && 'Messages'}
           </button>
@@ -240,6 +242,18 @@ export function GuestPortal() {
             </Card>
           )}
         </>
+      )}
+
+      {activeSection === 'check-in' && currentReservation && (
+        <CheckInForm reservation={currentReservation} />
+      )}
+
+      {activeSection === 'check-in' && !currentReservation && (
+        <Card className="p-12 text-center">
+          <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm font-medium">No reservation to check in</p>
+          <p className="text-xs text-muted-foreground mt-1">Check-in is linked to a reservation.</p>
+        </Card>
       )}
 
       {activeSection === 'services' && (

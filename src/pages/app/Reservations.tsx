@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { CsvImportModal } from '@/components/CsvImportModal'
 import { IcalSyncModal } from '@/components/IcalSyncModal'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { useReservations, useProperties, useNotifications, type Reservation } from '@/lib/useSupabase'
+import { useReservations, useProperties, useNotifications, useCheckins, type Reservation } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
@@ -34,7 +34,9 @@ export function Reservations() {
   const { data: rawReservations, loading, insert, update } = useReservations()
   const { data: properties } = useProperties()
   const { insertNotification } = useNotifications()
+  const { checkins } = useCheckins()
   const { toast } = useToast()
+  const checkinByReservation = new Map(checkins.map(c => [c.reservation_id, c]))
   const { query, filters } = useSearch()
   const { t } = useTranslation()
   const { filterReservations } = useRoleFilter()
@@ -179,6 +181,7 @@ export function Reservations() {
                   <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Payment</th>
                   <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Contract</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Check-in</th>
                 </tr>
               </thead>
               <tbody>
@@ -205,6 +208,11 @@ export function Reservations() {
                     <td className="px-4">
                       <Badge variant={r.contract_status === 'signed' ? 'success' : r.contract_status === 'sent' ? 'info' : 'muted'}>
                         {r.contract_status}
+                      </Badge>
+                    </td>
+                    <td className="px-4">
+                      <Badge variant={checkinByReservation.get(r.id)?.status === 'completed' ? 'success' : 'muted'}>
+                        {checkinByReservation.get(r.id)?.status === 'completed' ? 'completed' : 'pending'}
                       </Badge>
                     </td>
                   </tr>
@@ -274,6 +282,36 @@ export function Reservations() {
                 <p className="text-sm text-muted-foreground">{selected.notes}</p>
               </div>
             )}
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Online Check-in</p>
+              {(() => {
+                const ci = checkinByReservation.get(selected.id)
+                if (!ci || ci.status !== 'completed') {
+                  return <Badge variant="muted">Pending</Badge>
+                }
+                return (
+                  <div className="space-y-3">
+                    <Badge variant="success">Completed {ci.submitted_at ? `· ${new Date(ci.submitted_at).toLocaleString()}` : ''}</Badge>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div><span className="text-muted-foreground">Guests:</span> {ci.num_guests}</div>
+                      <div><span className="text-muted-foreground">Arrival:</span> {ci.estimated_arrival ?? '—'}</div>
+                      <div><span className="text-muted-foreground">Nationality:</span> {ci.nationality ?? '—'}</div>
+                      <div><span className="text-muted-foreground">ID:</span> {ci.id_doc_type} · {ci.id_doc_number ?? '—'}</div>
+                    </div>
+                    {ci.special_requests && <p className="text-sm text-muted-foreground">{ci.special_requests}</p>}
+                    {ci.id_document_url && (
+                      <a href={ci.id_document_url} target="_blank" rel="noopener noreferrer" className="text-sm underline">View ID document</a>
+                    )}
+                    {ci.signature_data && (
+                      <div>
+                        <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Signature</p>
+                        <img src={ci.signature_data} alt="Signature" className="border border-border rounded-sm bg-white max-w-[220px]" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
           </div>
         )}
       </Modal>
