@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { CsvImportModal } from '@/components/CsvImportModal'
+import { IcalSyncModal } from '@/components/IcalSyncModal'
 import { FilterSidebar } from '@/components/FilterSidebar'
 import { useReservations, useProperties, useNotifications, type Reservation } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
-import { Plus, Loader2, Download, Filter, Upload } from 'lucide-react'
+import { Plus, Loader2, Download, Filter, Upload, CalendarSync } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
@@ -44,6 +45,7 @@ export function Reservations() {
   const [saving, setSaving] = useState(false)
   const [page, setPage] = useState(0)
   const [showImport, setShowImport] = useState(false)
+  const [showIcal, setShowIcal] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => { setPage(0) }, [query])
@@ -146,6 +148,9 @@ export function Reservations() {
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="w-4 h-4 mr-1" /> {t('common.import')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowIcal(true)}>
+            <CalendarSync className="w-4 h-4 mr-1" /> {t('ical.title')}
           </Button>
           <Button size="sm" onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4 mr-1" /> {t('reservations.addReservation')}
@@ -278,6 +283,18 @@ export function Reservations() {
         onClose={() => setShowImport(false)}
         targetTable="reservations"
         targetFields={importFields}
+      />
+
+      <IcalSyncModal
+        open={showIcal}
+        onClose={() => setShowIcal(false)}
+        reservations={rawReservations}
+        properties={properties}
+        onImport={async rows => {
+          for (const row of rows) {
+            await insert(row)
+          }
+        }}
       />
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Reservation">
