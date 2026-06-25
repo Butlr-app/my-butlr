@@ -244,6 +244,20 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 - Screenshots may miss transient toasts — always supplement with Playwright DOM verification
 - The toast component renders at the bottom-right of the viewport
 
+### 21. Real-time Messaging — Guest ↔ Manager (Supabase Realtime)
+- Two windows on the SAME reservation: Guest `/app/guest-portal` → Messages tab, Manager `/app/messages` → select the conversation.
+- Bootstrap: Guest Portal binds to `guestReservations[0]` (`GuestPortal.tsx`). Send one message from the Guest window to create the conversation, then reload the Manager window so the conversation row appears and select it. Both windows are then subscribed to the same `messages-${reservationId}` channel.
+- Guest → Manager: type a unique token (e.g. `GUEST-RT-<ts>`), Send — within ~2s the bubble appears in the Manager window WITHOUT refresh, and the conversation row preview updates with a "now" timestamp.
+- Manager → Guest: type `MGR-RT-<ts>`, Send — appears live in the Guest window WITHOUT refresh.
+- Scoping: both windows show ONLY messages for that reservation.
+- Adversarial check: a broken (non-realtime) implementation would show the message only in the sender window until manual reload — so the "no refresh" observation is the real proof.
+
+### Important Learnings — Realtime Messaging
+- **Unread badge is NOT testable in the single-user prototype**: `useUnreadMessages` (`useSupabase.ts`) counts rows where `sender_id != currentUserId AND read = false`. Both guest and manager sides log in as the same `test@mybutlr.com` user, so every message is "own-sent" and excluded — the badge stays at 0. Report this as **untested** (don't fake it). To actually test it you'd need two distinct Supabase user accounts (one guest, one manager). The Topbar message icon (chat bubble) is separate from the notifications bell (which may show its own count) — don't confuse the two.
+- **DB-level RLS isolation is also untestable in proto**: policies are permissive `USING(true)`; strict policies are only commented in `supabase/rls-production-policies.sql`. UI-level per-reservation scoping CAN be shown; DB-level isolation cannot.
+- Realtime requires the `messages` table to be added to the `supabase_realtime` publication. If live delivery fails, verify the publication includes `messages` before assuming the code is broken.
+- Both windows can be the same browser profile/login — Realtime delivery still works because each ChatThread subscribes its own channel on mount.
+
 ## Troubleshooting
 
 - **Login fails**: Check test account exists in Supabase Auth. Email confirmation should be disabled.
