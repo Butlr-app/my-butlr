@@ -830,6 +830,83 @@ export function useUnreadMessages(currentUserId: string | undefined) {
   return count
 }
 
+// ─── Check-ins ───────────────────────────────────────────────────────────────
+
+export interface Checkin {
+  id: string
+  reservation_id: string
+  guest_name: string
+  guest_email: string | null
+  guest_phone: string | null
+  address: string | null
+  nationality: string | null
+  id_doc_type: 'passport' | 'id_card' | 'driver_license'
+  id_doc_number: string | null
+  num_guests: number
+  estimated_arrival: string | null
+  special_requests: string | null
+  id_document_url: string | null
+  signature_data: string | null
+  rules_accepted: boolean
+  status: 'pending' | 'completed'
+  submitted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CheckinInput = Omit<Checkin, 'id' | 'created_at' | 'updated_at'>
+
+export function useCheckin(reservationId: string | undefined) {
+  const [checkin, setCheckin] = useState<Checkin | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchCheckin = useCallback(async () => {
+    if (!reservationId) { setCheckin(null); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('checkins')
+      .select('*')
+      .eq('reservation_id', reservationId)
+      .maybeSingle()
+    setCheckin((data ?? null) as Checkin | null)
+    setLoading(false)
+  }, [reservationId])
+
+  useEffect(() => { fetchCheckin() }, [fetchCheckin])
+
+  const submitCheckin = async (input: CheckinInput) => {
+    const { data, error } = await supabase
+      .from('checkins')
+      .upsert({ ...input, updated_at: new Date().toISOString() }, { onConflict: 'reservation_id' })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setCheckin(data as Checkin)
+    return data as Checkin
+  }
+
+  return { checkin, loading, submitCheckin, refetch: fetchCheckin }
+}
+
+export function useCheckins() {
+  const [checkins, setCheckins] = useState<Checkin[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchCheckins = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('checkins')
+      .select('*')
+      .order('created_at', { ascending: false })
+    setCheckins((data ?? []) as Checkin[])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchCheckins() }, [fetchCheckins])
+
+  return { checkins, loading, refetch: fetchCheckins }
+}
+
 // ─── Role Assignments ────────────────────────────────────────────────────────
 
 export interface RoleAssignment {
