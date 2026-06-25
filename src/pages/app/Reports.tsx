@@ -43,13 +43,6 @@ export function Reports() {
 
     const today = new Date().toISOString().split('T')[0]
     const totalProps = properties.length
-    const occupiedProps = new Set(
-      reservations
-        .filter(r => r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress'))
-        .map(r => r.property_id)
-        .filter(Boolean)
-    ).size
-    const occupancyRate = totalProps > 0 ? Math.round((occupiedProps / totalProps) * 100) : 0
 
     const valuedRes = yearReservations.filter(r => r.status !== 'cancelled')
     const avgSpend = valuedRes.length > 0
@@ -81,6 +74,11 @@ export function Reports() {
       })
       return { label: m, value: Math.round((occupiedDays / denom) * 100) }
     })
+
+    // Average occupancy across the selected year (year-scoped, derived from monthly trend)
+    const occupancyRate = Math.round(
+      occupancyTrend.reduce((s, m) => s + m.value, 0) / occupancyTrend.length
+    )
 
     // Reservations by status
     const byStatus = RES_STATUSES.map(s => ({
@@ -126,36 +124,40 @@ export function Reports() {
   }, [year, payments, reservations, properties, partners, t])
 
   const handleExportPdf = async () => {
-    await exportReportPdf(
-      `${t('reports.title')} ${year}`,
-      [
-        {
-          heading: t('reports.revenueSummary'),
-          content: [
-            `${t('reports.totalRevenue')}: €${stats.totalRevenue.toLocaleString()}`,
-            `${t('reports.bookingRevenue')}: €${(stats.totalRevenue - stats.serviceRevenue).toLocaleString()}`,
-            `${t('reports.serviceRevenue')}: €${stats.serviceRevenue.toLocaleString()}`,
-            `${t('reports.occupancy')}: ${stats.occupancyRate}%`,
-            `${t('reports.avgGuestSpend')}: €${stats.avgSpend.toLocaleString()}`,
-            `${t('reports.totalReservations')}: ${stats.totalReservations}`,
-          ].join('\n'),
-        },
-        {
-          heading: t('reports.monthlyRevenue'),
-          content: stats.monthlyRevenue.map(m => `${m.label}: €${m.value.toLocaleString()}`).join('\n'),
-        },
-        {
-          heading: t('reports.propertyPerformance'),
-          content: stats.propPerf.map(p => `${p.property}: €${p.revenue.toLocaleString()}`).join('\n') || '-',
-        },
-        {
-          heading: t('reports.partnerCommissions'),
-          content: stats.partnerStats.map(p => `${p.partner}: €${p.commission} (${p.bookings} bookings)`).join('\n') || '-',
-        },
-      ],
-      { date: new Date().toLocaleDateString() }
-    )
-    toast(t('reports.exported'))
+    try {
+      await exportReportPdf(
+        `${t('reports.title')} ${year}`,
+        [
+          {
+            heading: t('reports.revenueSummary'),
+            content: [
+              `${t('reports.totalRevenue')}: €${stats.totalRevenue.toLocaleString()}`,
+              `${t('reports.bookingRevenue')}: €${(stats.totalRevenue - stats.serviceRevenue).toLocaleString()}`,
+              `${t('reports.serviceRevenue')}: €${stats.serviceRevenue.toLocaleString()}`,
+              `${t('reports.occupancy')}: ${stats.occupancyRate}%`,
+              `${t('reports.avgGuestSpend')}: €${stats.avgSpend.toLocaleString()}`,
+              `${t('reports.totalReservations')}: ${stats.totalReservations}`,
+            ].join('\n'),
+          },
+          {
+            heading: t('reports.monthlyRevenue'),
+            content: stats.monthlyRevenue.map(m => `${m.label}: €${m.value.toLocaleString()}`).join('\n'),
+          },
+          {
+            heading: t('reports.propertyPerformance'),
+            content: stats.propPerf.map(p => `${p.property}: €${p.revenue.toLocaleString()}`).join('\n') || '-',
+          },
+          {
+            heading: t('reports.partnerCommissions'),
+            content: stats.partnerStats.map(p => `${p.partner}: €${p.commission} (${p.bookings} bookings)`).join('\n') || '-',
+          },
+        ],
+        { date: new Date().toLocaleDateString() }
+      )
+      toast(t('reports.exported'))
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
   }
 
   const handleExportCsv = () => {
