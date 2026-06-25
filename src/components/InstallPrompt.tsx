@@ -8,6 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISS_KEY = 'butlr-install-dismissed'
+const CONSENT_KEY = 'butlr_cookie_consent'
 
 function isStandalone() {
   return (
@@ -25,6 +26,15 @@ export function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
   const [iosHint, setIosHint] = useState(false)
+  const [consentDecided, setConsentDecided] = useState(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem(CONSENT_KEY) !== null
+  )
+
+  useEffect(() => {
+    const onConsent = () => setConsentDecided(true)
+    window.addEventListener('butlr-consent-changed', onConsent)
+    return () => window.removeEventListener('butlr-consent-changed', onConsent)
+  }, [])
 
   useEffect(() => {
     if (isStandalone() || localStorage.getItem(DISMISS_KEY) === 'true') return
@@ -64,7 +74,7 @@ export function InstallPrompt() {
     setVisible(false)
   }
 
-  if (!visible) return null
+  if (!visible || !consentDecided) return null
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md">
