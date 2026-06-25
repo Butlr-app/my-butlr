@@ -166,7 +166,20 @@
     "serviceBreakdown": "Service Revenue Breakdown",
     "propertyPerformance": "Property Performance",
     "partnerCommissions": "Partner Commissions",
-    "exportPdf": "Export PDF"
+    "exportPdf": "Export PDF",
+    "exportCsv": "Export CSV",
+    "monthlyRevenue": "Monthly Revenue",
+    "occupancyTrend": "Occupancy Trend",
+    "reservationsByStatus": "Reservations by Status",
+    "totalReservations": "Total Reservations",
+    "period": "Period",
+    "noData": "No data for this period",
+    "exported": "Report exported",
+    "statusPending": "Pending",
+    "statusConfirmed": "Confirmed",
+    "statusInProgress": "In Progress",
+    "statusCompleted": "Completed",
+    "statusCancelled": "Cancelled"
   },
   "search": {
     "title": "Search Results",
