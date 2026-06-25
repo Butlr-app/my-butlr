@@ -248,5 +248,13 @@
     "nothingSelected": "No bookings selected",
     "noEvents": "No calendar events found in this file",
     "parseError": "Could not read the .ics file"
+  },
+  "pwa": {
+    "installTitle": "Install My Butlr",
+    "installBody": "Add My Butlr to your home screen for a faster, full-screen app experience.",
+    "install": "Install app",
+    "iosInstall": "Tap",
+    "iosInstall2": "then \"Add to Home Screen\".",
+    "enablePush": "Enable push notifications"
   }
 }

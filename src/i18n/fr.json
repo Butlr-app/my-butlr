@@ -248,5 +248,13 @@
     "nothingSelected": "Aucune réservation sélectionnée",
     "noEvents": "Aucun événement trouvé dans ce fichier",
     "parseError": "Impossible de lire le fichier .ics"
+  },
+  "pwa": {
+    "installTitle": "Installer My Butlr",
+    "installBody": "Ajoutez My Butlr à votre écran d'accueil pour une expérience plein écran plus rapide.",
+    "install": "Installer l'app",
+    "iosInstall": "Appuyez sur",
+    "iosInstall2": "puis « Sur l'écran d'accueil ».",
+    "enablePush": "Activer les notifications push"
   }
 }
