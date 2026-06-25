@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { usePayments, type Payment } from '@/lib/useSupabase'
+import { FilterSidebar } from '@/components/FilterSidebar'
+import { usePayments, useNotifications, type Payment } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
-import { Plus, Loader2, Trash2, Pencil, Download } from 'lucide-react'
+import { useTranslation } from '@/i18n/LanguageContext'
 import { useRoleFilter } from '@/lib/useRoleFilter'
+import { Plus, Loader2, Trash2, Pencil, Download, Filter } from 'lucide-react'
 
 const PAGE_SIZE = 20
 
@@ -25,11 +27,14 @@ const emptyForm = {
 
 export function Payments() {
   const { data: rawPayments, loading, insert, update, remove } = usePayments()
+  const { insertNotification } = useNotifications()
   const { toast } = useToast()
-  const { query } = useSearch()
+  const { query, filters } = useSearch()
+  const { t } = useTranslation()
   const { filterPayments } = useRoleFilter()
   const payments = filterPayments(rawPayments)
   const [showForm, setShowForm] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -40,9 +45,16 @@ export function Payments() {
   useEffect(() => { setPage(0) }, [query])
 
   const filtered = payments.filter(p => {
-    if (!query) return true
-    const q = query.toLowerCase()
-    return p.guest_name.toLowerCase().includes(q) || (p.property_name ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q)
+    if (query) {
+      const q = query.toLowerCase()
+      if (!(p.guest_name.toLowerCase().includes(q) || (p.property_name ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q))) return false
+    }
+    if (filters.paymentStatus && filters.paymentStatus.length > 0 && !filters.paymentStatus.includes(p.status)) return false
+    if (filters.paymentMinAmount !== undefined && Number(p.amount) < filters.paymentMinAmount) return false
+    if (filters.paymentMaxAmount !== undefined && Number(p.amount) > filters.paymentMaxAmount) return false
+    if (filters.paymentDateFrom && p.date < filters.paymentDateFrom) return false
+    if (filters.paymentDateTo && p.date > filters.paymentDateTo) return false
+    return true
   })
 
   const totalRevenue = payments.reduce((s, p) => p.status === 'paid' ? s + Number(p.amount) : s, 0)
@@ -91,6 +103,14 @@ export function Payments() {
         toast('Payment updated')
       } else {
         await insert({ ...form, amount: Number(form.amount) })
+        await insertNotification({
+          user_id: null,
+          type: 'payment',
+          title: 'Payment recorded',
+          message: `${form.type} payment of €${Number(form.amount).toLocaleString()} from ${form.guest_name}`,
+          data: { guest_name: form.guest_name, amount: form.amount },
+          related_id: null,
+        }).catch(() => {})
         toast('Payment recorded')
       }
       setShowForm(false)
@@ -145,15 +165,19 @@ export function Payments() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Payments</p>
+        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('payments.title')}</p>
         <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
+          </Button>
           <Button variant="secondary" size="sm" onClick={exportCSV}>
-            <Download className="w-4 h-4 mr-1" /> Export CSV
+            <Download className="w-4 h-4 mr-1" /> {t('importExport.exportCsv')}
           </Button>
           <Button size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> Record payment
+            <Plus className="w-4 h-4 mr-1" /> {t('payments.title')}
           </Button>
         </div>
       </div>
@@ -302,6 +326,8 @@ export function Payments() {
         title="Delete payment"
         message={`Delete payment for "${deleteTarget?.name}"? This action cannot be undone.`}
       />
+    </div>
+    <FilterSidebar page="payments" open={showFilters} onClose={() => setShowFilters(false)} />
     </div>
   )
 }

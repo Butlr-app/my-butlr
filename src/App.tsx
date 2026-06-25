@@ -3,6 +3,7 @@ import { RoleProvider } from './lib/roleContext'
 import { ToastProvider } from './components/ui/Toast'
 import { AuthProvider } from './lib/authContext'
 import { SearchProvider } from './lib/searchContext'
+import { LanguageProvider } from './i18n/LanguageContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
@@ -22,16 +23,25 @@ import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
 import { Reports } from './pages/app/Reports'
 import { Settings } from './pages/app/Settings'
+import { SearchResults } from './pages/app/SearchResults'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { ContractGenerator } from './pages/app/ContractGenerator'
 import { InvoiceGenerator } from './pages/app/InvoiceGenerator'
+import { Invoices } from './pages/app/Invoices'
+import { NotificationsPage } from './pages/app/NotificationsPage'
+import { ContractSigning } from './pages/ContractSigning'
 import { NotFound } from './pages/NotFound'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { PrivacyPolicy } from './pages/PrivacyPolicy'
+import { Terms } from './pages/Terms'
+import { Onboarding } from './pages/app/Onboarding'
+import { CookieConsent } from './components/CookieConsent'
 
 export default function App() {
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <AuthProvider>
     <RoleProvider>
     <SearchProvider>
@@ -45,6 +55,14 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<Terms />} />
+
+        {/* Onboarding wizard */}
+        <Route path="/app/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+
+        {/* Public signing page */}
+        <Route path="/sign/:token" element={<ContractSigning />} />
 
         {/* Protected app pages */}
         <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -60,19 +78,24 @@ export default function App() {
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
           <Route path="contracts/generate" element={<ContractGenerator />} />
+          <Route path="invoices" element={<Invoices />} />
           <Route path="invoices/generate" element={<InvoiceGenerator />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="search" element={<SearchResults />} />
         </Route>
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
+    <CookieConsent />
     </ToastProvider>
     </SearchProvider>
     </RoleProvider>
     </AuthProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   )
 }

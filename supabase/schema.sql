@@ -222,6 +222,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   title TEXT NOT NULL,
   message TEXT,
   read BOOLEAN NOT NULL DEFAULT false,
+  data JSONB DEFAULT '{}'::jsonb,
   related_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -236,6 +237,51 @@ CREATE POLICY "Authenticated insert notifications" ON notifications FOR INSERT T
 
 -- Enable Realtime for notifications
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+
+-- ─── Invoices table ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  invoice_number TEXT NOT NULL UNIQUE,
+  client_name TEXT NOT NULL,
+  client_address TEXT,
+  client_city TEXT,
+  client_email TEXT,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  total_ht DECIMAL(12,2) DEFAULT 0,
+  total_ttc DECIMAL(12,2) DEFAULT 0,
+  vat_rate DECIMAL(5,2) DEFAULT 20,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue')),
+  is_recurring BOOLEAN DEFAULT false,
+  recurring_interval TEXT DEFAULT NULL CHECK (recurring_interval IS NULL OR recurring_interval IN ('monthly', 'quarterly', 'yearly')),
+  due_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated read invoices" ON invoices FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated manage invoices" ON invoices FOR ALL TO authenticated USING (true);
+
+-- ─── Contract Signatures table ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS contract_signatures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  signer_role TEXT NOT NULL DEFAULT 'tenant',
+  signer_name TEXT NOT NULL,
+  signed_at TIMESTAMPTZ,
+  signature_data TEXT,
+  token TEXT UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE contract_signatures ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated read contract_signatures" ON contract_signatures FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated manage contract_signatures" ON contract_signatures FOR ALL TO authenticated USING (true);
+CREATE POLICY "Public sign contract_signatures" ON contract_signatures FOR UPDATE USING (true);
+CREATE POLICY "Public read contract_signatures by token" ON contract_signatures FOR SELECT USING (true);
+CREATE POLICY "Public insert contract_signatures" ON contract_signatures FOR INSERT WITH CHECK (true);
 
 -- Function to handle new user registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()

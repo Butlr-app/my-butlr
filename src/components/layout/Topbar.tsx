@@ -1,10 +1,11 @@
-import { Search, Bell, Moon, Sun, User, LogOut, Menu, X, CheckCheck } from 'lucide-react'
+import { Search, Bell, Moon, Sun, User, LogOut, Menu, X, CheckCheck, Globe } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
 import { useSearch } from '@/lib/searchContext'
 import { useNotifications, type Notification } from '@/lib/useSupabase'
+import { useTranslation } from '@/i18n/LanguageContext'
 
 interface TopbarProps {
   title: string
@@ -42,6 +43,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   const { signOut, user } = useAuth()
   const { query, setQuery } = useSearch()
   const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications()
+  const { language, setLanguage } = useTranslation()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -103,6 +105,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
             placeholder="Search..."
             value={query}
             onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && query.trim()) navigate(`/app/search?q=${encodeURIComponent(query)}`) }}
             className="h-9 pl-9 pr-4 bg-muted border-0 rounded-md text-sm w-56 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -143,7 +146,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                 {notifications.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>
                 ) : (
-                  notifications.map(n => (
+                  notifications.slice(0, 10).map(n => (
                     <button
                       key={n.id}
                       onClick={() => { if (!n.read) markAsRead(n.id) }}
@@ -162,9 +165,27 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                   ))
                 )}
               </div>
+
+              {notifications.length > 0 && (
+                <button
+                  onClick={() => { setNotifOpen(false); navigate('/app/notifications') }}
+                  className="w-full px-4 py-2.5 text-center text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t border-border"
+                >
+                  View all notifications
+                </button>
+              )}
             </div>
           )}
         </div>
+
+        <button
+          onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')}
+          className="h-8 px-2 rounded-md hover:bg-muted transition-colors flex items-center gap-1 text-xs font-mono uppercase tracking-wider"
+          title={language === 'fr' ? 'Switch to English' : 'Passer en Français'}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>{language === 'fr' ? 'FR' : 'EN'}</span>
+        </button>
 
         <button onClick={toggleTheme} className="p-2 rounded-md hover:bg-muted transition-colors">
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
