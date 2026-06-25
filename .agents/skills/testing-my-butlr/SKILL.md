@@ -218,6 +218,19 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 - Passwords don't match → toast "Passwords do not match"
 - Properties tab: seed properties visible; Services tab: seed services visible
 
+### 21. Online Check-in + Guest Signature (Guest Portal)
+- Pre-test: clear any existing `checkins` row for the target reservation so the starting badge is genuinely `pending` (else a broken submit is masked by leftover data).
+- Precondition on `/app/reservations`: a **Check-in** column exists; target row (M. & Mme Laurent) badge reads `pending` (grey).
+- Guest Portal is at `/app/guest-portal` (NOT `/app/guest`). Click the **Check-in** tab.
+- Form pre-fills Full name / Email / Phone / Guests from the reservation. Required: ID document number, Estimated arrival time, Signature, house-rules checkbox.
+- Validation: click "Complete check-in" with empty required fields → form does NOT submit, 4 inline red "... is required" errors appear.
+- Signature canvas: draw with `left_click_drag` strokes (a zigzag works). When the canvas has content a "Clear signature" button appears — use that as the proof the canvas captured strokes.
+- Note: the inline "... is required" hint text can remain visible (stale) even after a field is filled — it only fully clears on submit. Don't treat the lingering hint as a failure; confirm the field value in the DOM instead.
+- `<input type="time">` displays as `03:00 PM` but the DOM value is `15:00` (24h). Fill via the time field; the summary/modal show `15:00`.
+- Submit → success toast "Check-in completed" + the form is replaced by a **Check-in completed** summary card (green **Completed** badge, submitted timestamp, signature `<img src="data:image/png;base64,...">`, details).
+- Manager side: back on `/app/reservations` the Laurent row badge flips to `completed` (green); open the detail modal → "Online Check-in" section shows Completed + the same signature image + details (Arrival 15:00, ID passport · X1234567). This proves end-to-end Supabase persistence (survives navigation, not local state).
+- Out of scope: ID file upload to Storage (optional); RLS isolation (permissive in prototype).
+
 ## Important Learnings (continued)
 
 ### PDF Generator Testing
