@@ -15,6 +15,7 @@ import { Properties } from './pages/app/Properties'
 import { PropertyDetail } from './pages/app/PropertyDetail'
 import { Reservations } from './pages/app/Reservations'
 import { GuestPortal } from './pages/app/GuestPortal'
+import { Messages } from './pages/app/Messages'
 import { Services } from './pages/app/Services'
 import { Tasks } from './pages/app/Tasks'
 import { CalendarPage } from './pages/app/CalendarPage'
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="properties/:id" element={<PropertyDetail />} />
           <Route path="reservations" element={<Reservations />} />
           <Route path="guest-portal" element={<GuestPortal />} />
+          <Route path="messages" element={<Messages />} />
           <Route path="services" element={<Services />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="calendar" element={<CalendarPage />} />
