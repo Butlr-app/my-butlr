@@ -271,6 +271,18 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 - Realtime requires the `messages` table to be added to the `supabase_realtime` publication. If live delivery fails, verify the publication includes `messages` before assuming the code is broken.
 - Both windows can be the same browser profile/login — Realtime delivery still works because each ChatThread subscribes its own channel on mount.
 
+### 22. Advanced Reports & Analytics (`/app/reports`)
+- 2026 (default year): Total Revenue €79,050, Service €600, Avg Guest Spend €17,500. Monthly Revenue bar chart = tall Jun (~58k) + smaller May (~21k), others flat. Occupancy Trend line non-flat. Reservations by Status donut center = 8 (Pending 3 / Confirmed 4 / In Progress 1). Revenue Summary: Booking €78,450 + Service €600 = €79,050.
+- CSV (`report-2026.csv`): header `Month,Revenue (EUR),Occupancy`; May 21000, **Jun 58050** (NOT 57550 — May+Jun must sum to the €79,050 total). PDF export downloads `reports-&-analytics-2026.pdf` (valid `%PDF-`) + toast "Report exported".
+- **Year filter is data-derived** (years present in payments/reservations + current year). With all seed data in 2026, the `Select` only offers 2026 — you CANNOT reach an empty/other year through the UI alone.
+  - Workaround to make the filter test adversarial: inject ONE distinctive paid payment in another year via the Supabase Management API, then **delete it after the test**. Example: `insert into payments (guest_name, property_name, type, amount, status, date) values ('E2E YearFilter 2025','Villa French Way','service',1234.56,'paid','2025-08-10');` then `delete from payments where id='<returned id>';`
+  - This is STRONGER than an empty year: a broken filter would show the same number for both years (or the combined total). Verify: 2025 → Total €1,234.56, Booking €0, single Aug bar, donut "No data for this period", and 2026's €79,050 is GONE (no leakage); switch back to 2026 → values restored.
+
+### Supabase Management API (writing test data despite RLS)
+- The anon key is blocked by RLS for writes, so to seed/clean adversarial test data use the Management API with `SUPABASE_ACCESS_TOKEN`:
+  `curl -s -X POST "https://api.supabase.com/v1/projects/kpcahtliadmsaoespwpv/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -d '{"query":"<SQL>"}'`
+- Always inject with a distinctive tag (e.g. guest_name "E2E ...") and **delete it in the same session** after the test; verify the row count returns to baseline (payments baseline = 10, all 2026).
+
 ## Troubleshooting
 
 - **Login fails**: Check test account exists in Supabase Auth. Email confirmation should be disabled.
