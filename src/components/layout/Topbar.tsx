@@ -1,10 +1,10 @@
-import { Search, Bell, Moon, Sun, User, LogOut, Menu, X, CheckCheck, Globe, MessageSquare } from 'lucide-react'
+import { Search, Bell, BellRing, Moon, Sun, User, LogOut, Menu, X, CheckCheck, Globe, MessageSquare } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
 import { useSearch } from '@/lib/searchContext'
-import { useNotifications, useUnreadMessages, type Notification } from '@/lib/useSupabase'
+import { useNotifications, useUnreadMessages, usePushNotifications, type Notification } from '@/lib/useSupabase'
 import { useTranslation } from '@/i18n/LanguageContext'
 
 interface TopbarProps {
@@ -44,7 +44,8 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   const { query, setQuery } = useSearch()
   const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications()
   const unreadMessages = useUnreadMessages(user?.id)
-  const { language, setLanguage } = useTranslation()
+  const push = usePushNotifications()
+  const { language, setLanguage, t } = useTranslation()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -155,6 +156,16 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                   </button>
                 </div>
               </div>
+
+              {push.supported && !push.enabled && push.permission !== 'denied' && (
+                <button
+                  onClick={() => push.enable()}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-foreground bg-muted/40 hover:bg-muted transition-colors border-b border-border"
+                >
+                  <BellRing className="w-3.5 h-3.5 text-info" />
+                  {t('pwa.enablePush')}
+                </button>
+              )}
 
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
