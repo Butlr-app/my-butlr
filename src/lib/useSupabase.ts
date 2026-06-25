@@ -559,6 +559,194 @@ export async function signContract(contractId: string, signerName: string, signe
   if (updateError) throw new Error(updateError.message)
 }
 
+// ─── Property Images ─────────────────────────────────────────────────────────
+
+export interface PropertyImage {
+  id: string
+  property_id: string
+  url: string
+  storage_path: string
+  caption: string | null
+  sort_order: number
+  created_at: string
+}
+
+export function usePropertyImages(propertyId: string | undefined) {
+  const [images, setImages] = useState<PropertyImage[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchImages = useCallback(async () => {
+    if (!propertyId) { setImages([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('property_images')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('sort_order', { ascending: true })
+    setImages((data ?? []) as PropertyImage[])
+    setLoading(false)
+  }, [propertyId])
+
+  useEffect(() => { fetchImages() }, [fetchImages])
+
+  const addImage = async (image: Omit<PropertyImage, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase
+      .from('property_images')
+      .insert(image)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setImages(prev => [...prev, data as PropertyImage])
+    return data as PropertyImage
+  }
+
+  const removeImage = async (id: string) => {
+    const { error } = await supabase.from('property_images').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setImages(prev => prev.filter(img => img.id !== id))
+  }
+
+  return { images, loading, addImage, removeImage, refetch: fetchImages }
+}
+
+// ─── Service Requests ────────────────────────────────────────────────────────
+
+export interface ServiceRequest {
+  id: string
+  reservation_id: string | null
+  guest_user_id: string | null
+  service_id: string | null
+  service_name: string
+  details: string | null
+  preferred_date: string | null
+  preferred_time: string | null
+  status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
+  created_at: string
+  updated_at: string
+}
+
+export function useServiceRequests(reservationId?: string) {
+  const [requests, setRequests] = useState<ServiceRequest[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchRequests = useCallback(async () => {
+    setLoading(true)
+    let query = supabase.from('service_requests').select('*').order('created_at', { ascending: false })
+    if (reservationId) {
+      query = query.eq('reservation_id', reservationId)
+    }
+    const { data } = await query
+    setRequests((data ?? []) as ServiceRequest[])
+    setLoading(false)
+  }, [reservationId])
+
+  useEffect(() => { fetchRequests() }, [fetchRequests])
+
+  const addRequest = async (req: Partial<ServiceRequest>) => {
+    const { data, error } = await supabase
+      .from('service_requests')
+      .insert(req as Record<string, unknown>)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setRequests(prev => [data as ServiceRequest, ...prev])
+    return data as ServiceRequest
+  }
+
+  return { requests, loading, addRequest, refetch: fetchRequests }
+}
+
+// ─── Messages ────────────────────────────────────────────────────────────────
+
+export interface Message {
+  id: string
+  reservation_id: string | null
+  sender_id: string
+  sender_name: string
+  content: string
+  read: boolean
+  created_at: string
+}
+
+export function useMessages(reservationId: string | undefined) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchMessages = useCallback(async () => {
+    if (!reservationId) { setMessages([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('reservation_id', reservationId)
+      .order('created_at', { ascending: true })
+    setMessages((data ?? []) as Message[])
+    setLoading(false)
+  }, [reservationId])
+
+  useEffect(() => { fetchMessages() }, [fetchMessages])
+
+  useEffect(() => {
+    if (!reservationId) return
+    const channel = supabase
+      .channel(`messages-${reservationId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `reservation_id=eq.${reservationId}`,
+      }, (payload) => {
+        setMessages(prev => [...prev, payload.new as Message])
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [reservationId])
+
+  const sendMessage = async (msg: Omit<Message, 'id' | 'read' | 'created_at'>) => {
+    const { data, error } = await supabase
+      .from('messages')
+      .insert(msg)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data as Message
+  }
+
+  return { messages, loading, sendMessage, refetch: fetchMessages }
+}
+
+// ─── Role Assignments ────────────────────────────────────────────────────────
+
+export interface RoleAssignment {
+  id: string
+  user_id: string
+  property_id: string
+  role: string
+  created_at: string
+}
+
+export function useRoleAssignments(userId: string | undefined) {
+  const [assignments, setAssignments] = useState<RoleAssignment[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      if (!userId) { setAssignments([]); setLoading(false); return }
+      const { data } = await supabase
+        .from('role_assignments')
+        .select('*')
+        .eq('user_id', userId)
+      setAssignments((data ?? []) as RoleAssignment[])
+      setLoading(false)
+    }
+    load()
+  }, [userId])
+
+  const assignedPropertyIds = assignments.map(a => a.property_id)
+
+  return { assignments, loading, assignedPropertyIds }
+}
+
 // ─── Dashboard KPIs ──────────────────────────────────────────────────────────
 
 export interface DashboardKPIs {

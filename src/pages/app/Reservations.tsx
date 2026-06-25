@@ -9,6 +9,7 @@ import { useReservations, useProperties, useNotifications, type Reservation } fr
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Plus, Loader2, Download } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
 
@@ -26,11 +27,13 @@ const emptyForm = {
 }
 
 export function Reservations() {
-  const { data: reservations, loading, insert, update } = useReservations()
+  const { data: rawReservations, loading, insert, update } = useReservations()
   const { data: properties } = useProperties()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterReservations } = useRoleFilter()
+  const reservations = filterReservations(rawReservations)
   const [selected, setSelected] = useState<Reservation | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)

@@ -10,6 +10,7 @@ import { useTasks, useProperties, useNotifications, type Task } from '@/lib/useS
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const columns = [
   { id: 'todo', label: 'To do' },
@@ -27,11 +28,13 @@ const emptyForm = {
 }
 
 export function Tasks() {
-  const { data: tasks, loading, insert, update, remove } = useTasks()
+  const { data: rawTasks, loading, insert, update, remove } = useTasks()
   const { data: properties } = useProperties()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterTasks } = useRoleFilter()
+  const tasks = filterTasks(rawTasks)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingStatus, setEditingStatus] = useState<Task['status']>('todo')
