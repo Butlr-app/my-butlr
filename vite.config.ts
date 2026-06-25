@@ -4,7 +4,22 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    {
+      name: 'security-headers',
+      configureServer(server) {
+        server.middlewares.use((_req, res, next) => {
+          res.setHeader('X-Frame-Options', 'DENY')
+          res.setHeader('X-Content-Type-Options', 'nosniff')
+          res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+          res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+          next()
+        })
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
