@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
+import { CsvImportModal } from '@/components/CsvImportModal'
+import { FilterSidebar } from '@/components/FilterSidebar'
 import { useReservations, useProperties, useNotifications, type Reservation } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
-import { Plus, Loader2, Download } from 'lucide-react'
+import { useTranslation } from '@/i18n/LanguageContext'
+import { Plus, Loader2, Download, Filter, Upload } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
@@ -31,7 +34,8 @@ export function Reservations() {
   const { data: properties } = useProperties()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
-  const { query } = useSearch()
+  const { query, filters } = useSearch()
+  const { t } = useTranslation()
   const { filterReservations } = useRoleFilter()
   const reservations = filterReservations(rawReservations)
   const [selected, setSelected] = useState<Reservation | null>(null)
@@ -39,14 +43,33 @@ export function Reservations() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [page, setPage] = useState(0)
+  const [showImport, setShowImport] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => { setPage(0) }, [query])
 
   const filtered = reservations.filter(r => {
-    if (!query) return true
-    const q = query.toLowerCase()
-    return r.guest_name.toLowerCase().includes(q) || (r.property?.name ?? '').toLowerCase().includes(q)
+    if (query) {
+      const q = query.toLowerCase()
+      if (!(r.guest_name.toLowerCase().includes(q) || (r.property?.name ?? '').toLowerCase().includes(q))) return false
+    }
+    if (filters.reservationStatus && filters.reservationStatus.length > 0 && !filters.reservationStatus.includes(r.status)) return false
+    if (filters.reservationDateFrom && r.arrival < filters.reservationDateFrom) return false
+    if (filters.reservationDateTo && r.departure > filters.reservationDateTo) return false
+    return true
   })
+
+  const importFields = [
+    { key: 'guest_name', label: t('reservations.guestName'), required: true },
+    { key: 'guest_email', label: 'Email' },
+    { key: 'guest_phone', label: 'Phone' },
+    { key: 'arrival', label: t('reservations.arrival'), required: true },
+    { key: 'departure', label: t('reservations.departure'), required: true },
+    { key: 'guests_count', label: t('reservations.guestsCount') },
+    { key: 'total_amount', label: t('common.amount') },
+    { key: 'status', label: t('common.status') },
+    { key: 'notes', label: 'Notes' },
+  ]
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -110,15 +133,22 @@ export function Reservations() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">All Reservations</p>
+        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('reservations.title')}</p>
         <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
+          </Button>
           <Button variant="secondary" size="sm" onClick={exportCSV}>
-            <Download className="w-4 h-4 mr-1" /> Export CSV
+            <Download className="w-4 h-4 mr-1" /> {t('importExport.exportCsv')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-1" /> {t('common.import')}
           </Button>
           <Button size="sm" onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4 mr-1" /> New reservation
+            <Plus className="w-4 h-4 mr-1" /> {t('reservations.addReservation')}
           </Button>
         </div>
       </div>
@@ -243,6 +273,13 @@ export function Reservations() {
         )}
       </Modal>
 
+      <CsvImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        targetTable="reservations"
+        targetFields={importFields}
+      />
+
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Reservation">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
@@ -284,6 +321,8 @@ export function Reservations() {
           </div>
         </form>
       </Modal>
+    </div>
+    <FilterSidebar page="reservations" open={showFilters} onClose={() => setShowFilters(false)} />
     </div>
   )
 }

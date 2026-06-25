@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { ExportButton } from '@/components/ExportButton'
 import { usePartners, type Partner } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
+import { useTranslation } from '@/i18n/LanguageContext'
 import { Star, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 
@@ -28,6 +30,7 @@ export function Partners() {
   const { data: rawPartners, loading, insert, update, remove } = usePartners()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { t } = useTranslation()
   const { filterPartners } = useRoleFilter()
   const partners = filterPartners(rawPartners)
   const [showForm, setShowForm] = useState(false)
@@ -129,13 +132,28 @@ export function Partners() {
     )
   }
 
+  const exportColumns: { key: keyof Partner; label: string }[] = [
+    { key: 'name', label: t('common.name') },
+    { key: 'category', label: t('common.type') },
+    { key: 'location', label: t('common.location') },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'commission', label: t('partners.commission') },
+    { key: 'status', label: t('common.status') },
+    { key: 'rating', label: t('partners.rating') },
+    { key: 'bookings_count', label: t('partners.bookings') },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Partner Network</p>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add partner
-        </Button>
+        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('partners.title')}</p>
+        <div className="flex items-center gap-2">
+          <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`partners-${new Date().toISOString().split('T')[0]}`} />
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> {t('partners.addPartner')}
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

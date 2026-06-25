@@ -6,24 +6,25 @@ import {
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
   FilePlus, Receipt, Bell
 } from 'lucide-react'
+import { useTranslation } from '@/i18n/LanguageContext'
 
 const navItems = [
-  { to: '/app', icon: LayoutDashboard, label: 'Overview', page: 'dashboard', end: true },
-  { to: '/app/properties', icon: Building2, label: 'Properties', page: 'properties' },
-  { to: '/app/reservations', icon: CalendarDays, label: 'Reservations', page: 'reservations' },
-  { to: '/app/guest-portal', icon: Users, label: 'Guest Portal', page: 'guest-portal' },
-  { to: '/app/services', icon: ConciergeBell, label: 'Services', page: 'services' },
-  { to: '/app/tasks', icon: ClipboardList, label: 'Tasks', page: 'tasks' },
-  { to: '/app/calendar', icon: Calendar, label: 'Calendar', page: 'calendar' },
-  { to: '/app/partners', icon: Handshake, label: 'Partners', page: 'partners' },
-  { to: '/app/payments', icon: CreditCard, label: 'Payments', page: 'payments' },
-  { to: '/app/contracts', icon: FileText, label: 'Contracts', page: 'contracts' },
-  { to: '/app/contracts/generate', icon: FilePlus, label: 'Contract Gen.', page: 'contracts' },
-  { to: '/app/invoices', icon: Receipt, label: 'Invoices', page: 'invoices' },
-  { to: '/app/invoices/generate', icon: FilePlus, label: 'Invoice Gen.', page: 'invoices' },
-  { to: '/app/notifications', icon: Bell, label: 'Notifications', page: 'notifications' },
-  { to: '/app/reports', icon: BarChart3, label: 'Reports', page: 'reports' },
-  { to: '/app/settings', icon: Settings, label: 'Settings', page: 'settings' },
+  { to: '/app', icon: LayoutDashboard, labelKey: 'nav.overview', page: 'dashboard', end: true },
+  { to: '/app/properties', icon: Building2, labelKey: 'nav.properties', page: 'properties' },
+  { to: '/app/reservations', icon: CalendarDays, labelKey: 'nav.reservations', page: 'reservations' },
+  { to: '/app/guest-portal', icon: Users, labelKey: 'nav.guestPortal', page: 'guest-portal' },
+  { to: '/app/services', icon: ConciergeBell, labelKey: 'nav.services', page: 'services' },
+  { to: '/app/tasks', icon: ClipboardList, labelKey: 'nav.tasks', page: 'tasks' },
+  { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },
+  { to: '/app/partners', icon: Handshake, labelKey: 'nav.partners', page: 'partners' },
+  { to: '/app/payments', icon: CreditCard, labelKey: 'nav.payments', page: 'payments' },
+  { to: '/app/contracts', icon: FileText, labelKey: 'nav.contracts', page: 'contracts' },
+  { to: '/app/contracts/generate', icon: FilePlus, labelKey: 'nav.contractGen', page: 'contracts' },
+  { to: '/app/invoices', icon: Receipt, labelKey: 'nav.invoices', page: 'invoices' },
+  { to: '/app/invoices/generate', icon: FilePlus, labelKey: 'nav.invoiceGen', page: 'invoices' },
+  { to: '/app/notifications', icon: Bell, labelKey: 'nav.notifications', page: 'notifications' },
+  { to: '/app/reports', icon: BarChart3, labelKey: 'nav.reports', page: 'reports' },
+  { to: '/app/settings', icon: Settings, labelKey: 'nav.settings', page: 'settings' },
 ]
 
 interface SidebarProps {
@@ -35,6 +36,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { isVisible } = useRoleFilter()
+  const { t } = useTranslation()
 
   const visibleItems = navItems.filter(item => isVisible(item.page))
 
@@ -82,7 +84,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               )}
             >
               <item.icon className="w-4 h-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{t(item.labelKey)}</span>}
             </NavLink>
           ))}
         </nav>
