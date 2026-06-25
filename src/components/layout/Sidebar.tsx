@@ -4,7 +4,7 @@ import { useRoleFilter } from '@/lib/useRoleFilter'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell
+  FilePlus, Receipt, Bell, MessageSquare
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/app/properties', icon: Building2, labelKey: 'nav.properties', page: 'properties' },
   { to: '/app/reservations', icon: CalendarDays, labelKey: 'nav.reservations', page: 'reservations' },
   { to: '/app/guest-portal', icon: Users, labelKey: 'nav.guestPortal', page: 'guest-portal' },
+  { to: '/app/messages', icon: MessageSquare, labelKey: 'nav.messages', page: 'messages' },
   { to: '/app/services', icon: ConciergeBell, labelKey: 'nav.services', page: 'services' },
   { to: '/app/tasks', icon: ClipboardList, labelKey: 'nav.tasks', page: 'tasks' },
   { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },

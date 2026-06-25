@@ -712,7 +712,122 @@ export function useMessages(reservationId: string | undefined) {
     return data as Message
   }
 
-  return { messages, loading, sendMessage, refetch: fetchMessages }
+  const markRead = useCallback(async (currentUserId: string | undefined) => {
+    if (!reservationId || !currentUserId) return
+    const { error } = await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('reservation_id', reservationId)
+      .neq('sender_id', currentUserId)
+      .eq('read', false)
+    if (!error) {
+      setMessages(prev => prev.map(m => (m.sender_id !== currentUserId ? { ...m, read: true } : m)))
+    }
+  }, [reservationId])
+
+  return { messages, loading, sendMessage, markRead, refetch: fetchMessages }
+}
+
+export interface Conversation {
+  reservation_id: string
+  guest_name: string
+  property_name: string | null
+  last_message: string
+  last_at: string
+  unread: number
+}
+
+// Manager-side: one conversation per reservation that has messages.
+export function useConversations(currentUserId: string | undefined) {
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const build = useCallback(async () => {
+    setLoading(true)
+    const { data: msgs } = await supabase
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: true })
+    const messages = (msgs ?? []) as Message[]
+
+    const reservationIds = [...new Set(messages.map(m => m.reservation_id).filter(Boolean))] as string[]
+    let resMap: Record<string, { guest_name: string; property_id: string | null }> = {}
+    let propMap: Record<string, string> = {}
+    if (reservationIds.length > 0) {
+      const { data: res } = await supabase
+        .from('reservations')
+        .select('id, guest_name, property_id')
+        .in('id', reservationIds)
+      for (const r of (res ?? []) as Array<{ id: string; guest_name: string; property_id: string | null }>) {
+        resMap[r.id] = { guest_name: r.guest_name, property_id: r.property_id }
+      }
+      const propIds = [...new Set(Object.values(resMap).map(r => r.property_id).filter(Boolean))] as string[]
+      if (propIds.length > 0) {
+        const { data: props } = await supabase.from('properties').select('id, name').in('id', propIds)
+        for (const p of (props ?? []) as Array<{ id: string; name: string }>) propMap[p.id] = p.name
+      }
+    }
+
+    const grouped: Record<string, Conversation> = {}
+    for (const m of messages) {
+      if (!m.reservation_id) continue
+      const res = resMap[m.reservation_id]
+      const conv = grouped[m.reservation_id] ?? {
+        reservation_id: m.reservation_id,
+        guest_name: res?.guest_name ?? 'Guest',
+        property_name: res?.property_id ? propMap[res.property_id] ?? null : null,
+        last_message: '',
+        last_at: m.created_at,
+        unread: 0,
+      }
+      conv.last_message = m.content
+      conv.last_at = m.created_at
+      if (!m.read && currentUserId && m.sender_id !== currentUserId) conv.unread += 1
+      grouped[m.reservation_id] = conv
+    }
+
+    setConversations(Object.values(grouped).sort((a, b) => b.last_at.localeCompare(a.last_at)))
+    setLoading(false)
+  }, [currentUserId])
+
+  useEffect(() => { build() }, [build])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('conversations-all')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => { build() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [build])
+
+  return { conversations, loading, refetch: build }
+}
+
+// Global unread message count for the topbar badge (messages addressed to me, unread).
+export function useUnreadMessages(currentUserId: string | undefined) {
+  const [count, setCount] = useState(0)
+
+  const fetchCount = useCallback(async () => {
+    if (!currentUserId) { setCount(0); return }
+    const { count: c } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .neq('sender_id', currentUserId)
+      .eq('read', false)
+    setCount(c ?? 0)
+  }, [currentUserId])
+
+  useEffect(() => { fetchCount() }, [fetchCount])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('unread-messages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => { fetchCount() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchCount])
+
+  return count
 }
 
 // ─── Role Assignments ────────────────────────────────────────────────────────
