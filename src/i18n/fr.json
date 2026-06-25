@@ -166,7 +166,20 @@
     "serviceBreakdown": "Répartition services",
     "propertyPerformance": "Performance propriétés",
     "partnerCommissions": "Commissions partenaires",
-    "exportPdf": "Exporter PDF"
+    "exportPdf": "Exporter PDF",
+    "exportCsv": "Exporter CSV",
+    "monthlyRevenue": "Revenu mensuel",
+    "occupancyTrend": "Tendance d'occupation",
+    "reservationsByStatus": "Réservations par statut",
+    "totalReservations": "Réservations totales",
+    "period": "Période",
+    "noData": "Aucune donnée pour cette période",
+    "exported": "Rapport exporté",
+    "statusPending": "En attente",
+    "statusConfirmed": "Confirmée",
+    "statusInProgress": "En cours",
+    "statusCompleted": "Terminée",
+    "statusCancelled": "Annulée"
   },
   "search": {
     "title": "Résultats de recherche",
