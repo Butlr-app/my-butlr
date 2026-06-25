@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
 import { useSearch } from '@/lib/searchContext'
-import { useNotifications, useUnreadMessages, type Notification } from '@/lib/useSupabase'
-import { usePushNotifications } from '@/lib/usePushNotifications'
+import { useNotifications, useUnreadMessages, usePushNotifications, type Notification } from '@/lib/useSupabase'
 import { useTranslation } from '@/i18n/LanguageContext'
 
 interface TopbarProps {

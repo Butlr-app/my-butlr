@@ -73,7 +73,7 @@ self.addEventListener('fetch', (event) => {
             if (response && response.status === 200) cache.put(request, response.clone())
             return response
           })
-          .catch(() => cached)
+          .catch(() => cached ?? new Response('Offline', { status: 408, statusText: 'Offline' }))
         return cached || network
       })
     )

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1008,4 +1008,104 @@ export function useDashboardKPIs() {
   }, [])
 
   return { kpis, loading }
+}
+
+// ─── Push notifications ────────────────────────────────────────────────────
+
+const PUSH_STORAGE_KEY = 'butlr-push-enabled'
+
+type PushPermissionState = NotificationPermission | 'unsupported'
+
+interface PushNotificationRow {
+  id: string
+  user_id: string | null
+  title: string
+  message: string | null
+  type: string
+}
+
+function pushSupported() {
+  return typeof window !== 'undefined' && 'Notification' in window
+}
+
+/**
+ * Manages opt-in browser push notifications. Requests permission, persists the
+ * user's choice, and surfaces an OS-level notification whenever a new row lands
+ * in the `notifications` table (via Supabase Realtime). Only fires for rows
+ * addressed to the current user (or broadcast rows with a null user_id). When a
+ * service worker is controlling the page it uses registration.showNotification
+ * (required for true push on mobile); otherwise the Notification constructor.
+ */
+export function usePushNotifications() {
+  const [permission, setPermission] = useState<PushPermissionState>(
+    pushSupported() ? Notification.permission : 'unsupported'
+  )
+  const [enabled, setEnabled] = useState(
+    () => pushSupported() && localStorage.getItem(PUSH_STORAGE_KEY) === 'true'
+  )
+  const enabledRef = useRef(enabled)
+  enabledRef.current = enabled
+  const userIdRef = useRef<string | null>(null)
+
+  const show = useCallback(async (title: string, body: string, url: string) => {
+    if (!pushSupported() || Notification.permission !== 'granted') return
+    const options: NotificationOptions = {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'butlr-notification',
+      data: { url },
+    }
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration()
+      if (reg) {
+        await reg.showNotification(title, options)
+        return
+      }
+    }
+    new Notification(title, options)
+  }, [])
+
+  const enable = useCallback(async () => {
+    if (!pushSupported()) return false
+    const result = await Notification.requestPermission()
+    setPermission(result)
+    const ok = result === 'granted'
+    setEnabled(ok)
+    localStorage.setItem(PUSH_STORAGE_KEY, String(ok))
+    if (ok) await show('Notifications enabled', "You'll now receive alerts from My Butlr.", '/app/notifications')
+    return ok
+  }, [show])
+
+  const disable = useCallback(() => {
+    setEnabled(false)
+    localStorage.setItem(PUSH_STORAGE_KEY, 'false')
+  }, [])
+
+  useEffect(() => {
+    if (!pushSupported()) return
+    let cancelled = false
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) userIdRef.current = data.user?.id ?? null
+    })
+    const channel = supabase
+      .channel(`push-notifications-${crypto.randomUUID()}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        if (!enabledRef.current || Notification.permission !== 'granted') return
+        const row = payload.new as PushNotificationRow
+        // Only notify for rows addressed to this user (or broadcast rows).
+        if (row.user_id !== null && row.user_id !== userIdRef.current) return
+        show(row.title, row.message ?? '', '/app/notifications')
+      })
+      .subscribe()
+    return () => { cancelled = true; supabase.removeChannel(channel) }
+  }, [show])
+
+  return {
+    supported: pushSupported(),
+    permission,
+    enabled: enabled && permission === 'granted',
+    enable,
+    disable,
+  }
 }
