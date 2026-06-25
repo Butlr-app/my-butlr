@@ -211,5 +211,28 @@
     "imported": "Importé avec succès",
     "exported": "Exporté avec succès",
     "filterSaved": "Filtre sauvegardé"
+  },
+  "ical": {
+    "title": "Sync iCal",
+    "exportTab": "Exporter",
+    "importTab": "Importer",
+    "exportHelp": "Téléchargez un flux calendrier .ics de vos réservations à importer dans Airbnb, Booking.com, Google Agenda ou toute application d'agenda.",
+    "importHelp": "Importez des réservations depuis un fichier .ics Airbnb ou Booking.com. Les dates en conflit sont signalées pour éviter les doubles réservations.",
+    "property": "Propriété",
+    "allProperties": "Toutes les propriétés",
+    "downloadIcs": "Télécharger .ics",
+    "targetProperty": "Affecter à la propriété",
+    "unassigned": "Non affecté",
+    "chooseFile": "Choisir un fichier .ics",
+    "events": "événements",
+    "conflicts": "conflits",
+    "conflictWith": "Chevauche avec",
+    "willImport": "seront importées",
+    "importSelected": "Importer la sélection",
+    "exported": "Calendrier exporté",
+    "imported": "{count} réservations importées",
+    "nothingSelected": "Aucune réservation sélectionnée",
+    "noEvents": "Aucun événement trouvé dans ce fichier",
+    "parseError": "Impossible de lire le fichier .ics"
   }
 }
