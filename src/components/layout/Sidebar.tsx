@@ -4,7 +4,7 @@ import { useRoleFilter } from '@/lib/useRoleFilter'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt
+  FilePlus, Receipt, Bell
 } from 'lucide-react'
 
 const navItems = [
@@ -19,7 +19,9 @@ const navItems = [
   { to: '/app/payments', icon: CreditCard, label: 'Payments', page: 'payments' },
   { to: '/app/contracts', icon: FileText, label: 'Contracts', page: 'contracts' },
   { to: '/app/contracts/generate', icon: FilePlus, label: 'Contract Gen.', page: 'contracts' },
-  { to: '/app/invoices/generate', icon: Receipt, label: 'Invoice Gen.', page: 'contracts' },
+  { to: '/app/invoices', icon: Receipt, label: 'Invoices', page: 'invoices' },
+  { to: '/app/invoices/generate', icon: FilePlus, label: 'Invoice Gen.', page: 'invoices' },
+  { to: '/app/notifications', icon: Bell, label: 'Notifications', page: 'notifications' },
   { to: '/app/reports', icon: BarChart3, label: 'Reports', page: 'reports' },
   { to: '/app/settings', icon: Settings, label: 'Settings', page: 'settings' },
 ]

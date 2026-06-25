@@ -143,7 +143,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                 {notifications.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>
                 ) : (
-                  notifications.map(n => (
+                  notifications.slice(0, 10).map(n => (
                     <button
                       key={n.id}
                       onClick={() => { if (!n.read) markAsRead(n.id) }}
@@ -162,6 +162,15 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                   ))
                 )}
               </div>
+
+              {notifications.length > 0 && (
+                <button
+                  onClick={() => { setNotifOpen(false); navigate('/app/notifications') }}
+                  className="w-full px-4 py-2.5 text-center text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t border-border"
+                >
+                  View all notifications
+                </button>
+              )}
             </div>
           )}
         </div>

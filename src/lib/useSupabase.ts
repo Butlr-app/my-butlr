@@ -116,9 +116,10 @@ export interface Contract {
   guest_name: string
   property_name: string | null
   type: 'rental' | 'service' | 'partnership'
-  status: 'draft' | 'sent' | 'signed' | 'expired'
+  status: 'draft' | 'sent' | 'signed' | 'archived' | 'expired'
   date: string
   document_url: string | null
+  signing_token: string | null
   created_at: string
 }
 
@@ -397,7 +398,40 @@ export interface Notification {
   title: string
   message: string | null
   read: boolean
+  data: Record<string, unknown> | null
   related_id: string | null
+  created_at: string
+}
+
+export interface Invoice {
+  id: string
+  user_id: string | null
+  invoice_number: string
+  client_name: string
+  client_address: string | null
+  client_city: string | null
+  client_email: string | null
+  items: Array<{ description: string; unitPrice: number; quantity: number; vatRate: number }>
+  total_ht: number
+  total_ttc: number
+  vat_rate: number
+  status: 'draft' | 'sent' | 'paid' | 'overdue'
+  is_recurring: boolean
+  recurring_interval: 'monthly' | 'quarterly' | 'yearly' | null
+  due_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ContractSignature {
+  id: string
+  contract_id: string
+  signer_role: string
+  signer_name: string
+  signed_at: string | null
+  signature_data: string | null
+  token: string
   created_at: string
 }
 
@@ -421,8 +455,9 @@ export function useNotifications() {
   useEffect(() => { fetchNotifications() }, [fetchNotifications])
 
   useEffect(() => {
+    const channelName = `notifications-realtime-${crypto.randomUUID()}`
     const channel = supabase
-      .channel('notifications-realtime')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
         setNotifications(prev => [payload.new as Notification, ...prev])
       })
@@ -445,7 +480,83 @@ export function useNotifications() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   }
 
-  return { notifications, loading, unreadCount, markAsRead, markAllRead, refetch: fetchNotifications }
+  const insertNotification = async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
+    const { error } = await supabase.from('notifications').insert({ ...notif, read: false })
+    if (error) throw new Error(error.message)
+  }
+
+  return { notifications, loading, unreadCount, markAsRead, markAllRead, insertNotification, refetch: fetchNotifications }
+}
+
+// ─── Invoices ────────────────────────────────────────────────────────────────
+
+export function useInvoices() {
+  return useTable<Invoice>('invoices')
+}
+
+export async function getNextInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear()
+  const { data } = await supabase
+    .from('invoices')
+    .select('invoice_number')
+    .like('invoice_number', `FC-${year}-%`)
+    .order('invoice_number', { ascending: false })
+    .limit(1)
+
+  let seq = 1
+  if (data && data.length > 0) {
+    const last = (data[0] as Invoice).invoice_number
+    const parts = last.split('-')
+    const num = parseInt(parts[2], 10)
+    if (!isNaN(num)) seq = num + 1
+  }
+  return `FC-${year}-${String(seq).padStart(3, '0')}`
+}
+
+// ─── Contract Signatures ─────────────────────────────────────────────────────
+
+export function useContractSignatures(contractId: string | undefined) {
+  const [signatures, setSignatures] = useState<ContractSignature[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchSignatures = useCallback(async () => {
+    if (!contractId) { setSignatures([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('contract_signatures')
+      .select('*')
+      .eq('contract_id', contractId)
+      .order('created_at', { ascending: true })
+    setSignatures((data ?? []) as ContractSignature[])
+    setLoading(false)
+  }, [contractId])
+
+  useEffect(() => { fetchSignatures() }, [fetchSignatures])
+
+  return { signatures, loading, refetch: fetchSignatures }
+}
+
+export async function getContractByToken(token: string) {
+  const { data, error } = await supabase
+    .from('contracts')
+    .select('*')
+    .eq('signing_token', token)
+    .single()
+  if (error) return null
+  return data as Contract
+}
+
+export async function signContract(contractId: string, signerName: string, signerRole: string, signatureData: string) {
+  const { error: sigError } = await supabase
+    .from('contract_signatures')
+    .insert({ contract_id: contractId, signer_name: signerName, signer_role: signerRole, signature_data: signatureData, signed_at: new Date().toISOString() })
+  if (sigError) throw new Error(sigError.message)
+
+  const { error: updateError } = await supabase
+    .from('contracts')
+    .update({ status: 'signed' })
+    .eq('id', contractId)
+  if (updateError) throw new Error(updateError.message)
 }
 
 // ─── Property Images ─────────────────────────────────────────────────────────

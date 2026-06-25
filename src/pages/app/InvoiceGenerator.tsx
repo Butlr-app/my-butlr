@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { useToast } from '@/components/ui/Toast'
-import { FileText, Download, Loader2, Plus, Trash2 } from 'lucide-react'
+import { useNotifications, getNextInvoiceNumber } from '@/lib/useSupabase'
+import { supabase } from '@/lib/supabase'
+import { FileText, Download, Loader2, Plus, Trash2, Save } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 
 const COMPANY = {
@@ -24,21 +28,23 @@ interface LineItem {
 
 const emptyLine: LineItem = { description: '', unitPrice: '0', quantity: '1', vatRate: '20' }
 
-function generateInvoiceNumber(): string {
-  const now = new Date()
-  const yyyy = now.getFullYear()
-  const seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')
-  return `FC-${yyyy}-${seq}`
-}
-
 export function InvoiceGenerator() {
   const { toast } = useToast()
+  const { insertNotification } = useNotifications()
+  const navigate = useNavigate()
   const [generating, setGenerating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [loadingNumber, setLoadingNumber] = useState(true)
 
-  const [invoiceNumber] = useState(generateInvoiceNumber)
+  useEffect(() => {
+    getNextInvoiceNumber().then(num => {
+      setInvoiceNumber(num)
+      setLoadingNumber(false)
+    })
+  }, [])
 
   const [form, setForm] = useState({
-    invoiceNumber,
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     clientName: '',
@@ -46,11 +52,13 @@ export function InvoiceGenerator() {
     clientCity: '',
     clientEmail: '',
     notes: '',
+    isRecurring: false,
+    recurringInterval: '' as '' | 'monthly' | 'quarterly' | 'yearly',
   })
 
   const [lines, setLines] = useState<LineItem[]>([{ ...emptyLine }])
 
-  const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }))
+  const update = (key: string, value: string | boolean) => setForm(f => ({ ...f, [key]: value }))
 
   const updateLine = (idx: number, key: keyof LineItem, value: string) => {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, [key]: value } : l))
@@ -65,6 +73,59 @@ export function InvoiceGenerator() {
   const totalTTC = subtotalHT + totalVAT
 
   const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  const saveToDatabase = async () => {
+    if (!form.clientName) {
+      toast('Please fill in client name', 'error')
+      return
+    }
+    if (lines.every(l => !l.description)) {
+      toast('Add at least one line item', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('invoices').insert({
+        user_id: user?.id ?? null,
+        invoice_number: invoiceNumber,
+        client_name: form.clientName,
+        client_address: form.clientAddress || null,
+        client_city: form.clientCity || null,
+        client_email: form.clientEmail || null,
+        items: lines.filter(l => l.description).map(l => ({
+          description: l.description,
+          unitPrice: Number(l.unitPrice),
+          quantity: Number(l.quantity),
+          vatRate: Number(l.vatRate),
+        })),
+        total_ht: subtotalHT,
+        total_ttc: totalTTC,
+        vat_rate: 20,
+        status: 'draft',
+        is_recurring: form.isRecurring,
+        recurring_interval: form.isRecurring && form.recurringInterval ? form.recurringInterval : null,
+        due_date: form.dueDate || null,
+        notes: form.notes || null,
+      })
+      if (error) throw new Error(error.message)
+
+      await insertNotification({
+        user_id: user?.id ?? null,
+        type: 'payment',
+        title: `Invoice ${invoiceNumber} created`,
+        message: `New invoice for ${form.clientName} — ${fmt(totalTTC)} EUR`,
+        data: { invoice_number: invoiceNumber },
+        related_id: null,
+      })
+
+      toast('Invoice saved to database')
+      navigate('/app/invoices')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
+  }
 
   const generatePDF = () => {
     if (!form.clientName) {
@@ -89,10 +150,9 @@ export function InvoiceGenerator() {
       doc.text('FACTURE', margin, y)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(form.invoiceNumber, W - margin, y, { align: 'right' })
+      doc.text(invoiceNumber, W - margin, y, { align: 'right' })
       y += 12
 
-      // From
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.text(COMPANY.name, margin, y)
@@ -104,7 +164,6 @@ export function InvoiceGenerator() {
       y += 4
       doc.text(COMPANY.email, margin, y)
 
-      // To
       let toY = y - 13
       doc.setFont('helvetica', 'bold')
       doc.text('FACTURER A :', W - margin - 60, toY)
@@ -119,12 +178,10 @@ export function InvoiceGenerator() {
       if (form.clientEmail) doc.text(form.clientEmail, W - margin - 60, toY)
       y += 14
 
-      // Dates
       doc.text(`Date : ${form.invoiceDate}`, margin, y)
       if (form.dueDate) doc.text(`Echeance : ${form.dueDate}`, W - margin - 60, y)
       y += 10
 
-      // Table header
       doc.setFillColor(240, 240, 240)
       doc.rect(margin, y - 4, W - margin * 2, 8, 'F')
       doc.setFont('helvetica', 'bold')
@@ -152,7 +209,6 @@ export function InvoiceGenerator() {
       doc.line(margin, y, W - margin, y)
       y += 8
 
-      // Totals
       doc.setFontSize(10)
       const totX = W - margin - 2
       doc.text('Total HT :', totX - 50, y)
@@ -166,7 +222,6 @@ export function InvoiceGenerator() {
       doc.text(`${fmt(totalTTC)} EUR`, totX, y, { align: 'right' })
       y += 14
 
-      // Notes
       if (form.notes) {
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(9)
@@ -179,7 +234,6 @@ export function InvoiceGenerator() {
         }
       }
 
-      // Footer
       const totalPages = doc.getNumberOfPages()
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i)
@@ -192,7 +246,7 @@ export function InvoiceGenerator() {
         doc.setTextColor(0, 0, 0)
       }
 
-      const fileName = `facture-${form.invoiceNumber}.pdf`
+      const fileName = `facture-${invoiceNumber}.pdf`
       doc.save(fileName)
       toast('Invoice PDF generated')
     } catch (err) {
@@ -201,14 +255,28 @@ export function InvoiceGenerator() {
     setGenerating(false)
   }
 
+  if (loadingNumber) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Invoice Generator</p>
-        <Button size="sm" onClick={generatePDF} disabled={generating}>
-          {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
-          Generate PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={generatePDF} disabled={generating}>
+            {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
+            Generate PDF
+          </Button>
+          <Button size="sm" onClick={saveToDatabase} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Save & Create
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -221,8 +289,8 @@ export function InvoiceGenerator() {
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Invoice number"
-                value={form.invoiceNumber}
-                onChange={e => update('invoiceNumber', e.target.value)}
+                value={invoiceNumber}
+                onChange={e => setInvoiceNumber(e.target.value)}
               />
               <Input
                 label="Invoice date"
@@ -237,6 +305,30 @@ export function InvoiceGenerator() {
               value={form.dueDate}
               onChange={e => update('dueDate', e.target.value)}
             />
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isRecurring}
+                  onChange={e => update('isRecurring', e.target.checked)}
+                  className="rounded border-border"
+                />
+                Recurring invoice
+              </label>
+            </div>
+            {form.isRecurring && (
+              <Select
+                label="Recurring interval"
+                value={form.recurringInterval}
+                onChange={e => update('recurringInterval', e.target.value)}
+                options={[
+                  { value: '', label: 'Select interval' },
+                  { value: 'monthly', label: 'Monthly' },
+                  { value: 'quarterly', label: 'Quarterly' },
+                  { value: 'yearly', label: 'Yearly' },
+                ]}
+              />
+            )}
           </div>
         </Card>
 

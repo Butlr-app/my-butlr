@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
-import { useReservations, useProperties, type Reservation } from '@/lib/useSupabase'
+import { useReservations, useProperties, useNotifications, type Reservation } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { Plus, Loader2, Download } from 'lucide-react'
@@ -29,6 +29,7 @@ const emptyForm = {
 export function Reservations() {
   const { data: rawReservations, loading, insert, update } = useReservations()
   const { data: properties } = useProperties()
+  const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
   const { filterReservations } = useRoleFilter()
@@ -73,6 +74,14 @@ export function Reservations() {
         property_id: form.property_id || null,
         total_amount: Number(form.total_amount),
       })
+      await insertNotification({
+        user_id: null,
+        type: 'reservation',
+        title: 'New reservation',
+        message: `Reservation for ${form.guest_name} (${form.arrival} → ${form.departure})`,
+        data: { guest_name: form.guest_name },
+        related_id: null,
+      }).catch(() => {})
       toast('Reservation created')
       setShowForm(false)
       setForm(emptyForm)
