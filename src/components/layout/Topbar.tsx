@@ -1,10 +1,10 @@
-import { Search, Bell, Moon, Sun, User, LogOut, Menu, X, CheckCheck, Globe } from 'lucide-react'
+import { Search, Bell, Moon, Sun, User, LogOut, Menu, X, CheckCheck, Globe, MessageSquare } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
 import { useSearch } from '@/lib/searchContext'
-import { useNotifications, type Notification } from '@/lib/useSupabase'
+import { useNotifications, useUnreadMessages, type Notification } from '@/lib/useSupabase'
 import { useTranslation } from '@/i18n/LanguageContext'
 
 interface TopbarProps {
@@ -43,6 +43,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   const { signOut, user } = useAuth()
   const { query, setQuery } = useSearch()
   const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications()
+  const unreadMessages = useUnreadMessages(user?.id)
   const { language, setLanguage } = useTranslation()
   const navigate = useNavigate()
 
@@ -109,6 +110,19 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
             className="h-9 pl-9 pr-4 bg-muted border-0 rounded-md text-sm w-56 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
+
+        <button
+          onClick={() => navigate('/app/messages')}
+          className="p-2 rounded-md hover:bg-muted transition-colors relative"
+          title="Messages"
+        >
+          <MessageSquare className="w-4 h-4" />
+          {unreadMessages > 0 && (
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 text-[10px] font-bold bg-destructive text-white rounded-full flex items-center justify-center">
+              {unreadMessages > 99 ? '99+' : unreadMessages}
+            </span>
+          )}
+        </button>
 
         <div className="relative" ref={notifRef}>
           <button
