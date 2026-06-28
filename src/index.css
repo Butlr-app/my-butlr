@@ -31,6 +31,9 @@
     --warning-soft: 39 100% 93%;
     --info: 219 88% 55%;
     --info-soft: 219 100% 96%;
+    --gold: 38 64% 46%;
+    --gold-foreground: 0 0% 100%;
+    --gold-soft: 38 70% 94%;
     --shadow-1: 0 1px 2px rgba(0,0,0,.08);
     --shadow-2: 0 2px 8px rgba(0,0,0,.12);
     --shadow-3: 0 8px 24px rgba(0,0,0,.16);
@@ -68,6 +71,9 @@
     --warning-soft: 39 60% 12%;
     --info: 217 100% 65%;
     --info-soft: 217 40% 16%;
+    --gold: 41 72% 56%;
+    --gold-foreground: 0 0% 8%;
+    --gold-soft: 41 40% 16%;
   }
 }
 
@@ -113,6 +119,9 @@
   --color-warning-soft: hsl(var(--warning-soft));
   --color-info: hsl(var(--info));
   --color-info-soft: hsl(var(--info-soft));
+  --color-gold: hsl(var(--gold));
+  --color-gold-foreground: hsl(var(--gold-foreground));
+  --color-gold-soft: hsl(var(--gold-soft));
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

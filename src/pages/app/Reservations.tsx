@@ -154,7 +154,7 @@ export function Reservations() {
           <Button variant="secondary" size="sm" onClick={() => setShowIcal(true)}>
             <CalendarSync className="w-4 h-4 mr-1" /> {t('ical.title')}
           </Button>
-          <Button size="sm" onClick={() => setShowForm(true)}>
+          <Button variant="gold" size="sm" onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4 mr-1" /> {t('reservations.addReservation')}
           </Button>
         </div>
@@ -163,7 +163,7 @@ export function Reservations() {
       {filtered.length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-sm text-muted-foreground mb-4">{query ? 'No reservations match your search.' : 'No reservations yet.'}</p>
-          {!query && <Button size="sm" onClick={() => setShowForm(true)}>Create reservation</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={() => setShowForm(true)}>Create reservation</Button>}
         </Card>
       ) : (
         <>

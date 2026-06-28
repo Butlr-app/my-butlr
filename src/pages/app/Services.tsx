@@ -131,7 +131,7 @@ export function Services() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Service Marketplace</p>
-        <Button size="sm" onClick={openCreate}>
+        <Button variant="gold" size="sm" onClick={openCreate}>
           <Plus className="w-4 h-4 mr-1" /> Add service
         </Button>
       </div>
@@ -141,7 +141,7 @@ export function Services() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No services match your search.' : 'No services yet. Add your first service.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Add service</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add service</Button>}
         </Card>
       ) : (
         <>

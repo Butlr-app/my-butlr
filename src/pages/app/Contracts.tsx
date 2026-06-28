@@ -198,7 +198,7 @@ export function Contracts() {
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> Export CSV
           </Button>
-          <Button size="sm" onClick={openCreate}>
+          <Button variant="gold" size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> New contract
           </Button>
         </div>
@@ -221,7 +221,7 @@ export function Contracts() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No contracts match your search.' : 'No contracts yet.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Create contract</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Create contract</Button>}
         </Card>
       ) : (
         <>
