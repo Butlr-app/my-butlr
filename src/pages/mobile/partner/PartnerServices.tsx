@@ -1,126 +1,133 @@
-
+import { useState } from 'react'
 import { useServices } from '@/lib/useSupabase'
-import { useToast } from '@/components/ui/Toast'
-import { Loader2, Plus, Star, Eye, EyeOff, Sparkles, Edit } from 'lucide-react'
+import { Loader2, Star, Eye, EyeOff, Edit3, Plus, Sparkles } from 'lucide-react'
+
+const SERVICE_IMAGES: Record<string, string> = {
+  'Private Chef': '/images/chef.jpg',
+  'Boat Rental': '/images/boat.jpg',
+  'Wellness & Spa': '/images/spa.jpg',
+  'Airport Transfer': '/images/luxury-interior.jpg',
+  'Wine Tasting': '/images/villa-pool.jpg',
+  'Personal Shopper': '/images/concierge.jpg',
+  'Childcare': '/images/beach-villa.jpg',
+  'Fitness Coach': '/images/spa.jpg',
+  'Event Planning': '/images/villa-hero.jpg',
+  'Helicopter Tour': '/images/yacht.jpg',
+}
 
 export function PartnerServices() {
-  const { data: services, loading, update } = useServices()
-  const { toast } = useToast()
+  const { data: services, loading } = useServices()
+  const [showHidden, setShowHidden] = useState(false)
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+      <div className="flex items-center justify-center h-screen bg-gray-950">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
       </div>
     )
   }
 
   const activeServices = services.filter(s => s.available)
-  const inactiveServices = services.filter(s => !s.available)
-
-  const toggleAvailability = async (id: string, current: boolean) => {
-    try {
-      await update(id, { available: !current })
-      toast(current ? 'Service hidden' : 'Service published')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-  }
+  const hiddenServices = services.filter(s => !s.available)
+  const displayed = showHidden ? hiddenServices : activeServices
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-gray-950 min-h-screen">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Services</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your offerings</p>
+      <div className="px-5 pt-14 pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Services</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage your service catalog</p>
+          </div>
+          <button className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20 active:scale-95 transition-transform">
+            <Plus className="w-5 h-5 text-white" />
+          </button>
         </div>
-        <button className="w-10 h-10 rounded-full bg-rose-500 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-          <Plus className="w-5 h-5 text-white" />
-        </button>
       </div>
 
-      {/* Active Services */}
-      <div className="px-5 mt-5">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          Active ({activeServices.length})
-        </h2>
-        <div className="space-y-3">
-          {activeServices.map(svc => (
-            <div key={svc.id} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-rose-50 to-pink-50 flex items-center justify-center flex-shrink-0">
-                {svc.image_url ? (
-                  <img src={svc.image_url} alt={svc.name} className="w-full h-full object-cover rounded-xl" />
-                ) : (
-                  <Sparkles className="w-6 h-6 text-rose-400" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{svc.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{svc.category ?? 'Service'}</p>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm font-bold text-gray-900">&euro;{Number(svc.starting_price).toLocaleString()}</span>
-                  <div className="flex items-center gap-0.5">
-                    <Star className="w-3 h-3 fill-current text-amber-400" />
-                    <span className="text-xs text-gray-500">4.9</span>
+      {/* Toggle */}
+      <div className="px-5 mt-2">
+        <div className="flex bg-gray-900 rounded-2xl p-1 border border-gray-800">
+          <button
+            onClick={() => setShowHidden(false)}
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
+              !showHidden ? 'bg-gray-800 text-white' : 'text-gray-500'
+            }`}
+          >
+            Active ({activeServices.length})
+          </button>
+          <button
+            onClick={() => setShowHidden(true)}
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
+              showHidden ? 'bg-gray-800 text-white' : 'text-gray-500'
+            }`}
+          >
+            Hidden ({hiddenServices.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Service List */}
+      <div className="px-5 mt-5 space-y-4 pb-8">
+        {displayed.length === 0 ? (
+          <div className="text-center py-16 bg-gray-900 rounded-2xl border border-gray-800">
+            <Sparkles className="w-12 h-12 text-gray-700 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">
+              {showHidden ? 'No hidden services' : 'No active services'}
+            </p>
+          </div>
+        ) : (
+          displayed.map(svc => {
+            const img = SERVICE_IMAGES[svc.name] ?? svc.image_url ?? '/images/villa-pool.jpg'
+            return (
+              <div key={svc.id} className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800">
+                <div className="relative h-40">
+                  <img src={img} alt={svc.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-[9px] font-bold text-white uppercase tracking-wider">
+                          {svc.category ?? 'Premium'}
+                        </span>
+                        <h3 className="font-bold text-white text-lg mt-1.5">{svc.name}</h3>
+                      </div>
+                      <div className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <Star className="w-3 h-3 fill-current text-amber-400" />
+                        <span className="text-xs font-bold text-white">4.9</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-xs text-gray-400 line-clamp-2 mb-3">
+                    {svc.description ?? 'Premium service for your guests'}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-base font-bold text-white">
+                      &euro;{Number(svc.starting_price).toLocaleString()}
+                      <span className="text-xs font-normal text-gray-500"> /session</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button className="w-9 h-9 rounded-xl bg-gray-800 flex items-center justify-center active:bg-gray-700 transition-colors border border-gray-700">
+                        {svc.available ? (
+                          <EyeOff className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <Eye className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                      <button className="w-9 h-9 rounded-xl bg-gray-800 flex items-center justify-center active:bg-gray-700 transition-colors border border-gray-700">
+                        <Edit3 className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <button className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Edit className="w-3.5 h-3.5 text-gray-600" />
-                </button>
-                <button
-                  onClick={() => toggleAvailability(svc.id, svc.available)}
-                  className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center"
-                >
-                  <Eye className="w-3.5 h-3.5 text-green-600" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            )
+          })
+        )}
       </div>
-
-      {/* Inactive Services */}
-      {inactiveServices.length > 0 && (
-        <div className="px-5 mt-6 pb-6">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Hidden ({inactiveServices.length})
-          </h2>
-          <div className="space-y-3">
-            {inactiveServices.map(svc => (
-              <div key={svc.id} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 opacity-60">
-                <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-6 h-6 text-gray-300" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">{svc.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{svc.category ?? 'Service'}</p>
-                  <span className="text-sm font-bold text-gray-900">&euro;{Number(svc.starting_price).toLocaleString()}</span>
-                </div>
-                <button
-                  onClick={() => toggleAvailability(svc.id, svc.available)}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-                >
-                  <EyeOff className="w-3.5 h-3.5 text-gray-500" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {services.length === 0 && (
-        <div className="px-5 mt-12 text-center">
-          <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="font-semibold text-gray-900 mb-1">No services yet</h3>
-          <p className="text-sm text-gray-500 mb-4">Create your first service to get started</p>
-          <button className="px-6 py-3 bg-rose-500 text-white font-semibold rounded-xl">
-            Add Service
-          </button>
-        </div>
-      )}
     </div>
   )
 }

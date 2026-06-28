@@ -11,5 +11,5 @@ const partnerNavItems: NavItem[] = [
 ]
 
 export function PartnerLayout() {
-  return <MobileLayout navItems={partnerNavItems} />
+  return <MobileLayout navItems={partnerNavItems} variant="dark" />
 }
