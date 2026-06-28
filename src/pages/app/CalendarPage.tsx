@@ -484,7 +484,7 @@ export function CalendarPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Event">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Title" required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Guest arrival" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}
@@ -507,7 +507,7 @@ export function CalendarPage() {
               ]}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Start Date" type="date" required value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
             <Input label="End Date" type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
           </div>
@@ -530,7 +530,7 @@ export function CalendarPage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Title</p>
                 <p className="text-sm font-medium">{selectedEvent.title}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Type</p>
                   <Badge variant="muted">{selectedEvent.type}</Badge>
@@ -540,7 +540,7 @@ export function CalendarPage() {
                   <p className="text-sm">{propertyMap[selectedEvent.property_id ?? ''] || 'None'}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Start</p>
                   <p className="text-sm font-mono">{selectedEvent.start_date}</p>

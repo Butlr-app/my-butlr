@@ -213,7 +213,51 @@ export function Invoices() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(inv => (
+              <Card key={inv.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-mono truncate">{inv.invoice_number}</span>
+                    </div>
+                    <p className="text-sm font-medium truncate mt-0.5">{inv.client_name}</p>
+                  </div>
+                  <Badge variant={statusBadge[inv.status]}>{inv.status}</Badge>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span className="font-mono">{inv.created_at.split('T')[0]}</span>
+                  <span className="font-mono text-foreground">{fmt(inv.total_ttc)} € TTC</span>
+                </div>
+                {inv.is_recurring && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <RefreshCw className="w-3.5 h-3.5" /> {inv.recurring_interval ?? 'recurring'}
+                  </span>
+                )}
+                <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
+                  {inv.status === 'draft' && (
+                    <button onClick={() => markAsSent(inv.id)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Mark as sent">
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
+                  {(inv.status === 'sent' || inv.status === 'overdue') && (
+                    <button onClick={() => sendReminder(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send reminder">
+                      <Bell className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={() => openEdit(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Edit">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: inv.id, name: inv.invoice_number })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5" title="Delete">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>

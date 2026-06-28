@@ -167,7 +167,35 @@ export function Reservations() {
         </Card>
       ) : (
         <>
-        <Card className="overflow-hidden">
+        <div className="lg:hidden space-y-3">
+          {paginated.map(r => (
+            <Card key={r.id} className="p-4 space-y-2 cursor-pointer" onClick={() => setSelected(r)}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{r.guest_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{r.property?.name ?? '—'}</p>
+                </div>
+                <p className="text-sm font-mono shrink-0">€{Number(r.total_amount).toLocaleString()}</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                <span>{r.arrival}</span>
+                <span>→</span>
+                <span>{r.departure}</span>
+                <span className="ml-auto">{r.guests_count} pax</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant={r.status === 'confirmed' || r.status === 'completed' ? 'success' : r.status === 'cancelled' ? 'destructive' : 'warning'}>{r.status}</Badge>
+                <Badge variant={r.payment_status === 'paid' ? 'success' : r.payment_status === 'partial' ? 'warning' : 'muted'}>{r.payment_status}</Badge>
+                <Badge variant={r.contract_status === 'signed' ? 'success' : r.contract_status === 'sent' ? 'info' : 'muted'}>{r.contract_status}</Badge>
+                <Badge variant={checkinByReservation.get(r.id)?.status === 'completed' ? 'success' : 'muted'}>
+                  {checkinByReservation.get(r.id)?.status === 'completed' ? 'check-in' : 'check-in pending'}
+                </Badge>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="overflow-hidden hidden lg:block">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -235,7 +263,7 @@ export function Reservations() {
       <Modal open={!!selected} onClose={() => setSelected(null)} title="Reservation Detail">
         {selected && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Guest</p>
                 <p className="text-sm font-medium mt-1">{selected.guest_name}</p>
@@ -338,7 +366,7 @@ export function Reservations() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Reservation">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Email" type="email" value={form.guest_email} onChange={e => setForm(f => ({ ...f, guest_email: e.target.value }))} />
             <Input label="Phone" value={form.guest_phone} onChange={e => setForm(f => ({ ...f, guest_phone: e.target.value }))} />
           </div>
@@ -351,11 +379,11 @@ export function Reservations() {
               ...properties.map(p => ({ value: p.id, label: p.name })),
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Arrival" type="date" required value={form.arrival} onChange={e => setForm(f => ({ ...f, arrival: e.target.value }))} />
             <Input label="Departure" type="date" required value={form.departure} onChange={e => setForm(f => ({ ...f, departure: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Guests" type="number" min={1} value={form.guests_count} onChange={e => setForm(f => ({ ...f, guests_count: Number(e.target.value) }))} />
             <Input label="Total Amount (€)" type="number" min={0} value={form.total_amount} onChange={e => setForm(f => ({ ...f, total_amount: Number(e.target.value) }))} />
           </div>

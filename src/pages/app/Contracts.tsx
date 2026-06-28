@@ -225,7 +225,58 @@ export function Contracts() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(c => (
+              <Card key={c.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{c.guest_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c.property_name}</p>
+                  </div>
+                  <button onClick={() => advanceStatus(c.id, c.status)} className="shrink-0">
+                    <Badge variant={
+                      c.status === 'signed' ? 'success' :
+                      c.status === 'sent' ? 'info' :
+                      c.status === 'archived' ? 'muted' :
+                      c.status === 'expired' ? 'muted' : 'warning'
+                    }>
+                      {c.status}
+                    </Badge>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="capitalize">{c.type.replace(/_/g, ' ')}</span>
+                  <span className="font-mono ml-auto">{c.date}</span>
+                </div>
+                <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
+                  {c.status === 'draft' && (
+                    <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send for signature">
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
+                  {(c.status === 'draft' || c.status === 'sent') && (
+                    <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Get signing link">
+                      <Link2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  {c.status === 'signed' && (
+                    <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Archive">
+                      <Archive className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -306,14 +357,14 @@ export function Contracts() {
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Edit Contract' : 'New Contract'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
               {errors.guest_name && <p className="text-xs text-destructive mt-1">{errors.guest_name}</p>}
             </div>
             <Input label="Property" value={form.property_name} onChange={e => setForm(f => ({ ...f, property_name: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}

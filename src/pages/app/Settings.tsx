@@ -421,7 +421,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
         <div className="space-y-4">
           <Input label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
           <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} options={[
               { value: 'villa', label: 'Villa' }, { value: 'yacht', label: 'Yacht' }, { value: 'apartment', label: 'Apartment' }, { value: 'chalet', label: 'Chalet' },
             ]} />
@@ -434,7 +434,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
             <Input label="Bathrooms" type="number" min="0" value={form.bathrooms} onChange={e => setForm(f => ({ ...f, bathrooms: e.target.value }))} />
             <Input label="Max guests" type="number" min="0" value={form.max_guests} onChange={e => setForm(f => ({ ...f, max_guests: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Surface (m2)" type="number" min="0" value={form.surface_m2} onChange={e => setForm(f => ({ ...f, surface_m2: e.target.value }))} />
             <Input label="Units" type="number" min="1" value={form.units} onChange={e => setForm(f => ({ ...f, units: e.target.value }))} />
           </div>

@@ -278,7 +278,7 @@ export function Properties() {
             {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
           </div>
           <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Saint-Tropez, France" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}
@@ -315,7 +315,7 @@ export function Properties() {
               {errors.max_guests && <p className="text-xs text-destructive mt-1">{errors.max_guests}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Surface (m²)" type="number" min={0} value={form.surface_m2} onChange={e => setForm(f => ({ ...f, surface_m2: Number(e.target.value) }))} />
             <Input label="Units" type="number" min={1} value={form.units} onChange={e => setForm(f => ({ ...f, units: Number(e.target.value) }))} />
           </div>

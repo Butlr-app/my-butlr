@@ -1,12 +1,23 @@
 import { cn } from '@/lib/utils'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useRoleFilter } from '@/lib/useRoleFilter'
+import { useRole, type Role } from '@/lib/roleContext'
+import { useSearch } from '@/lib/searchContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare
+  FilePlus, Receipt, Bell, MessageSquare, Search
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
+
+const roleOptions: { value: Role; label: string }[] = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'house_manager', label: 'House Manager' },
+  { value: 'concierge', label: 'Concierge' },
+  { value: 'agency', label: 'Agency' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'guest', label: 'Guest' },
+]
 
 const navItems = [
   { to: '/app', icon: LayoutDashboard, labelKey: 'nav.overview', page: 'dashboard', end: true },
@@ -38,8 +49,18 @@ interface SidebarProps {
 export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { isVisible } = useRoleFilter()
   const { t } = useTranslation()
+  const { role, setRole } = useRole()
+  const { query, setQuery } = useSearch()
+  const navigate = useNavigate()
 
   const visibleItems = navItems.filter(item => isVisible(item.page))
+
+  const submitSearch = () => {
+    if (query.trim()) {
+      navigate(`/app/search?q=${encodeURIComponent(query)}`)
+      setMobileOpen(false)
+    }
+  }
 
   return (
     <>
@@ -89,6 +110,29 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             </NavLink>
           ))}
         </nav>
+
+        <div className="lg:hidden border-t border-border p-3 space-y-2">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={t('nav.search')}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submitSearch() }}
+              className="h-9 w-full pl-9 pr-3 bg-muted border-0 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <select
+            value={role}
+            onChange={e => setRole(e.target.value as Role)}
+            className="h-9 w-full px-2 bg-muted border-0 rounded-md text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {roleOptions.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
       </aside>
     </>
   )
