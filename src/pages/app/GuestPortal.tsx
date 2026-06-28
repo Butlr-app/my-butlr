@@ -460,8 +460,11 @@ function ServiceRequestsList({ reservationId }: { reservationId: string }) {
                 {!req.preferred_date && !req.preferred_time && 'No date preference'}
               </p>
               {req.details && <p className="text-xs text-muted-foreground mt-0.5">{req.details}</p>}
+              {req.quoted_price != null && (
+                <p className="text-xs text-foreground mt-0.5">Quote: €{Number(req.quoted_price).toLocaleString()}</p>
+              )}
             </div>
-            <Badge variant={statusVariant(req.status)}>{req.status}</Badge>
+            <Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge>
           </div>
         ))}
       </div>

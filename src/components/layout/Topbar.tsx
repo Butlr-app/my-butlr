@@ -26,6 +26,7 @@ const typeIcons: Record<Notification['type'], string> = {
   task: 'T',
   payment: 'P',
   system: 'S',
+  service_request: 'SR',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -33,6 +34,7 @@ const typeColors: Record<Notification['type'], string> = {
   task: 'bg-warning/10 text-warning',
   payment: 'bg-success/10 text-success',
   system: 'bg-muted text-muted-foreground',
+  service_request: 'bg-info/10 text-info',
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {

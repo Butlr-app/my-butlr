@@ -17,6 +17,7 @@ import { Reservations } from './pages/app/Reservations'
 import { GuestPortal } from './pages/app/GuestPortal'
 import { Messages } from './pages/app/Messages'
 import { Services } from './pages/app/Services'
+import { ServiceRequests } from './pages/app/ServiceRequests'
 import { Tasks } from './pages/app/Tasks'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="guest-portal" element={<GuestPortal />} />
           <Route path="messages" element={<Messages />} />
           <Route path="services" element={<Services />} />
+          <Route path="service-requests" element={<ServiceRequests />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />

@@ -118,6 +118,7 @@ export function useRoleFilter() {
       'guest-portal': ['owner', 'house_manager', 'concierge', 'agency', 'guest'],
       messages: ['owner', 'house_manager', 'concierge', 'agency'],
       services: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
+      'service-requests': ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency'],
