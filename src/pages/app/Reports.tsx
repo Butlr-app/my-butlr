@@ -75,10 +75,15 @@ export function Reports() {
       return { label: m, value: Math.round((occupiedDays / denom) * 100) }
     })
 
-    // Average occupancy across the selected year (year-scoped, derived from monthly trend)
-    const occupancyRate = Math.round(
-      occupancyTrend.reduce((s, m) => s + m.value, 0) / occupancyTrend.length
-    )
+    // Headline occupancy: point-in-time (properties occupied today / total),
+    // matching the Overview KPI and the per-property cards below.
+    const occupiedProps = new Set(
+      reservations
+        .filter(r => r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress'))
+        .map(r => r.property_id)
+        .filter(Boolean)
+    ).size
+    const occupancyRate = totalProps > 0 ? Math.round((occupiedProps / totalProps) * 100) : 0
 
     // Reservations by status
     const byStatus = RES_STATUSES.map(s => ({
