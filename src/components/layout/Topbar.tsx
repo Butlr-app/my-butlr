@@ -36,7 +36,7 @@ const typeColors: Record<Notification['type'], string> = {
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {
-  const [dark, setDark] = useState(true)
+  const [dark, setDark] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const { role, setRole } = useRole()
