@@ -122,6 +122,7 @@ export function useRoleFilter() {
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency'],
       payments: ['owner', 'agency', 'partner'],
+      apa: ['owner', 'agency'],
       contracts: ['owner', 'agency'],
       reports: ['owner', 'agency'],
       settings: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
