@@ -35,6 +35,18 @@ import { Invoices } from './pages/app/Invoices'
 import { NotificationsPage } from './pages/app/NotificationsPage'
 import { ContractSigning } from './pages/ContractSigning'
 import { NotFound } from './pages/NotFound'
+import { GuestLayout } from './pages/mobile/guest/GuestLayout'
+import { GuestExplore } from './pages/mobile/guest/GuestExplore'
+import { GuestStays } from './pages/mobile/guest/GuestStays'
+import { GuestServices } from './pages/mobile/guest/GuestServices'
+import { GuestMessages } from './pages/mobile/guest/GuestMessages'
+import { GuestProfile } from './pages/mobile/guest/GuestProfile'
+import { PartnerLayout } from './pages/mobile/partner/PartnerLayout'
+import { PartnerDashboard } from './pages/mobile/partner/PartnerDashboard'
+import { PartnerBookings } from './pages/mobile/partner/PartnerBookings'
+import { PartnerEarnings } from './pages/mobile/partner/PartnerEarnings'
+import { PartnerServices } from './pages/mobile/partner/PartnerServices'
+import { PartnerProfile } from './pages/mobile/partner/PartnerProfile'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
@@ -91,6 +103,24 @@ export default function App() {
           <Route path="apa" element={<Apa />} />
           <Route path="settings" element={<Settings />} />
           <Route path="search" element={<SearchResults />} />
+        </Route>
+
+        {/* Guest Mobile App (Airbnb-style) */}
+        <Route path="/guest" element={<ProtectedRoute><GuestLayout /></ProtectedRoute>}>
+          <Route index element={<GuestExplore />} />
+          <Route path="stays" element={<GuestStays />} />
+          <Route path="services" element={<GuestServices />} />
+          <Route path="messages" element={<GuestMessages />} />
+          <Route path="profile" element={<GuestProfile />} />
+        </Route>
+
+        {/* Partner Mobile App (Airbnb-style) */}
+        <Route path="/partner" element={<ProtectedRoute><PartnerLayout /></ProtectedRoute>}>
+          <Route index element={<PartnerDashboard />} />
+          <Route path="bookings" element={<PartnerBookings />} />
+          <Route path="earnings" element={<PartnerEarnings />} />
+          <Route path="services" element={<PartnerServices />} />
+          <Route path="profile" element={<PartnerProfile />} />
         </Route>
 
         {/* 404 */}
