@@ -34,6 +34,9 @@
     --warning-soft: 26 100% 95%;      /* #FFF1E6 */
     --info: 214 84% 56%;              /* #2F80ED */
     --info-soft: 217 100% 96%;        /* #EAF2FF */
+    --gold: 38 64% 46%;               /* accent doré CTA */
+    --gold-foreground: 0 0% 100%;
+    --gold-soft: 38 70% 94%;
     /* Navy luxe (interface client / prestataire) */
     --navy-900: 221 88% 6%;           /* #020B1F */
     --navy-800: 219 76% 11%;          /* #071632 */
@@ -79,6 +82,9 @@
     --warning-soft: 28 60% 16%;
     --info: 214 90% 65%;
     --info-soft: 214 50% 18%;
+    --gold: 41 72% 56%;
+    --gold-foreground: 0 0% 8%;
+    --gold-soft: 41 40% 16%;
   }
 }
 
@@ -134,6 +140,9 @@
   --color-navy-900: hsl(var(--navy-900));
   --color-navy-800: hsl(var(--navy-800));
   --color-navy-700: hsl(var(--navy-700));
+  --color-gold: hsl(var(--gold));
+  --color-gold-foreground: hsl(var(--gold-foreground));
+  --color-gold-soft: hsl(var(--gold-soft));
   --radius-sm: 0.5rem;     /* 8px */
   --radius-md: 0.75rem;    /* 12px */
   --radius-lg: 1rem;       /* 16px */

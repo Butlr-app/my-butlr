@@ -176,7 +176,7 @@ export function Payments() {
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> {t('importExport.exportCsv')}
           </Button>
-          <Button size="sm" onClick={openCreate}>
+          <Button variant="gold" size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> {t('payments.title')}
           </Button>
         </div>
@@ -202,7 +202,7 @@ export function Payments() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No payments match your search.' : 'No payments recorded.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Record payment</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Record payment</Button>}
         </Card>
       ) : (
         <>

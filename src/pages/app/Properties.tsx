@@ -186,7 +186,7 @@ export function Properties() {
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="w-4 h-4 mr-1" /> {t('common.import')}
           </Button>
-          <Button size="sm" onClick={openCreate}>
+          <Button variant="gold" size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> {t('properties.addProperty')}
           </Button>
         </div>
@@ -197,7 +197,7 @@ export function Properties() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No properties match your search.' : 'No properties yet. Add your first property to get started.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Add property</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add property</Button>}
         </Card>
       ) : (
         <>

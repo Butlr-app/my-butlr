@@ -150,7 +150,7 @@ export function Partners() {
         <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('partners.title')}</p>
         <div className="flex items-center gap-2">
           <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`partners-${new Date().toISOString().split('T')[0]}`} />
-          <Button size="sm" onClick={openCreate}>
+          <Button variant="gold" size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> {t('partners.addPartner')}
           </Button>
         </div>
@@ -161,7 +161,7 @@ export function Partners() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No partners match your search.' : 'No partners yet.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Add partner</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add partner</Button>}
         </Card>
       ) : (
         <>
