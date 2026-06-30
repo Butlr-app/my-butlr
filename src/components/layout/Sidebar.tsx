@@ -1,14 +1,24 @@
 import { cn } from '@/lib/utils'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useRoleFilter } from '@/lib/useRoleFilter'
-import { useRole } from '@/lib/roleContext'
+import { useRole, type Role } from '@/lib/roleContext'
+import { useSearch } from '@/lib/searchContext'
 import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare
+  FilePlus, Receipt, Bell, MessageSquare, Search
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
+
+const roleOptions: { value: Role; label: string }[] = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'house_manager', label: 'House Manager' },
+  { value: 'concierge', label: 'Concierge' },
+  { value: 'agency', label: 'Agency' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'guest', label: 'Guest' },
+]
 
 const roleLabels: Record<string, string> = {
   owner: 'Admin',
@@ -18,6 +28,7 @@ const roleLabels: Record<string, string> = {
   partner: 'Partner',
   guest: 'Guest',
 }
+
 
 const navItems = [
   { to: '/app', icon: LayoutDashboard, labelKey: 'nav.overview', page: 'dashboard', end: true },
@@ -49,13 +60,22 @@ interface SidebarProps {
 export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { isVisible } = useRoleFilter()
   const { t } = useTranslation()
-  const { role } = useRole()
+  const { role, setRole } = useRole()
+  const { query, setQuery } = useSearch()
+  const navigate = useNavigate()
   const { user } = useAuth()
 
   const visibleItems = navItems.filter(item => isVisible(item.page))
   const email = user?.email ?? 'user@mybutlr.com'
   const displayName = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   const initial = displayName.charAt(0).toUpperCase()
+
+  const submitSearch = () => {
+    if (query.trim()) {
+      navigate(`/app/search?q=${encodeURIComponent(query)}`)
+      setMobileOpen(false)
+    }
+  }
 
   return (
     <>
@@ -111,6 +131,29 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
           ))}
         </nav>
 
+        <div className="lg:hidden border-t border-white/10 p-3 space-y-2">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={t('nav.search')}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submitSearch() }}
+              className="h-9 w-full pl-9 pr-3 bg-muted border-0 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <select
+            value={role}
+            onChange={e => setRole(e.target.value as Role)}
+            className="h-9 w-full px-2 bg-muted border-0 rounded-md text-xs font-medium uppercase tracking-wide focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {roleOptions.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="p-3 shrink-0 border-t border-white/10">
           <div className={cn('flex items-center gap-3 rounded-xl p-2', !collapsed && 'hover:bg-white/5')}>
             <span className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
@@ -124,6 +167,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             )}
           </div>
         </div>
+
       </aside>
     </>
   )

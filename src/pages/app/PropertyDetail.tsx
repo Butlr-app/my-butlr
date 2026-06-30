@@ -572,7 +572,7 @@ export function PropertyDetail() {
       {/* ─── Room Modal ─────────────────────────────────────────────── */}
       <Modal open={showRoomModal} onClose={() => setShowRoomModal(false)} title={editingRoom ? 'Edit Room' : 'Add Room'}>
         <form onSubmit={handleSubmitRoom} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Room type"
               value={roomForm.room_type}

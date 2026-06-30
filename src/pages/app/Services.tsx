@@ -233,7 +233,7 @@ export function Services() {
               { value: 'housekeeping', label: 'Housekeeping' },
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Starting Price (€)" type="number" min={0} value={form.starting_price} onChange={e => setForm(f => ({ ...f, starting_price: Number(e.target.value) }))} />
               {errors.starting_price && <p className="text-xs text-destructive mt-1">{errors.starting_price}</p>}

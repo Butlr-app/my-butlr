@@ -206,7 +206,44 @@ export function Payments() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(p => (
+              <Card key={p.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.guest_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.property_name}</p>
+                  </div>
+                  <p className="text-sm font-mono shrink-0">€{Number(p.amount).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono">{p.date}</span>
+                    <span className="capitalize">· {p.type}</span>
+                  </div>
+                  <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                    <Badge variant={
+                      p.status === 'paid' ? 'success' :
+                      p.status === 'failed' ? 'destructive' :
+                      p.status === 'refunded' ? 'info' : 'warning'
+                    }>
+                      {p.status}
+                    </Badge>
+                  </button>
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
+                  <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -268,14 +305,14 @@ export function Payments() {
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Edit Payment' : 'Record Payment'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
               {errors.guest_name && <p className="text-xs text-destructive mt-1">{errors.guest_name}</p>}
             </div>
             <Input label="Property" value={form.property_name} onChange={e => setForm(f => ({ ...f, property_name: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}
@@ -299,7 +336,7 @@ export function Payments() {
               ]}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Amount (€)" type="number" min={0} required value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
               {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount}</p>}

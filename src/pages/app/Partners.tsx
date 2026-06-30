@@ -165,7 +165,41 @@ export function Partners() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(p => (
+              <Card key={p.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.email || p.contact}</p>
+                  </div>
+                  <button onClick={() => toggleStatus(p.id, p.status)} className="shrink-0">
+                    <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>{p.category}</span>
+                  <span>{p.location}</span>
+                  <span className="font-mono">{p.commission}%</span>
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-current text-warning" />
+                    <span className="font-mono">{Number(p.rating).toFixed(1)}</span>
+                  </span>
+                  <span className="font-mono">{p.bookings_count} bookings</span>
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
+                  <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -251,14 +285,14 @@ export function Partners() {
               { value: 'Other', label: 'Other' },
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
             <div>
               <Input label="Commission (%)" type="number" min={0} max={100} value={form.commission} onChange={e => setForm(f => ({ ...f, commission: Number(e.target.value) }))} />
               {errors.commission && <p className="text-xs text-destructive mt-1">{errors.commission}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
               {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
