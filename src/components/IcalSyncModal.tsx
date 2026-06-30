@@ -213,7 +213,7 @@ export function IcalSyncModal({ open, onClose, reservations, properties, onImpor
 
           {rows && (
             <div className="space-y-3">
-              <div className="flex items-center gap-4 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <div className="flex items-center gap-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <span>{rows.length} {t('ical.events')}</span>
                 {conflictCount > 0 && (
                   <span className="flex items-center gap-1 text-amber-600">

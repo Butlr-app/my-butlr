@@ -152,7 +152,7 @@ export function DonutChart({ data, label, centerLabel, centerValue }: {
                 <span className="w-2.5 h-2.5 rounded-full bg-foreground shrink-0" style={{ opacity: 1 - i * (0.6 / Math.max(data.length - 1, 1)) }} />
                 <span className="text-sm truncate">{d.label}</span>
               </div>
-              <span className="text-sm font-mono text-muted-foreground shrink-0">{d.value}</span>
+              <span className="text-sm tabular-nums text-muted-foreground shrink-0">{d.value}</span>
             </div>
           ))}
         </div>

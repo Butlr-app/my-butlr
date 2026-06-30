@@ -140,7 +140,7 @@ export function Reservations() {
     <div className="flex">
     <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('reservations.title')}</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('reservations.title')}</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
@@ -172,16 +172,16 @@ export function Reservations() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guest</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Arrival</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Departure</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guests</th>
-                  <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Payment</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Contract</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Check-in</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guest</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrival</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Departure</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guests</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contract</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Check-in</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,10 +193,10 @@ export function Reservations() {
                   >
                     <td className="px-4 text-sm font-medium">{r.guest_name}</td>
                     <td className="px-4 text-sm text-muted-foreground">{r.property?.name ?? '—'}</td>
-                    <td className="px-4 text-sm font-mono">{r.arrival}</td>
-                    <td className="px-4 text-sm font-mono">{r.departure}</td>
-                    <td className="px-4 text-sm font-mono text-right">{r.guests_count}</td>
-                    <td className="px-4 text-sm font-mono text-right">€{Number(r.total_amount).toLocaleString()}</td>
+                    <td className="px-4 text-sm tabular-nums">{r.arrival}</td>
+                    <td className="px-4 text-sm tabular-nums">{r.departure}</td>
+                    <td className="px-4 text-sm tabular-nums text-right">{r.guests_count}</td>
+                    <td className="px-4 text-sm tabular-nums text-right">€{Number(r.total_amount).toLocaleString()}</td>
                     <td className="px-4">
                       <Badge variant={r.status === 'confirmed' || r.status === 'completed' ? 'success' : r.status === 'cancelled' ? 'destructive' : 'warning'}>{r.status}</Badge>
                     </td>
@@ -225,7 +225,7 @@ export function Reservations() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
@@ -237,28 +237,28 @@ export function Reservations() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Guest</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Guest</p>
                 <p className="text-sm font-medium mt-1">{selected.guest_name}</p>
                 {selected.guest_email && <p className="text-xs text-muted-foreground">{selected.guest_email}</p>}
               </div>
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Property</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Property</p>
                 <p className="text-sm font-medium mt-1">{selected.property?.name ?? '—'}</p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Arrival</p>
-                <p className="text-sm font-mono mt-1">{selected.arrival}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Arrival</p>
+                <p className="text-sm tabular-nums mt-1">{selected.arrival}</p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Departure</p>
-                <p className="text-sm font-mono mt-1">{selected.departure}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Departure</p>
+                <p className="text-sm tabular-nums mt-1">{selected.departure}</p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Total Amount</p>
-                <p className="text-sm font-mono mt-1">€{Number(selected.total_amount).toLocaleString()}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Amount</p>
+                <p className="text-sm tabular-nums mt-1">€{Number(selected.total_amount).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Status</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
                 <div className="mt-1 flex gap-1 flex-wrap">
                   {(['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'] as const).map(s => (
                     <button
@@ -278,12 +278,12 @@ export function Reservations() {
             </div>
             {selected.notes && (
               <div className="pt-4 border-t border-border">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Notes</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Notes</p>
                 <p className="text-sm text-muted-foreground">{selected.notes}</p>
               </div>
             )}
             <div className="pt-4 border-t border-border">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Online Check-in</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Online Check-in</p>
               {(() => {
                 const ci = checkinByReservation.get(selected.id)
                 if (!ci || ci.status !== 'completed') {
@@ -304,7 +304,7 @@ export function Reservations() {
                     )}
                     {ci.signature_data && (
                       <div>
-                        <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Signature</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Signature</p>
                         <img src={ci.signature_data} alt="Signature" className="border border-border rounded-sm bg-white max-w-[220px]" />
                       </div>
                     )}

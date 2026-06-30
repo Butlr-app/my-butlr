@@ -171,11 +171,11 @@ function GuestDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t('reservations.arrival')}</span>
-              <span className="font-mono">{currentRes.arrival}</span>
+              <span className="tabular-nums">{currentRes.arrival}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t('reservations.departure')}</span>
-              <span className="font-mono">{currentRes.departure}</span>
+              <span className="tabular-nums">{currentRes.departure}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t('common.status')}</span>
@@ -299,7 +299,7 @@ export function Dashboard() {
                     <p className="text-xs text-muted-foreground">{p.property_name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-mono font-medium">{'\u20AC'}{Number(p.amount).toLocaleString()}</p>
+                    <p className="text-sm tabular-nums font-medium">{'\u20AC'}{Number(p.amount).toLocaleString()}</p>
                     <Badge variant={p.status === 'paid' ? 'success' : 'warning'} className="mt-1">
                       {p.status}
                     </Badge>
@@ -319,19 +319,19 @@ export function Dashboard() {
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">{t('dashboard.totalReservations')}</span>
-                <span className="text-sm font-mono font-medium">{reservations.length}</span>
+                <span className="text-sm tabular-nums font-medium">{reservations.length}</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">{t('dashboard.tasksDone')}</span>
-                <span className="text-sm font-mono font-medium">{tasks.filter(t => t.status === 'done').length}</span>
+                <span className="text-sm tabular-nums font-medium">{tasks.filter(t => t.status === 'done').length}</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">{t('dashboard.paidPayments')}</span>
-                <span className="text-sm font-mono font-medium">{payments.filter(p => p.status === 'paid').length}</span>
+                <span className="text-sm tabular-nums font-medium">{payments.filter(p => p.status === 'paid').length}</span>
               </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-muted-foreground">{t('dashboard.totalRevenue')}</span>
-                <span className="text-sm font-mono font-medium">{'\u20AC'}{payments.reduce((s, p) => p.status === 'paid' ? s + Number(p.amount) : s, 0).toLocaleString()}</span>
+                <span className="text-sm tabular-nums font-medium">{'\u20AC'}{payments.reduce((s, p) => p.status === 'paid' ? s + Number(p.amount) : s, 0).toLocaleString()}</span>
               </div>
             </div>
           </Card>
