@@ -293,7 +293,7 @@ export function CalendarPage() {
         <Card className="overflow-hidden">
           <div className="grid grid-cols-7 border-b border-border">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-              <div key={d} className="p-2 text-center text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
+              <div key={d} className="p-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {d}
               </div>
             ))}
@@ -316,7 +316,7 @@ export function CalendarPage() {
                 >
                   {day && (
                     <>
-                      <p className={`text-xs font-mono mb-1 ${isToday ? 'bg-foreground text-background w-5 h-5 rounded-full flex items-center justify-center' : 'text-muted-foreground'}`}>
+                      <p className={`text-xs tabular-nums mb-1 ${isToday ? 'bg-foreground text-background w-5 h-5 rounded-full flex items-center justify-center' : 'text-muted-foreground'}`}>
                         {day}
                       </p>
                       <div className="space-y-0.5">
@@ -349,7 +349,7 @@ export function CalendarPage() {
           <div className="overflow-x-auto">
             <div style={{ minWidth: `${Math.max(daysInMonth * 40 + 160, 800)}px` }}>
               <div className="flex border-b border-border sticky top-0 bg-card z-10">
-                <div className="w-40 shrink-0 p-2 text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground border-r border-border">
+                <div className="w-40 shrink-0 p-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-r border-border">
                   Property
                 </div>
                 <div className="flex-1 flex">
@@ -359,7 +359,7 @@ export function CalendarPage() {
                     return (
                       <div
                         key={dateStr}
-                        className={`flex-1 min-w-[40px] p-1 text-center text-[10px] font-mono border-r border-border ${isToday ? 'bg-info/10 font-bold' : 'text-muted-foreground'}`}
+                        className={`flex-1 min-w-[40px] p-1 text-center text-[10px] tabular-nums border-r border-border ${isToday ? 'bg-info/10 font-bold' : 'text-muted-foreground'}`}
                       >
                         {dayNum}
                       </div>
@@ -454,7 +454,7 @@ export function CalendarPage() {
 
       {/* Upcoming Events */}
       <div>
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground mb-3">Upcoming Events</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground mb-3">Upcoming Events</p>
         {events.length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-sm text-muted-foreground">No events scheduled.</p>
@@ -484,7 +484,7 @@ export function CalendarPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Event">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Title" required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Guest arrival" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}
@@ -507,7 +507,7 @@ export function CalendarPage() {
               ]}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Start Date" type="date" required value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
             <Input label="End Date" type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
           </div>
@@ -530,7 +530,7 @@ export function CalendarPage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Title</p>
                 <p className="text-sm font-medium">{selectedEvent.title}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Type</p>
                   <Badge variant="muted">{selectedEvent.type}</Badge>
@@ -540,14 +540,14 @@ export function CalendarPage() {
                   <p className="text-sm">{propertyMap[selectedEvent.property_id ?? ''] || 'None'}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Start</p>
-                  <p className="text-sm font-mono">{selectedEvent.start_date}</p>
+                  <p className="text-sm tabular-nums">{selectedEvent.start_date}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">End</p>
-                  <p className="text-sm font-mono">{selectedEvent.end_date || selectedEvent.start_date}</p>
+                  <p className="text-sm tabular-nums">{selectedEvent.end_date || selectedEvent.start_date}</p>
                 </div>
               </div>
               {selectedEvent.notes && (
