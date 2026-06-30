@@ -176,7 +176,7 @@ export function Properties() {
     <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('properties.title')}</p>
+          <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('properties.title')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
@@ -210,7 +210,7 @@ export function Properties() {
                   ) : (
                     <div className="flex flex-col items-center gap-1">
                       <MapPin className="w-5 h-5 text-muted-foreground/40" />
-                      <span className="text-[10px] text-muted-foreground/40 font-mono">No image</span>
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums">No image</span>
                     </div>
                   )}
                 </div>
@@ -233,15 +233,15 @@ export function Properties() {
                   <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
                     <div>
                       <p className="text-xs text-muted-foreground">Bedrooms</p>
-                      <p className="text-sm font-mono font-medium">{property.bedrooms}</p>
+                      <p className="text-sm tabular-nums font-medium">{property.bedrooms}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Bathrooms</p>
-                      <p className="text-sm font-mono font-medium">{property.bathrooms}</p>
+                      <p className="text-sm tabular-nums font-medium">{property.bathrooms}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Max Guests</p>
-                      <p className="text-sm font-mono font-medium">{property.max_guests}</p>
+                      <p className="text-sm tabular-nums font-medium">{property.max_guests}</p>
                     </div>
                   </div>
 
@@ -264,7 +264,7 @@ export function Properties() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
