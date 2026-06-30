@@ -124,7 +124,7 @@ function ArticleEditor({
     <div className={`border rounded-md transition-colors ${article.enabled ? 'border-border bg-card' : 'border-border/50 bg-muted/30 opacity-60'}`}>
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab shrink-0" />
-        <span className="text-xs font-mono text-muted-foreground w-8 shrink-0">Art. {article.number}</span>
+        <span className="text-xs tabular-nums text-muted-foreground w-8 shrink-0">Art. {article.number}</span>
 
         {editing ? (
           <input
@@ -137,7 +137,7 @@ function ArticleEditor({
         )}
 
         {article.isHighlighted && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-mono uppercase shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 tabular-nums uppercase shrink-0">
             cle
           </span>
         )}
@@ -940,7 +940,7 @@ export function ContractGenerator() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">
           Generateur de contrats
         </p>
         <div className="flex items-center gap-2">

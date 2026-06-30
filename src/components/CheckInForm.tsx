@@ -266,7 +266,7 @@ function CompletedCheckin({ checkin, reservation }: { checkin: NonNullable<Retur
       {checkin.special_requests && <Detail label="Special requests" value={checkin.special_requests} />}
       {checkin.signature_data && (
         <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Signature</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Signature</p>
           <img src={checkin.signature_data} alt="Signature" className="border border-border rounded-sm bg-white max-w-[260px]" />
         </div>
       )}
@@ -277,7 +277,7 @@ function CompletedCheckin({ checkin, reservation }: { checkin: NonNullable<Retur
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="font-medium mt-0.5">{value || '—'}</p>
     </div>
   )

@@ -18,7 +18,8 @@
     "notifications": "Notifications",
     "reports": "Reports",
     "settings": "Settings",
-    "search": "Search"
+    "search": "Search",
+    "menu": "Menu"
   },
   "common": {
     "add": "Add",
@@ -58,6 +59,7 @@
     "no": "No"
   },
   "dashboard": {
+    "subtitle": "Here's your overview for today",
     "ownerTitle": "Owner Dashboard",
     "houseManagerTitle": "House Manager Dashboard",
     "conciergeTitle": "Concierge Dashboard",

@@ -167,7 +167,7 @@ export function Tasks() {
     <div className="flex">
     <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('tasks.title')}</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('tasks.title')}</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
@@ -185,8 +185,8 @@ export function Tasks() {
           return (
             <div key={col.id} className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{col.label}</p>
-                <span className="text-xs font-mono text-muted-foreground">{colTasks.length}</span>
+                <p className="text-xs font-semibold tracking-tight text-muted-foreground">{col.label}</p>
+                <span className="text-xs tabular-nums text-muted-foreground">{colTasks.length}</span>
               </div>
               <div className="space-y-2">
                 {colTasks.map(task => (
@@ -217,7 +217,7 @@ export function Tasks() {
                       </Badge>
                     </div>
                     {task.due_date && (
-                      <p className="text-[10px] font-mono text-muted-foreground mb-2">Due: {task.due_date}</p>
+                      <p className="text-[10px] tabular-nums text-muted-foreground mb-2">Due: {task.due_date}</p>
                     )}
                     <div className="flex gap-1 flex-wrap">
                       {columns.filter(c => c.id !== col.id).map(c => (
@@ -266,7 +266,7 @@ export function Tasks() {
               ...properties.map(p => ({ value: p.id, label: p.name })),
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Priority"
               value={form.priority}

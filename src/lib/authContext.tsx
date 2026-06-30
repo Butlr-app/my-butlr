@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string, fullName: string, role?: string) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string, fullName: string, role?: string) => Promise<{ error: Error | null; needsConfirmation: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
 }
@@ -15,7 +15,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
-  signUp: async (_e, _p, _f, _r) => ({ error: null }),
+  signUp: async (_e, _p, _f, _r) => ({ error: null, needsConfirmation: false }),
   signIn: async () => ({ error: null }),
   signOut: async () => {},
 })
@@ -42,14 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, fullName: string, role?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName, role: role || 'owner' },
       },
     })
-    return { error: error as Error | null }
+    return { error: error as Error | null, needsConfirmation: !error && !data?.session }
   }
 
   const signIn = async (email: string, password: string) => {
