@@ -110,6 +110,21 @@ export interface Payment {
   created_at: string
 }
 
+export interface Payout {
+  id: string
+  payment_id: string | null
+  reservation_id: string | null
+  payee_type: 'villa' | 'partner'
+  payee_name: string
+  gross_amount: number
+  commission_rate: number
+  commission_amount: number
+  net_amount: number
+  status: 'pending' | 'paid'
+  paid_at: string | null
+  created_at: string
+}
+
 export interface Contract {
   id: string
   reservation_id: string | null
@@ -345,6 +360,23 @@ export function usePartners() {
 
 export function usePayments() {
   return useTable<Payment>('payments')
+}
+
+export function usePayouts() {
+  const base = useTable<Payout>('payouts')
+
+  const insertMany = async (rows: Partial<Payout>[]) => {
+    if (rows.length === 0) return []
+    const { data: inserted, error } = await supabase
+      .from('payouts')
+      .insert(rows as Record<string, unknown>[])
+      .select()
+    if (error) throw new Error(error.message)
+    await base.refetch()
+    return (inserted ?? []) as Payout[]
+  }
+
+  return { ...base, insertMany }
 }
 
 export function useContracts() {
