@@ -20,7 +20,7 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Settings</p>
+      <p className="text-xs font-semibold tracking-tight text-muted-foreground">Settings</p>
 
       <div className="border-b border-border">
         <div className="flex gap-0 overflow-x-auto">
@@ -238,7 +238,7 @@ function TeamTab({ profile, toast }: {
                   <p className="text-xs text-muted-foreground">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">{member.role}</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{member.role}</span>
                   {member.id !== profile?.id && (
                     <>
                       <button onClick={() => setEditMember({ ...member })} className="p-1 rounded hover:bg-muted">
@@ -406,7 +406,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
                   <p className="text-xs text-muted-foreground">{p.location} &middot; {p.type} &middot; {p.bedrooms} bed &middot; {p.max_guests} guests</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-mono uppercase tracking-wider ${p.status === 'active' ? 'text-success' : 'text-muted-foreground'}`}>{p.status}</span>
+                  <span className={`text-xs font-medium uppercase tracking-wide ${p.status === 'active' ? 'text-success' : 'text-muted-foreground'}`}>{p.status}</span>
                   <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
                   <button onClick={() => setDeleteTarget(p)} className="p-1 rounded hover:bg-muted"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                 </div>
@@ -506,10 +506,10 @@ function PaymentsTab() {
                   <td className="py-2.5 pr-4 text-muted-foreground">{p.date}</td>
                   <td className="py-2.5 pr-4">{p.guest_name}</td>
                   <td className="py-2.5 pr-4 text-muted-foreground">{p.property_name ?? '-'}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs uppercase">{p.type}</td>
-                  <td className="py-2.5 pr-4 text-right font-mono">{Number(p.amount).toLocaleString('fr-FR')} EUR</td>
+                  <td className="py-2.5 pr-4 tabular-nums text-xs uppercase">{p.type}</td>
+                  <td className="py-2.5 pr-4 text-right tabular-nums">{Number(p.amount).toLocaleString('fr-FR')} EUR</td>
                   <td className="py-2.5">
-                    <span className={`text-xs font-mono uppercase ${p.status === 'paid' ? 'text-success' : p.status === 'pending' ? 'text-warning' : 'text-destructive'}`}>
+                    <span className={`text-xs tabular-nums uppercase ${p.status === 'paid' ? 'text-success' : p.status === 'pending' ? 'text-warning' : 'text-destructive'}`}>
                       {p.status}
                     </span>
                   </td>
@@ -606,7 +606,7 @@ function ServicesTab({ toast }: { toast: (msg: string, variant?: 'success' | 'er
                   <p className="text-xs text-muted-foreground">{s.category} &middot; From {s.starting_price} EUR &middot; {s.commission}% commission</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-mono uppercase tracking-wider ${s.available ? 'text-success' : 'text-muted-foreground'}`}>
+                  <span className={`text-xs font-medium uppercase tracking-wide ${s.available ? 'text-success' : 'text-muted-foreground'}`}>
                     {s.available ? 'Available' : 'Unavailable'}
                   </span>
                   <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>

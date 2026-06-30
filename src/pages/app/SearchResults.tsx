@@ -70,7 +70,7 @@ export function SearchResults() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Search className="w-4 h-4 text-muted-foreground" />
-        <span className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+        <span className="text-xs font-semibold tracking-tight text-muted-foreground">
           {t('search.resultsFor')} &ldquo;{query}&rdquo; &mdash; {totalResults} {totalResults === 1 ? 'result' : 'results'}
         </span>
       </div>
@@ -137,7 +137,7 @@ export function SearchResults() {
                   <p className="text-xs text-muted-foreground">{p.property_name} &middot; {p.type}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-mono font-medium">{'\u20AC'}{Number(p.amount).toLocaleString()}</p>
+                  <p className="text-sm tabular-nums font-medium">{'\u20AC'}{Number(p.amount).toLocaleString()}</p>
                   <Badge variant={p.status === 'paid' ? 'success' : 'warning'} className="mt-1">{p.status}</Badge>
                 </div>
               </div>

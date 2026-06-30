@@ -251,50 +251,50 @@ export function PropertyDetail() {
       {activeTab === 'Overview' && (
         <div className="grid md:grid-cols-3 gap-4">
           <Card className="p-5">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Bedrooms</p>
-            <p className="text-2xl font-mono font-medium">{property.bedrooms}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Bedrooms</p>
+            <p className="text-2xl tabular-nums font-medium">{property.bedrooms}</p>
           </Card>
           <Card className="p-5">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Bathrooms</p>
-            <p className="text-2xl font-mono font-medium">{property.bathrooms}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Bathrooms</p>
+            <p className="text-2xl tabular-nums font-medium">{property.bathrooms}</p>
           </Card>
           <Card className="p-5">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Max Guests</p>
-            <p className="text-2xl font-mono font-medium">{property.max_guests}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Max Guests</p>
+            <p className="text-2xl tabular-nums font-medium">{property.max_guests}</p>
           </Card>
           <Card className="p-5">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Type</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Type</p>
             <p className="text-lg font-medium capitalize">{property.type}</p>
           </Card>
           {property.surface_m2 > 0 && (
             <Card className="p-5">
-              <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Surface</p>
-              <p className="text-2xl font-mono font-medium">{property.surface_m2} <span className="text-sm">m²</span></p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Surface</p>
+              <p className="text-2xl tabular-nums font-medium">{property.surface_m2} <span className="text-sm">m²</span></p>
             </Card>
           )}
           {property.units > 1 && (
             <Card className="p-5">
-              <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Units</p>
-              <p className="text-2xl font-mono font-medium">{property.units}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Units</p>
+              <p className="text-2xl tabular-nums font-medium">{property.units}</p>
             </Card>
           )}
           <Card className="p-5">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Reservations</p>
-            <p className="text-2xl font-mono font-medium">{propReservations.length}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Reservations</p>
+            <p className="text-2xl tabular-nums font-medium">{propReservations.length}</p>
           </Card>
           <Card className="p-5">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Open Tasks</p>
-            <p className="text-2xl font-mono font-medium">{propTasks.filter(t => t.status !== 'done').length}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Open Tasks</p>
+            <p className="text-2xl tabular-nums font-medium">{propTasks.filter(t => t.status !== 'done').length}</p>
           </Card>
           {amenityKeys.length > 0 && (
             <Card className="p-5">
-              <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-1">Amenities</p>
-              <p className="text-2xl font-mono font-medium">{amenityKeys.length}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Amenities</p>
+              <p className="text-2xl tabular-nums font-medium">{amenityKeys.length}</p>
             </Card>
           )}
           {property.description && (
             <Card className="p-5 md:col-span-3">
-              <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-2">Description</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Description</p>
               <p className="text-sm text-muted-foreground">{property.description}</p>
             </Card>
           )}
@@ -305,7 +305,7 @@ export function PropertyDetail() {
       {activeTab === 'Photos' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Photo Gallery {images.length > 0 && `(${images.length})`}
             </p>
           </div>
@@ -339,7 +339,7 @@ export function PropertyDetail() {
       {activeTab === 'Amenities' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Equipment & Amenities {!editingAmenities && amenityKeys.length > 0 && `(${amenityKeys.length} selected)`}
             </p>
             {editingAmenities ? (
@@ -376,7 +376,7 @@ export function PropertyDetail() {
                         <span className="text-muted-foreground">{categoryIcons[category.key]}</span>
                         <span className="text-sm font-medium">{category.labelFr}</span>
                         {count > 0 && (
-                          <span className="text-xs bg-foreground text-background px-2 py-0.5 rounded-full font-mono">
+                          <span className="text-xs bg-foreground text-background px-2 py-0.5 rounded-full tabular-nums">
                             {count}
                           </span>
                         )}
@@ -444,7 +444,7 @@ export function PropertyDetail() {
       {activeTab === 'Rooms' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Rooms & Bedding {rooms.length > 0 && `(${rooms.length})`}
             </p>
             <Button size="sm" onClick={openAddRoom}>
@@ -495,7 +495,7 @@ export function PropertyDetail() {
                     </div>
                     {room.bedding && room.bedding.length > 0 && (
                       <div className="space-y-1">
-                        <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">Bedding</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bedding</p>
                         {room.bedding.map((b, i) => {
                           const bedDef = BEDDING_TYPES.find(bt => bt.key === b.type)
                           return (
@@ -517,7 +517,7 @@ export function PropertyDetail() {
       {/* ─── Bookings Tab ───────────────────────────────────────────── */}
       {activeTab === 'Bookings' && (
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-4">Reservations for {property.name}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-4">Reservations for {property.name}</p>
           {propReservations.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No reservations for this property.</p>
           ) : (
@@ -526,7 +526,7 @@ export function PropertyDetail() {
                 <div key={r.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
                     <p className="text-sm font-medium">{r.guest_name}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{r.arrival} → {r.departure}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{r.arrival} → {r.departure}</p>
                   </div>
                   <Badge variant={r.status === 'confirmed' || r.status === 'completed' ? 'success' : r.status === 'cancelled' ? 'destructive' : 'warning'}>
                     {r.status}
@@ -541,7 +541,7 @@ export function PropertyDetail() {
       {/* ─── Tasks Tab ──────────────────────────────────────────────── */}
       {activeTab === 'Tasks' && (
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground mb-4">Tasks for {property.name}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-4">Tasks for {property.name}</p>
           {propTasks.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No tasks for this property.</p>
           ) : (
@@ -598,7 +598,7 @@ export function PropertyDetail() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">Bedding</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bedding</p>
               <button type="button" onClick={addBeddingRow} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Add bed
               </button>

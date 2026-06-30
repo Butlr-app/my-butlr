@@ -99,7 +99,7 @@ export function GuestPortal() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Guest Portal</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Guest Portal</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={exportReservationsCSV}>
             <Download className="w-4 h-4 mr-1" /> Export
@@ -116,7 +116,7 @@ export function GuestPortal() {
               <p className="text-xs text-muted-foreground mt-1">{activeReservation.arrival} — {activeReservation.departure}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Day {daysBetween(activeReservation.arrival, today) + 1} of {daysBetween(activeReservation.arrival, activeReservation.departure)}
               </p>
               <Badge variant="success" className="mt-1">Active Stay</Badge>
@@ -165,7 +165,7 @@ export function GuestPortal() {
                     <item.icon className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
                     <p className="text-sm font-medium mt-0.5">{item.value}</p>
                   </div>
                 </div>
@@ -218,7 +218,7 @@ export function GuestPortal() {
                     </div>
                     <div className="text-right">
                       <Badge variant={r.status === 'confirmed' ? 'success' : 'warning'}>{r.status}</Badge>
-                      <p className="text-xs font-mono mt-1">&euro;{Number(r.total_amount).toLocaleString()}</p>
+                      <p className="text-xs tabular-nums mt-1">&euro;{Number(r.total_amount).toLocaleString()}</p>
                     </div>
                   </div>
                 ))}
@@ -260,7 +260,7 @@ export function GuestPortal() {
       {activeSection === 'services' && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Available Services
             </p>
             <Button size="sm" onClick={() => setShowRequestModal(true)}>
