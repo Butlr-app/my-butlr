@@ -164,7 +164,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                   onClick={() => push.enable()}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-foreground bg-muted/40 hover:bg-muted transition-colors border-b border-border"
                 >
-                  <BellRing className="w-3.5 h-3.5 text-info" />
+                  <BellRing className="w-3.5 h-3.5 text-muted-foreground" />
                   {t('pwa.enablePush')}
                 </button>
               )}
