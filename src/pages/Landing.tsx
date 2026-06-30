@@ -66,7 +66,7 @@ export function Landing() {
           <div>
             <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1 mb-6">
               <Zap className="w-3 h-3 text-amber-400" />
-              <span className="text-xs font-mono font-medium uppercase tracking-wider text-amber-400">Limited beta — Join now</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-400">Limited beta — Join now</span>
             </div>
             <h1 className="text-[clamp(38px,6.5vw,68px)] font-extrabold leading-[1.0] tracking-tight mb-6">
               The private operating system for luxury stays
@@ -112,8 +112,8 @@ export function Landing() {
                     { label: 'Requests', value: '7', accent: 'border-sky-500/30' },
                   ].map(kpi => (
                     <div key={kpi.label} className={`flex-1 bg-white/5 border ${kpi.accent} rounded-lg p-4`}>
-                      <p className="text-[10px] font-mono uppercase tracking-wider text-white/50">{kpi.label}</p>
-                      <p className="text-xl font-mono font-medium mt-1">{kpi.value}</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-white/50">{kpi.label}</p>
+                      <p className="text-xl tabular-nums font-medium mt-1">{kpi.value}</p>
                     </div>
                   ))}
                 </div>
@@ -125,7 +125,7 @@ export function Landing() {
                   ].map(item => (
                     <div key={item.name} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                       <span className="text-sm">{item.name}</span>
-                      <span className={`text-xs font-mono ${item.color}`}>{item.status}</span>
+                      <span className={`text-xs tabular-nums ${item.color}`}>{item.status}</span>
                     </div>
                   ))}
                 </div>
@@ -143,8 +143,8 @@ export function Landing() {
                   { label: 'Requests', value: '7', accent: 'border-sky-500/30' },
                 ].map(kpi => (
                   <div key={kpi.label} className={`flex-1 bg-white/5 border ${kpi.accent} rounded-lg p-3 text-center`}>
-                    <p className="text-[9px] font-mono uppercase tracking-wider text-white/50">{kpi.label}</p>
-                    <p className="text-lg font-mono font-medium mt-0.5">{kpi.value}</p>
+                    <p className="text-[9px] font-medium uppercase tracking-wide text-white/50">{kpi.label}</p>
+                    <p className="text-lg tabular-nums font-medium mt-0.5">{kpi.value}</p>
                   </div>
                 ))}
               </div>
@@ -158,7 +158,7 @@ export function Landing() {
           ═══════════════════════════════════════════ */}
       <section className="py-16 px-6 bg-card border-y border-border">
         <div className="max-w-7xl mx-auto">
-          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground text-center mb-8">
+          <p className="text-xs font-semibold tracking-tight text-muted-foreground text-center mb-8">
             BUILT FOR
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -188,7 +188,7 @@ export function Landing() {
           ═══════════════════════════════════════════ */}
       <section id="portfolio" className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
-          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-amber-400 text-center mb-4">PORTFOLIO</p>
+          <p className="text-xs font-semibold tracking-tight text-amber-400 text-center mb-4">PORTFOLIO</p>
           <h2 className="text-[clamp(30px,4.4vw,48px)] font-extrabold leading-tight text-center mb-4">
             Exceptional properties, managed effortlessly
           </h2>
@@ -205,13 +205,13 @@ export function Landing() {
                 <div className="aspect-[16/10] overflow-hidden relative">
                   <img src={property.img} alt={property.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute top-3 left-3">
-                    <span className={`text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full ${property.tagColor} backdrop-blur-sm`}>{property.tag}</span>
+                    <span className={`text-[10px] font-medium uppercase tracking-wide px-2.5 py-1 rounded-full ${property.tagColor} backdrop-blur-sm`}>{property.tag}</span>
                   </div>
                 </div>
                 <div className="p-5">
                   <p className="font-semibold">{property.name}</p>
                   <p className="text-sm text-muted-foreground mt-1">{property.location}</p>
-                  <p className="text-xs text-muted-foreground mt-2 font-mono">{property.specs}</p>
+                  <p className="text-xs text-muted-foreground mt-2 tabular-nums">{property.specs}</p>
                 </div>
               </div>
             ))}
@@ -236,7 +236,7 @@ export function Landing() {
             <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-8">
               <div className="flex items-center gap-2 mb-6">
                 <X className="w-5 h-5 text-red-400" />
-                <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-red-400">Without My Butlr</p>
+                <p className="text-xs font-semibold tracking-tight text-red-400">Without My Butlr</p>
               </div>
               <div className="space-y-4">
                 {[
@@ -257,7 +257,7 @@ export function Landing() {
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.03] p-8">
               <div className="flex items-center gap-2 mb-6">
                 <Check className="w-5 h-5 text-emerald-400" />
-                <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-emerald-400">With My Butlr</p>
+                <p className="text-xs font-semibold tracking-tight text-emerald-400">With My Butlr</p>
               </div>
               <div className="space-y-4">
                 {[
@@ -283,7 +283,7 @@ export function Landing() {
               { phase: 'After stay', items: ['Feedback', 'Reporting', 'Future bookings'], color: 'border-t-sky-500/50', iconColor: 'text-sky-400' },
             ].map(phase => (
               <div key={phase.phase} className={`border border-border ${phase.color} border-t-2 rounded-lg p-5 bg-background/50`}>
-                <p className={`text-xs font-mono font-medium uppercase tracking-[.14em] ${phase.iconColor} mb-3`}>{phase.phase}</p>
+                <p className={`text-xs font-semibold tracking-tight ${phase.iconColor} mb-3`}>{phase.phase}</p>
                 <ul className="space-y-2">
                   {phase.items.map(item => (
                     <li key={item} className="text-sm flex items-center gap-2 text-muted-foreground">
@@ -323,7 +323,7 @@ export function Landing() {
                   <img src={service.img} alt={service.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <div className="absolute bottom-3 left-4">
-                    <p className={`text-xs font-mono ${service.color}`}>{service.price}</p>
+                    <p className={`text-xs tabular-nums ${service.color}`}>{service.price}</p>
                   </div>
                 </div>
                 <div className="p-5">
@@ -342,16 +342,16 @@ export function Landing() {
                   <item.icon className={`w-6 h-6 ${item.iconColor}`} />
                 </div>
                 <p className="text-sm font-medium">{item.label}</p>
-                <p className="text-xs text-muted-foreground mt-1 font-mono">{item.price}</p>
+                <p className="text-xs text-muted-foreground mt-1 tabular-nums">{item.price}</p>
               </div>
             ))}
           </div>
 
           {/* Revenue callout */}
           <div className="mt-12 rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-orange-500/5 p-8 text-center">
-            <p className="text-xs font-mono uppercase tracking-[.14em] text-amber-400 mb-3">Revenue Potential</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-400 mb-3">Revenue Potential</p>
             <p className="text-2xl font-bold mb-2">
-              A guest spending <span className="text-amber-400 font-mono">€2,000</span> in services
+              A guest spending <span className="text-amber-400 tabular-nums">€2,000</span> in services
             </p>
             <p className="text-muted-foreground">
               generates platform revenue through commissions, service fees and partner offers.
@@ -367,7 +367,7 @@ export function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-cyan-400 mb-4">GUEST EXPERIENCE</p>
+              <p className="text-xs font-semibold tracking-tight text-cyan-400 mb-4">GUEST EXPERIENCE</p>
               <h2 className="text-[clamp(30px,4.4vw,42px)] font-extrabold leading-tight mb-6">
                 A seamless luxury experience for every guest
               </h2>
@@ -395,7 +395,7 @@ export function Landing() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <div className="absolute inset-0 flex items-end p-8">
                 <div>
-                  <p className="text-xs font-mono uppercase tracking-wider text-cyan-300/80 mb-2">Villa French Way</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-cyan-300/80 mb-2">Villa French Way</p>
                   <p className="text-2xl font-bold">Saint-Tropez, France</p>
                   <p className="text-sm text-white/60 mt-1">6 bedrooms · Infinity pool · Sea view</p>
                 </div>
@@ -467,7 +467,7 @@ export function Landing() {
               <Card key={item.role} className={`p-6 bg-gradient-to-b ${item.color} to-transparent border-l-2 ${item.borderColor}`}>
                 <div className="flex items-center gap-3 mb-3">
                   <item.icon className={`w-5 h-5 ${item.iconColor}`} />
-                  <p className={`text-xs font-mono font-medium uppercase tracking-[.14em] ${item.iconColor}`}>{item.role}</p>
+                  <p className={`text-xs font-semibold tracking-tight ${item.iconColor}`}>{item.role}</p>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
               </Card>
@@ -511,11 +511,11 @@ export function Landing() {
             ].map(plan => (
               <Card key={plan.name} className={`p-6 flex flex-col ${plan.accent}`}>
                 {plan.name === 'Pro' && (
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 bg-amber-500/10 rounded-full px-2 py-0.5 self-start mb-3">Most popular</span>
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-amber-400 bg-amber-500/10 rounded-full px-2 py-0.5 self-start mb-3">Most popular</span>
                 )}
-                <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground mb-1">{plan.name}</p>
+                <p className="text-xs font-semibold tracking-tight text-muted-foreground mb-1">{plan.name}</p>
                 <p className="text-sm text-muted-foreground mb-4">{plan.desc}</p>
-                <p className="text-3xl font-mono font-medium mb-1">{plan.price}</p>
+                <p className="text-3xl tabular-nums font-medium mb-1">{plan.price}</p>
                 {plan.price !== 'Custom' && <p className="text-xs text-muted-foreground mb-6">/month</p>}
                 {plan.price === 'Custom' && <p className="text-xs text-muted-foreground mb-6">Contact us</p>}
                 <ul className="space-y-2 mt-auto">
@@ -552,7 +552,7 @@ export function Landing() {
         <div className="max-w-2xl mx-auto relative text-center">
           <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1 mb-6">
             <Zap className="w-3 h-3 text-amber-400" />
-            <span className="text-xs font-mono font-medium uppercase tracking-wider text-amber-400">Limited beta spots</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-amber-400">Limited beta spots</span>
           </div>
           <h2 className="text-[clamp(30px,4.4vw,48px)] font-extrabold leading-tight mb-4">
             Ready to transform your luxury operations?

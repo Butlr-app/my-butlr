@@ -57,6 +57,7 @@
     "no": "Non"
   },
   "dashboard": {
+    "subtitle": "Voici votre aperçu du jour",
     "ownerTitle": "Tableau de bord Propriétaire",
     "houseManagerTitle": "Tableau de bord House Manager",
     "conciergeTitle": "Tableau de bord Concierge",

@@ -52,7 +52,7 @@ export function NotificationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Notifications</p>
+          <p className="text-xs font-semibold tracking-tight text-muted-foreground">Notifications</p>
           {unreadCount > 0 && (
             <Badge variant="info">{unreadCount} unread</Badge>
           )}

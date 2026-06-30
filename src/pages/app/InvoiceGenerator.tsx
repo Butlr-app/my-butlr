@@ -266,7 +266,7 @@ export function InvoiceGenerator() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Invoice Generator</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Invoice Generator</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={generatePDF} disabled={generating}>
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
