@@ -6,10 +6,13 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { ExportButton } from '@/components/ExportButton'
 import { usePartners, type Partner } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
+import { useTranslation } from '@/i18n/LanguageContext'
 import { Star, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
 
@@ -24,9 +27,12 @@ const emptyForm = {
 }
 
 export function Partners() {
-  const { data: partners, loading, insert, update, remove } = usePartners()
+  const { data: rawPartners, loading, insert, update, remove } = usePartners()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { t } = useTranslation()
+  const { filterPartners } = useRoleFilter()
+  const partners = filterPartners(rawPartners)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -126,13 +132,28 @@ export function Partners() {
     )
   }
 
+  const exportColumns: { key: keyof Partner; label: string }[] = [
+    { key: 'name', label: t('common.name') },
+    { key: 'category', label: t('common.type') },
+    { key: 'location', label: t('common.location') },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'commission', label: t('partners.commission') },
+    { key: 'status', label: t('common.status') },
+    { key: 'rating', label: t('partners.rating') },
+    { key: 'bookings_count', label: t('partners.bookings') },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Partner Network</p>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add partner
-        </Button>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('partners.title')}</p>
+        <div className="flex items-center gap-2">
+          <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`partners-${new Date().toISOString().split('T')[0]}`} />
+          <Button variant="gold" size="sm" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> {t('partners.addPartner')}
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -140,23 +161,57 @@ export function Partners() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No partners match your search.' : 'No partners yet.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Add partner</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add partner</Button>}
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(p => (
+              <Card key={p.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.email || p.contact}</p>
+                  </div>
+                  <button onClick={() => toggleStatus(p.id, p.status)} className="shrink-0">
+                    <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>{p.category}</span>
+                  <span>{p.location}</span>
+                  <span className="font-mono">{p.commission}%</span>
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-current text-warning" />
+                    <span className="font-mono">{Number(p.rating).toFixed(1)}</span>
+                  </span>
+                  <span className="font-mono">{p.bookings_count} bookings</span>
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
+                  <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Partner</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Commission</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Rating</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Bookings</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Partner</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commission</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bookings</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,7 +223,7 @@ export function Partners() {
                       </td>
                       <td className="px-4 text-sm text-muted-foreground">{p.category}</td>
                       <td className="px-4 text-sm text-muted-foreground">{p.location}</td>
-                      <td className="px-4 text-sm font-mono">{p.commission}%</td>
+                      <td className="px-4 text-sm tabular-nums">{p.commission}%</td>
                       <td className="px-4">
                         <button onClick={() => toggleStatus(p.id, p.status)}>
                           <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
@@ -177,10 +232,10 @@ export function Partners() {
                       <td className="px-4">
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-current text-warning" />
-                          <span className="text-sm font-mono">{Number(p.rating).toFixed(1)}</span>
+                          <span className="text-sm tabular-nums">{Number(p.rating).toFixed(1)}</span>
                         </div>
                       </td>
-                      <td className="px-4 text-sm font-mono text-right">{p.bookings_count}</td>
+                      <td className="px-4 text-sm tabular-nums text-right">{p.bookings_count}</td>
                       <td className="px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -201,7 +256,7 @@ export function Partners() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
@@ -230,14 +285,14 @@ export function Partners() {
               { value: 'Other', label: 'Other' },
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
             <div>
               <Input label="Commission (%)" type="number" min={0} max={100} value={form.commission} onChange={e => setForm(f => ({ ...f, commission: Number(e.target.value) }))} />
               {errors.commission && <p className="text-xs text-destructive mt-1">{errors.commission}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
               {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}

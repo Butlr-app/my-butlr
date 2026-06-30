@@ -1,10 +1,11 @@
-import { Search, Bell, Moon, Sun, User, LogOut, Menu, X, CheckCheck } from 'lucide-react'
+import { Search, Bell, BellRing, Moon, Sun, User, LogOut, Menu, X, CheckCheck, Globe, MessageSquare } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
 import { useSearch } from '@/lib/searchContext'
-import { useNotifications, type Notification } from '@/lib/useSupabase'
+import { useNotifications, useUnreadMessages, usePushNotifications, type Notification } from '@/lib/useSupabase'
+import { useTranslation } from '@/i18n/LanguageContext'
 
 interface TopbarProps {
   title: string
@@ -25,6 +26,7 @@ const typeIcons: Record<Notification['type'], string> = {
   task: 'T',
   payment: 'P',
   system: 'S',
+  service_request: 'SR',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -32,6 +34,7 @@ const typeColors: Record<Notification['type'], string> = {
   task: 'bg-warning/10 text-warning',
   payment: 'bg-success/10 text-success',
   system: 'bg-muted text-muted-foreground',
+  service_request: 'bg-info/10 text-info',
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {
@@ -42,6 +45,9 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   const { signOut, user } = useAuth()
   const { query, setQuery } = useSearch()
   const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications()
+  const unreadMessages = useUnreadMessages(user?.id)
+  const push = usePushNotifications()
+  const { language, setLanguage, t } = useTranslation()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -89,7 +95,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
-          className="h-8 px-2 bg-muted border-0 rounded-md text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-ring hidden sm:block"
+          className="h-9 px-3 bg-muted border-0 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring hidden sm:block"
         >
           {roles.map(r => (
             <option key={r.value} value={r.value}>{r.label}</option>
@@ -103,9 +109,23 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
             placeholder="Search..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="h-9 pl-9 pr-4 bg-muted border-0 rounded-md text-sm w-56 focus:outline-none focus:ring-1 focus:ring-ring"
+            onKeyDown={e => { if (e.key === 'Enter' && query.trim()) navigate(`/app/search?q=${encodeURIComponent(query)}`) }}
+            className="h-9 pl-9 pr-4 bg-muted border-0 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
+
+        <button
+          onClick={() => navigate('/app/messages')}
+          className="p-2 rounded-md hover:bg-muted transition-colors relative"
+          title="Messages"
+        >
+          <MessageSquare className="w-4 h-4" />
+          {unreadMessages > 0 && (
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 text-[10px] font-bold bg-destructive text-white rounded-full flex items-center justify-center">
+              {unreadMessages > 99 ? '99+' : unreadMessages}
+            </span>
+          )}
+        </button>
 
         <div className="relative" ref={notifRef}>
           <button
@@ -139,11 +159,21 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                 </div>
               </div>
 
+              {push.supported && !push.enabled && push.permission !== 'denied' && (
+                <button
+                  onClick={() => push.enable()}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium text-foreground bg-muted/40 hover:bg-muted transition-colors border-b border-border"
+                >
+                  <BellRing className="w-3.5 h-3.5 text-muted-foreground" />
+                  {t('pwa.enablePush')}
+                </button>
+              )}
+
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No notifications</p>
                 ) : (
-                  notifications.map(n => (
+                  notifications.slice(0, 10).map(n => (
                     <button
                       key={n.id}
                       onClick={() => { if (!n.read) markAsRead(n.id) }}
@@ -162,9 +192,27 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
                   ))
                 )}
               </div>
+
+              {notifications.length > 0 && (
+                <button
+                  onClick={() => { setNotifOpen(false); navigate('/app/notifications') }}
+                  className="w-full px-4 py-2.5 text-center text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t border-border"
+                >
+                  View all notifications
+                </button>
+              )}
             </div>
           )}
         </div>
+
+        <button
+          onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')}
+          className="h-9 px-2.5 rounded-xl hover:bg-muted transition-colors flex items-center gap-1 text-xs font-semibold"
+          title={language === 'fr' ? 'Switch to English' : 'Passer en Français'}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>{language === 'fr' ? 'FR' : 'EN'}</span>
+        </button>
 
         <button onClick={toggleTheme} className="p-2 rounded-md hover:bg-muted transition-colors">
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

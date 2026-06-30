@@ -9,7 +9,8 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useServices, type Service } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
-import { Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { Plus, Loader2, Trash2, Pencil, ConciergeBell } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 12
 
@@ -23,9 +24,11 @@ const emptyForm = {
 }
 
 export function Services() {
-  const { data: services, loading, insert, update, remove } = useServices()
+  const { data: rawServices, loading, insert, update, remove } = useServices()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { filterServices } = useRoleFilter()
+  const services = filterServices(rawServices)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -127,8 +130,8 @@ export function Services() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Service Marketplace</p>
-        <Button size="sm" onClick={openCreate}>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Service Marketplace</p>
+        <Button variant="gold" size="sm" onClick={openCreate}>
           <Plus className="w-4 h-4 mr-1" /> Add service
         </Button>
       </div>
@@ -138,18 +141,21 @@ export function Services() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No services match your search.' : 'No services yet. Add your first service.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Add service</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add service</Button>}
         </Card>
       ) : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {paginated.map(service => (
               <Card key={service.id} className="overflow-hidden flex flex-col">
-                <div className="aspect-square bg-muted flex items-center justify-center">
+                <div className="aspect-square bg-muted flex items-center justify-center relative overflow-hidden">
                   {service.image_url ? (
-                    <img src={service.image_url} alt={service.name} className="w-full h-full object-cover" />
+                    <img src={service.image_url} alt={service.name} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <span className="text-xs text-muted-foreground font-mono">IMAGE</span>
+                    <div className="flex flex-col items-center gap-1">
+                      <ConciergeBell className="w-5 h-5 text-muted-foreground/40" />
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums">No image</span>
+                    </div>
                   )}
                 </div>
                 <div className="p-4 flex-1 flex flex-col">
@@ -165,11 +171,11 @@ export function Services() {
                   <p className="text-xs text-muted-foreground mb-3 flex-1">{service.description}</p>
                   <div className="flex items-center justify-between pt-3 border-t border-border">
                     <div>
-                      <p className="text-sm font-mono font-medium">€{Number(service.starting_price).toLocaleString()}</p>
+                      <p className="text-sm tabular-nums font-medium">€{Number(service.starting_price).toLocaleString()}</p>
                       <p className="text-[10px] text-muted-foreground">Starting price</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-mono font-medium">{service.commission}%</p>
+                      <p className="text-sm tabular-nums font-medium">{service.commission}%</p>
                       <p className="text-[10px] text-muted-foreground">Commission</p>
                     </div>
                   </div>
@@ -189,7 +195,7 @@ export function Services() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
@@ -227,7 +233,7 @@ export function Services() {
               { value: 'housekeeping', label: 'Housekeeping' },
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Starting Price (€)" type="number" min={0} value={form.starting_price} onChange={e => setForm(f => ({ ...f, starting_price: Number(e.target.value) }))} />
               {errors.starting_price && <p className="text-xs text-destructive mt-1">{errors.starting_price}</p>}

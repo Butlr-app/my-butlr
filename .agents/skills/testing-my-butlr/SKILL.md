@@ -1,6 +1,6 @@
 ---
 name: testing-my-butlr-dashboard
-description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. Use when verifying CRUD, search, metrics, responsive layout, or profile settings changes.
+description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. Use when verifying CRUD, search, metrics, responsive layout, profile settings, PDF generators, auth flows, notifications, or SEO changes.
 ---
 
 # Testing My Butlr — Dashboard E2E
@@ -178,6 +178,110 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 - Always destructure `{ error }` from Supabase operations and check it
 - Supabase client does NOT throw on errors — it returns `{ data, error }` silently
 - If you don't check `error`, the caller's try/catch never triggers and success toasts fire on failure
+
+### 15. Contract Generator — Form + Validation + PDF
+- Navigate to `/app/contracts/generate`
+- Validation: clear tenant name, leave dates empty, click "Generate PDF" — expect toast "Please fill in tenant name and dates"
+- Auto-fill: select reservation from dropdown — tenant name, dates, rent, property auto-populate
+- Preview card shows "CONTRAT DE LOCATION SAISONNIERE", Bailleur SAS EBSCOPAL, Locataire name, Loyer amount
+- Generate PDF: triggers download `contrat-*.pdf` + toast "Contract PDF generated"
+
+### 16. Invoice Generator — Dynamic Lines + VAT + PDF
+- Navigate to `/app/invoices/generate`
+- Validation: leave client name empty, click "Generate PDF" — expect toast "Please fill in client name"
+- Fill client name, add line item (description, unit price, qty, VAT 20%)
+- Verify totals: Total HT = sum(price*qty), TVA = HT*0.20, Total TTC = HT + TVA
+- Add second line: totals recalculate dynamically
+- Remove line (trash icon): totals recalculate
+- Generate PDF: download `facture-FC-YYYY-XXX.pdf` + toast "Invoice PDF generated"
+
+### 17. Auth — Forgot Password + Signup Roles
+- Navigate to `/login` — verify "Forgot your password?" link exists
+- Click link → `/forgot-password` page: logo, "Reset your password", email input, "Send reset link", "Back to login"
+- Navigate to `/signup` — verify Role dropdown with 5 options: Owner, House Manager, Concierge, Agency, Partner
+
+### 18. Notifications Bell + 404 Page
+- While logged in, verify bell icon in topbar
+- Click bell → dropdown with "Notifications" header and close (X) button
+- Empty state shows "No notifications"
+- Navigate to `/nonexistent-page` — shows "404", "Page not found", Home + Go to dashboard buttons
+
+### 19. SEO Static Files
+- Navigate to `/robots.txt` — should contain `Disallow: /app/` and `Sitemap: https://mybutlr.com/sitemap.xml`
+- Navigate to `/sitemap.xml` — valid XML with `<url>` entries for /, /early-access, /login, /signup
+
+### 20. Settings — Account + Password Validation
+- Navigate to `/app/settings`
+- Account tab: profile pre-filled (name, email)
+- Clear name → save → toast "Name is required"
+- Password < 6 chars → toast "Password must be at least 6 characters"
+- Passwords don't match → toast "Passwords do not match"
+- Properties tab: seed properties visible; Services tab: seed services visible
+
+### 21. Online Check-in + Guest Signature (Guest Portal)
+- Pre-test: clear any existing `checkins` row for the target reservation so the starting badge is genuinely `pending` (else a broken submit is masked by leftover data).
+- Precondition on `/app/reservations`: a **Check-in** column exists; target row (M. & Mme Laurent) badge reads `pending` (grey).
+- Guest Portal is at `/app/guest-portal` (NOT `/app/guest`). Click the **Check-in** tab.
+- Form pre-fills Full name / Email / Phone / Guests from the reservation. Required: ID document number, Estimated arrival time, Signature, house-rules checkbox.
+- Validation: click "Complete check-in" with empty required fields → form does NOT submit, 4 inline red "... is required" errors appear.
+- Signature canvas: draw with `left_click_drag` strokes (a zigzag works). When the canvas has content a "Clear signature" button appears — use that as the proof the canvas captured strokes.
+- Note: the inline "... is required" hint text can remain visible (stale) even after a field is filled — it only fully clears on submit. Don't treat the lingering hint as a failure; confirm the field value in the DOM instead.
+- `<input type="time">` displays as `03:00 PM` but the DOM value is `15:00` (24h). Fill via the time field; the summary/modal show `15:00`.
+- Submit → success toast "Check-in completed" + the form is replaced by a **Check-in completed** summary card (green **Completed** badge, submitted timestamp, signature `<img src="data:image/png;base64,...">`, details).
+- Manager side: back on `/app/reservations` the Laurent row badge flips to `completed` (green); open the detail modal → "Online Check-in" section shows Completed + the same signature image + details (Arrival 15:00, ID passport · X1234567). This proves end-to-end Supabase persistence (survives navigation, not local state).
+- Out of scope: ID file upload to Storage (optional); RLS isolation (permissive in prototype).
+
+## Important Learnings (continued)
+
+### PDF Generator Testing
+- PDF "Generate" buttons trigger jsPDF `doc.save()` which downloads a file — verify by checking the download bar or filesystem
+- Contract filenames are slugified: `contrat-{property}-{tenant}.pdf`
+- Invoice filenames include year and random number: `facture-FC-YYYY-XXX.pdf`
+- Validation prevents generation — no file should download on validation failure
+
+### Notification Bell UI
+- The bell icon uses Lucide's `Bell` component inside a `<button>` in the Topbar
+- Click toggles `notifOpen` state to show/hide dropdown
+- Dropdown closes on outside click (mousedown event listener)
+- When no notifications exist, shows "No notifications" text
+- Unread count badge only appears when `unreadCount > 0`
+
+### Auth Page Testing
+- Must sign out first to access login/signup/forgot-password pages (ProtectedRoute redirects logged-in users)
+- Forgot password page sends Supabase `resetPasswordForEmail` — actual email delivery depends on Supabase config
+- Signup role dropdown uses native `<select>` element with 5 options
+
+### Transient Toast Capture
+- Toast messages appear and auto-dismiss quickly (3-5 seconds)
+- For reliable verification, use Playwright DOM queries immediately after the action: `page.locator('text=Expected message').count() > 0`
+- Screenshots may miss transient toasts — always supplement with Playwright DOM verification
+- The toast component renders at the bottom-right of the viewport
+
+### 21. Real-time Messaging — Guest ↔ Manager (Supabase Realtime)
+- Two windows on the SAME reservation: Guest `/app/guest-portal` → Messages tab, Manager `/app/messages` → select the conversation.
+- Bootstrap: Guest Portal binds to `guestReservations[0]` (`GuestPortal.tsx`). Send one message from the Guest window to create the conversation, then reload the Manager window so the conversation row appears and select it. Both windows are then subscribed to the same `messages-${reservationId}` channel.
+- Guest → Manager: type a unique token (e.g. `GUEST-RT-<ts>`), Send — within ~2s the bubble appears in the Manager window WITHOUT refresh, and the conversation row preview updates with a "now" timestamp.
+- Manager → Guest: type `MGR-RT-<ts>`, Send — appears live in the Guest window WITHOUT refresh.
+- Scoping: both windows show ONLY messages for that reservation.
+- Adversarial check: a broken (non-realtime) implementation would show the message only in the sender window until manual reload — so the "no refresh" observation is the real proof.
+
+### Important Learnings — Realtime Messaging
+- **Unread badge is NOT testable in the single-user prototype**: `useUnreadMessages` (`useSupabase.ts`) counts rows where `sender_id != currentUserId AND read = false`. Both guest and manager sides log in as the same `test@mybutlr.com` user, so every message is "own-sent" and excluded — the badge stays at 0. Report this as **untested** (don't fake it). To actually test it you'd need two distinct Supabase user accounts (one guest, one manager). The Topbar message icon (chat bubble) is separate from the notifications bell (which may show its own count) — don't confuse the two.
+- **DB-level RLS isolation is also untestable in proto**: policies are permissive `USING(true)`; strict policies are only commented in `supabase/rls-production-policies.sql`. UI-level per-reservation scoping CAN be shown; DB-level isolation cannot.
+- Realtime requires the `messages` table to be added to the `supabase_realtime` publication. If live delivery fails, verify the publication includes `messages` before assuming the code is broken.
+- Both windows can be the same browser profile/login — Realtime delivery still works because each ChatThread subscribes its own channel on mount.
+
+### 22. Advanced Reports & Analytics (`/app/reports`)
+- 2026 (default year): Total Revenue €79,050, Service €600, Avg Guest Spend €17,500. Monthly Revenue bar chart = tall Jun (~58k) + smaller May (~21k), others flat. Occupancy Trend line non-flat. Reservations by Status donut center = 8 (Pending 3 / Confirmed 4 / In Progress 1). Revenue Summary: Booking €78,450 + Service €600 = €79,050.
+- CSV (`report-2026.csv`): header `Month,Revenue (EUR),Occupancy`; May 21000, **Jun 58050** (NOT 57550 — May+Jun must sum to the €79,050 total). PDF export downloads `reports-&-analytics-2026.pdf` (valid `%PDF-`) + toast "Report exported".
+- **Year filter is data-derived** (years present in payments/reservations + current year). With all seed data in 2026, the `Select` only offers 2026 — you CANNOT reach an empty/other year through the UI alone.
+  - Workaround to make the filter test adversarial: inject ONE distinctive paid payment in another year via the Supabase Management API, then **delete it after the test**. Example: `insert into payments (guest_name, property_name, type, amount, status, date) values ('E2E YearFilter 2025','Villa French Way','service',1234.56,'paid','2025-08-10');` then `delete from payments where id='<returned id>';`
+  - This is STRONGER than an empty year: a broken filter would show the same number for both years (or the combined total). Verify: 2025 → Total €1,234.56, Booking €0, single Aug bar, donut "No data for this period", and 2026's €79,050 is GONE (no leakage); switch back to 2026 → values restored.
+
+### Supabase Management API (writing test data despite RLS)
+- The anon key is blocked by RLS for writes, so to seed/clean adversarial test data use the Management API with `SUPABASE_ACCESS_TOKEN`:
+  `curl -s -X POST "https://api.supabase.com/v1/projects/kpcahtliadmsaoespwpv/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -d '{"query":"<SQL>"}'`
+- Always inject with a distinctive tag (e.g. guest_name "E2E ...") and **delete it in the same session** after the test; verify the row count returns to baseline (payments baseline = 10, all 2026).
 
 ## Troubleshooting
 

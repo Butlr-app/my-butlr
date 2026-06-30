@@ -6,10 +6,14 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { useTasks, useProperties, type Task } from '@/lib/useSupabase'
+import { ExportButton } from '@/components/ExportButton'
+import { FilterSidebar } from '@/components/FilterSidebar'
+import { useTasks, useProperties, useNotifications, type Task } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
-import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { useTranslation } from '@/i18n/LanguageContext'
+import { Plus, Loader2, Pencil, Trash2, Filter } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const columns = [
   { id: 'todo', label: 'To do' },
@@ -27,11 +31,16 @@ const emptyForm = {
 }
 
 export function Tasks() {
-  const { data: tasks, loading, insert, update, remove } = useTasks()
+  const { data: rawTasks, loading, insert, update, remove } = useTasks()
   const { data: properties } = useProperties()
+  const { insertNotification } = useNotifications()
   const { toast } = useToast()
-  const { query } = useSearch()
+  const { query, filters } = useSearch()
+  const { t } = useTranslation()
+  const { filterTasks } = useRoleFilter()
+  const tasks = filterTasks(rawTasks)
   const [showForm, setShowForm] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingStatus, setEditingStatus] = useState<Task['status']>('todo')
   const [form, setForm] = useState(emptyForm)
@@ -39,11 +48,23 @@ export function Tasks() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
 
-  const filtered = tasks.filter(t => {
-    if (!query) return true
-    const q = query.toLowerCase()
-    return t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q)
+  const filtered = tasks.filter(tk => {
+    if (query) {
+      const q = query.toLowerCase()
+      if (!(tk.title.toLowerCase().includes(q) || (tk.description ?? '').toLowerCase().includes(q))) return false
+    }
+    if (filters.taskStatus && filters.taskStatus.length > 0 && !filters.taskStatus.includes(tk.status)) return false
+    if (filters.taskPriority && filters.taskPriority.length > 0 && !filters.taskPriority.includes(tk.priority)) return false
+    return true
   })
+
+  const exportColumns: { key: string; label: string }[] = [
+    { key: 'title', label: t('tasks.title') },
+    { key: 'description', label: 'Description' },
+    { key: 'status', label: t('common.status') },
+    { key: 'priority', label: t('tasks.priority') },
+    { key: 'due_date', label: t('tasks.dueDate') },
+  ]
 
   const validate = () => {
     const errs: Record<string, string> = {}
@@ -93,6 +114,14 @@ export function Tasks() {
           due_date: form.due_date || null,
           status: 'todo',
         })
+        await insertNotification({
+          user_id: null,
+          type: 'task',
+          title: 'New task assigned',
+          message: `Task: ${form.title}${form.due_date ? ` (due ${form.due_date})` : ''}`,
+          data: { title: form.title },
+          related_id: null,
+        }).catch(() => {})
         toast('Task created')
       }
       setShowForm(false)
@@ -135,12 +164,19 @@ export function Tasks() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Operations Board</p>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add task
-        </Button>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('tasks.title')}</p>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
+          </Button>
+          <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} filename={`tasks-${new Date().toISOString().split('T')[0]}`} />
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> {t('tasks.addTask')}
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-4">
@@ -149,8 +185,8 @@ export function Tasks() {
           return (
             <div key={col.id} className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{col.label}</p>
-                <span className="text-xs font-mono text-muted-foreground">{colTasks.length}</span>
+                <p className="text-xs font-semibold tracking-tight text-muted-foreground">{col.label}</p>
+                <span className="text-xs tabular-nums text-muted-foreground">{colTasks.length}</span>
               </div>
               <div className="space-y-2">
                 {colTasks.map(task => (
@@ -181,7 +217,7 @@ export function Tasks() {
                       </Badge>
                     </div>
                     {task.due_date && (
-                      <p className="text-[10px] font-mono text-muted-foreground mb-2">Due: {task.due_date}</p>
+                      <p className="text-[10px] tabular-nums text-muted-foreground mb-2">Due: {task.due_date}</p>
                     )}
                     <div className="flex gap-1 flex-wrap">
                       {columns.filter(c => c.id !== col.id).map(c => (
@@ -230,7 +266,7 @@ export function Tasks() {
               ...properties.map(p => ({ value: p.id, label: p.name })),
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Priority"
               value={form.priority}
@@ -268,6 +304,8 @@ export function Tasks() {
         title="Delete task"
         message={`Delete "${deleteTarget?.title}"? This action cannot be undone.`}
       />
+    </div>
+    <FilterSidebar page="tasks" open={showFilters} onClose={() => setShowFilters(false)} />
     </div>
   )
 }

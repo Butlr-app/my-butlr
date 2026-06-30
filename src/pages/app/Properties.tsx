@@ -6,12 +6,17 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { ExportButton } from '@/components/ExportButton'
+import { CsvImportModal } from '@/components/CsvImportModal'
+import { FilterSidebar } from '@/components/FilterSidebar'
 import { useProperties, type Property } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
+import { useTranslation } from '@/i18n/LanguageContext'
 import { Link } from 'react-router-dom'
-import { MapPin, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
+import { MapPin, Plus, Loader2, Trash2, Pencil, Filter, Upload } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 9
 
@@ -35,10 +40,12 @@ const emptyForm = {
 }
 
 export function Properties() {
-  const { data: properties, loading, insert, update, remove } = useProperties()
+  const { data: rawProperties, loading, insert, update, remove } = useProperties()
   const { user } = useAuth()
   const { toast } = useToast()
-  const { query } = useSearch()
+  const { query, filters } = useSearch()
+  const { filterProperties } = useRoleFilter()
+  const properties = filterProperties(rawProperties)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -46,13 +53,21 @@ export function Properties() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [page, setPage] = useState(0)
+  const [showImport, setShowImport] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const { t } = useTranslation()
 
   useEffect(() => { setPage(0) }, [query])
 
   const filtered = properties.filter(p => {
-    if (!query) return true
-    const q = query.toLowerCase()
-    return p.name.toLowerCase().includes(q) || (p.location ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q)
+    if (query) {
+      const q = query.toLowerCase()
+      if (!(p.name.toLowerCase().includes(q) || (p.location ?? '').toLowerCase().includes(q) || p.type.toLowerCase().includes(q))) return false
+    }
+    if (filters.propertyType && filters.propertyType.length > 0 && !filters.propertyType.includes(p.type)) return false
+    if (filters.propertyLocation && !(p.location ?? '').toLowerCase().includes(filters.propertyLocation.toLowerCase())) return false
+    if (filters.propertyBedrooms !== undefined && p.bedrooms < filters.propertyBedrooms) return false
+    return true
   })
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
@@ -133,15 +148,48 @@ export function Properties() {
     )
   }
 
+  const exportColumns: { key: keyof Property; label: string }[] = [
+    { key: 'name', label: t('common.name') },
+    { key: 'location', label: t('common.location') },
+    { key: 'type', label: t('common.type') },
+    { key: 'status', label: t('common.status') },
+    { key: 'bedrooms', label: t('properties.bedrooms') },
+    { key: 'bathrooms', label: t('properties.bathrooms') },
+    { key: 'max_guests', label: t('properties.maxGuests') },
+    { key: 'surface_m2', label: t('properties.surface') },
+  ]
+
+  const importFields = [
+    { key: 'name', label: t('common.name'), required: true },
+    { key: 'location', label: t('common.location') },
+    { key: 'type', label: t('common.type') },
+    { key: 'status', label: t('common.status') },
+    { key: 'bedrooms', label: t('properties.bedrooms') },
+    { key: 'bathrooms', label: t('properties.bathrooms') },
+    { key: 'max_guests', label: t('properties.maxGuests') },
+    { key: 'surface_m2', label: t('properties.surface') },
+    { key: 'description', label: t('common.description') },
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="flex">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Portfolio</p>
+          <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('properties.title')}</p>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add property
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
+          </Button>
+          <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`properties-${new Date().toISOString().split('T')[0]}`} />
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-1" /> {t('common.import')}
+          </Button>
+          <Button variant="gold" size="sm" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> {t('properties.addProperty')}
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -149,18 +197,21 @@ export function Properties() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No properties match your search.' : 'No properties yet. Add your first property to get started.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Add property</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add property</Button>}
         </Card>
       ) : (
         <>
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {paginated.map(property => (
               <Card key={property.id} className="overflow-hidden">
-                <div className="aspect-[16/9] bg-muted flex items-center justify-center">
+                <div className="aspect-[16/9] bg-muted flex items-center justify-center relative overflow-hidden">
                   {property.image_url ? (
-                    <img src={property.image_url} alt={property.name} className="w-full h-full object-cover" />
+                    <img src={property.image_url} alt={property.name} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <span className="text-xs text-muted-foreground font-mono">IMAGE</span>
+                    <div className="flex flex-col items-center gap-1">
+                      <MapPin className="w-5 h-5 text-muted-foreground/40" />
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums">No image</span>
+                    </div>
                   )}
                 </div>
                 <div className="p-5 space-y-3">
@@ -182,15 +233,15 @@ export function Properties() {
                   <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
                     <div>
                       <p className="text-xs text-muted-foreground">Bedrooms</p>
-                      <p className="text-sm font-mono font-medium">{property.bedrooms}</p>
+                      <p className="text-sm tabular-nums font-medium">{property.bedrooms}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Bathrooms</p>
-                      <p className="text-sm font-mono font-medium">{property.bathrooms}</p>
+                      <p className="text-sm tabular-nums font-medium">{property.bathrooms}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Max Guests</p>
-                      <p className="text-sm font-mono font-medium">{property.max_guests}</p>
+                      <p className="text-sm tabular-nums font-medium">{property.max_guests}</p>
                     </div>
                   </div>
 
@@ -213,7 +264,7 @@ export function Properties() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
@@ -227,7 +278,7 @@ export function Properties() {
             {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
           </div>
           <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Saint-Tropez, France" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}
@@ -264,7 +315,7 @@ export function Properties() {
               {errors.max_guests && <p className="text-xs text-destructive mt-1">{errors.max_guests}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Surface (m²)" type="number" min={0} value={form.surface_m2} onChange={e => setForm(f => ({ ...f, surface_m2: Number(e.target.value) }))} />
             <Input label="Units" type="number" min={1} value={form.units} onChange={e => setForm(f => ({ ...f, units: Number(e.target.value) }))} />
           </div>
@@ -294,6 +345,15 @@ export function Properties() {
         title="Delete property"
         message={`Delete "${deleteTarget?.name}"? This action cannot be undone.`}
       />
+
+      <CsvImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        targetTable="properties"
+        targetFields={importFields}
+      />
+    </div>
+    <FilterSidebar page="properties" open={showFilters} onClose={() => setShowFilters(false)} />
     </div>
   )
 }

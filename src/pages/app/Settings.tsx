@@ -9,6 +9,7 @@ import { useProfile, useProperties, useServices, usePayments, type Property, typ
 import { useToast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 
 const settingsTabs = ['Account', 'Team', 'Properties', 'Payments', 'Services']
 
@@ -19,7 +20,7 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Settings</p>
+      <p className="text-xs font-semibold tracking-tight text-muted-foreground">Settings</p>
 
       <div className="border-b border-border">
         <div className="flex gap-0 overflow-x-auto">
@@ -111,6 +112,19 @@ function AccountTab({ profile, loading, updateProfile, toast }: {
       <Card className="p-6">
         <h3 className="text-base font-semibold mb-6">Profile</h3>
         <div className="space-y-4">
+          <ImageUpload
+            variant="avatar"
+            storagePath="avatars"
+            currentUrl={profile?.avatar_url}
+            onUploaded={async (url) => {
+              try {
+                await updateProfile({ avatar_url: url })
+                toast('Avatar updated')
+              } catch (err) {
+                toast((err as Error).message, 'error')
+              }
+            }}
+          />
           <Input label="Full name" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} required />
           <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           <Input label="Phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
@@ -224,7 +238,7 @@ function TeamTab({ profile, toast }: {
                   <p className="text-xs text-muted-foreground">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">{member.role}</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{member.role}</span>
                   {member.id !== profile?.id && (
                     <>
                       <button onClick={() => setEditMember({ ...member })} className="p-1 rounded hover:bg-muted">
@@ -392,7 +406,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
                   <p className="text-xs text-muted-foreground">{p.location} &middot; {p.type} &middot; {p.bedrooms} bed &middot; {p.max_guests} guests</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-mono uppercase tracking-wider ${p.status === 'active' ? 'text-success' : 'text-muted-foreground'}`}>{p.status}</span>
+                  <span className={`text-xs font-medium uppercase tracking-wide ${p.status === 'active' ? 'text-success' : 'text-muted-foreground'}`}>{p.status}</span>
                   <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
                   <button onClick={() => setDeleteTarget(p)} className="p-1 rounded hover:bg-muted"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                 </div>
@@ -407,7 +421,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
         <div className="space-y-4">
           <Input label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
           <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} options={[
               { value: 'villa', label: 'Villa' }, { value: 'yacht', label: 'Yacht' }, { value: 'apartment', label: 'Apartment' }, { value: 'chalet', label: 'Chalet' },
             ]} />
@@ -420,7 +434,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
             <Input label="Bathrooms" type="number" min="0" value={form.bathrooms} onChange={e => setForm(f => ({ ...f, bathrooms: e.target.value }))} />
             <Input label="Max guests" type="number" min="0" value={form.max_guests} onChange={e => setForm(f => ({ ...f, max_guests: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Surface (m2)" type="number" min="0" value={form.surface_m2} onChange={e => setForm(f => ({ ...f, surface_m2: e.target.value }))} />
             <Input label="Units" type="number" min="1" value={form.units} onChange={e => setForm(f => ({ ...f, units: e.target.value }))} />
           </div>
@@ -492,10 +506,10 @@ function PaymentsTab() {
                   <td className="py-2.5 pr-4 text-muted-foreground">{p.date}</td>
                   <td className="py-2.5 pr-4">{p.guest_name}</td>
                   <td className="py-2.5 pr-4 text-muted-foreground">{p.property_name ?? '-'}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs uppercase">{p.type}</td>
-                  <td className="py-2.5 pr-4 text-right font-mono">{Number(p.amount).toLocaleString('fr-FR')} EUR</td>
+                  <td className="py-2.5 pr-4 tabular-nums text-xs uppercase">{p.type}</td>
+                  <td className="py-2.5 pr-4 text-right tabular-nums">{Number(p.amount).toLocaleString('fr-FR')} EUR</td>
                   <td className="py-2.5">
-                    <span className={`text-xs font-mono uppercase ${p.status === 'paid' ? 'text-success' : p.status === 'pending' ? 'text-warning' : 'text-destructive'}`}>
+                    <span className={`text-xs tabular-nums uppercase ${p.status === 'paid' ? 'text-success' : p.status === 'pending' ? 'text-warning' : 'text-destructive'}`}>
                       {p.status}
                     </span>
                   </td>
@@ -592,7 +606,7 @@ function ServicesTab({ toast }: { toast: (msg: string, variant?: 'success' | 'er
                   <p className="text-xs text-muted-foreground">{s.category} &middot; From {s.starting_price} EUR &middot; {s.commission}% commission</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-mono uppercase tracking-wider ${s.available ? 'text-success' : 'text-muted-foreground'}`}>
+                  <span className={`text-xs font-medium uppercase tracking-wide ${s.available ? 'text-success' : 'text-muted-foreground'}`}>
                     {s.available ? 'Available' : 'Unavailable'}
                   </span>
                   <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>

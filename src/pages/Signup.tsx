@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/lib/authContext'
 import { useState } from 'react'
+import { Mail } from 'lucide-react'
 
 export function Signup() {
   const navigate = useNavigate()
@@ -11,6 +12,8 @@ export function Signup() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  const [submittedEmail, setSubmittedEmail] = useState('')
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -29,15 +32,38 @@ export function Signup() {
       return
     }
 
-    const { error } = await signUp(email, password, fullName, role)
+    const { error, needsConfirmation } = await signUp(email, password, fullName, role)
     setLoading(false)
 
     if (error) {
       setError(error.message)
+    } else if (needsConfirmation) {
+      setSubmittedEmail(email)
+      setNeedsConfirmation(true)
     } else {
       setSuccess(true)
       setTimeout(() => navigate('/app'), 1500)
     }
+  }
+
+  if (needsConfirmation) {
+    return (
+      <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-5 h-5 text-foreground" />
+          </div>
+          <h2 className="text-lg font-semibold mb-2">Check your email</h2>
+          <p className="text-sm text-muted-foreground">
+            We sent a confirmation link to <span className="text-foreground">{submittedEmail}</span>.
+            Click it to activate your account, then sign in.
+          </p>
+          <Button size="md" className="w-full mt-6" onClick={() => navigate('/login')}>
+            Go to sign in
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   if (success) {
