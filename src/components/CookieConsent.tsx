@@ -13,11 +13,13 @@ export function CookieConsent() {
 
   const accept = () => {
     localStorage.setItem(CONSENT_KEY, 'accepted')
+    window.dispatchEvent(new Event('butlr-consent-changed'))
     setVisible(false)
   }
 
   const decline = () => {
     localStorage.setItem(CONSENT_KEY, 'declined')
+    window.dispatchEvent(new Event('butlr-consent-changed'))
     setVisible(false)
   }
 

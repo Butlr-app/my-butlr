@@ -40,6 +40,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { CookieConsent } from './components/CookieConsent'
+import { InstallPrompt } from './components/InstallPrompt'
 
 export default function App() {
   return (
@@ -97,6 +98,7 @@ export default function App() {
       </Routes>
     </BrowserRouter>
     <CookieConsent />
+    <InstallPrompt />
     </ToastProvider>
     </SearchProvider>
     </RoleProvider>
