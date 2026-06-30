@@ -88,7 +88,7 @@ export function NotificationsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <p className={`text-sm truncate ${!n.read ? 'font-semibold' : 'font-medium'}`}>{n.title}</p>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={typeBadgeVariant[n.type]}>{n.type}</Badge>
+                    <Badge variant={typeBadgeVariant[n.type]}>{n.type.replace('_', ' ')}</Badge>
                     {!n.read && <span className="w-2 h-2 bg-info rounded-full" />}
                   </div>
                 </div>

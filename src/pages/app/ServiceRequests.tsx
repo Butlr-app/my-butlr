@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import {
   useServiceRequests, useReservations, usePartners,
   type ServiceRequest, type ServiceRequestStatus,
@@ -45,6 +46,7 @@ export function ServiceRequests() {
   const [tab, setTab] = useState<Tab>('pending')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [approveTarget, setApproveTarget] = useState<ServiceRequest | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<ServiceRequest | null>(null)
   const [approvePartner, setApprovePartner] = useState('')
   const [approvePrice, setApprovePrice] = useState('')
   const [approveSaving, setApproveSaving] = useState(false)
@@ -107,6 +109,12 @@ export function ServiceRequests() {
       toast((err as Error).message, 'error')
     }
     setApproveSaving(false)
+  }
+
+  const confirmCancel = async () => {
+    if (!cancelTarget) return
+    await setStatus(cancelTarget, 'cancelled')
+    setCancelTarget(null)
   }
 
   if (loading) {
@@ -174,7 +182,7 @@ export function ServiceRequests() {
                       <Button size="sm" disabled={busyId === req.id} onClick={() => openApprove(req)}>
                         <Check className="w-3 h-3 mr-1" /> Approve
                       </Button>
-                      <Button variant="secondary" size="sm" disabled={busyId === req.id} onClick={() => setStatus(req, 'cancelled')}>
+                      <Button variant="secondary" size="sm" disabled={busyId === req.id} onClick={() => setCancelTarget(req)}>
                         <X className="w-3 h-3 mr-1 text-destructive" /> Decline
                       </Button>
                     </>
@@ -190,7 +198,7 @@ export function ServiceRequests() {
                     </Button>
                   )}
                   {(req.status === 'approved' || req.status === 'in_progress') && (
-                    <Button variant="secondary" size="sm" disabled={busyId === req.id} onClick={() => setStatus(req, 'cancelled')}>
+                    <Button variant="secondary" size="sm" disabled={busyId === req.id} onClick={() => setCancelTarget(req)}>
                       <X className="w-3 h-3 mr-1 text-destructive" /> Cancel
                     </Button>
                   )}
@@ -232,6 +240,16 @@ export function ServiceRequests() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={confirmCancel}
+        title="Cancel service request"
+        message={`Cancel "${cancelTarget?.service_name}"? This action cannot be undone.`}
+        confirmLabel="Cancel request"
+        loading={busyId === cancelTarget?.id}
+      />
     </div>
   )
 }
