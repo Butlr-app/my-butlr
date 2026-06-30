@@ -94,6 +94,29 @@ CREATE TABLE IF NOT EXISTS partners (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Service Requests
+CREATE TABLE IF NOT EXISTS service_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reservation_id UUID REFERENCES reservations(id) ON DELETE CASCADE,
+  guest_user_id UUID REFERENCES auth.users(id),
+  service_id UUID REFERENCES services(id),
+  service_name TEXT NOT NULL,
+  details TEXT,
+  preferred_date DATE,
+  preferred_time TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'in_progress', 'completed', 'cancelled')),
+  partner_id UUID REFERENCES partners(id),
+  quoted_price DECIMAL(10,2),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE service_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated manage service_requests" ON service_requests FOR ALL TO authenticated USING (true);
+
+-- Enable Realtime for service requests
+ALTER PUBLICATION supabase_realtime ADD TABLE service_requests;
+
 -- Payments
 CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -218,7 +241,7 @@ CREATE POLICY "Authenticated manage contract_templates" ON contract_templates FO
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL DEFAULT 'system' CHECK (type IN ('reservation', 'task', 'payment', 'system')),
+  type TEXT NOT NULL DEFAULT 'system' CHECK (type IN ('reservation', 'task', 'payment', 'system', 'service_request')),
   title TEXT NOT NULL,
   message TEXT,
   read BOOLEAN NOT NULL DEFAULT false,

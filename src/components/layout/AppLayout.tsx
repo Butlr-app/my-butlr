@@ -11,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/app/reservations': 'Reservations',
   '/app/guest-portal': 'Guest Portal',
   '/app/services': 'Services',
+  '/app/service-requests': 'Service Requests',
   '/app/tasks': 'Tasks',
   '/app/calendar': 'Calendar',
   '/app/partners': 'Partners',

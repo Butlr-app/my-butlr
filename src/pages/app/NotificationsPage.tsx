@@ -9,6 +9,7 @@ const typeIcons: Record<Notification['type'], string> = {
   task: 'T',
   payment: 'P',
   system: 'S',
+  service_request: 'SR',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -16,6 +17,7 @@ const typeColors: Record<Notification['type'], string> = {
   task: 'bg-warning/10 text-warning',
   payment: 'bg-success/10 text-success',
   system: 'bg-muted text-muted-foreground',
+  service_request: 'bg-info/10 text-info',
 }
 
 const typeBadgeVariant: Record<Notification['type'], 'info' | 'warning' | 'success' | 'muted'> = {
@@ -23,6 +25,7 @@ const typeBadgeVariant: Record<Notification['type'], 'info' | 'warning' | 'succe
   task: 'warning',
   payment: 'success',
   system: 'muted',
+  service_request: 'info',
 }
 
 function timeAgo(dateStr: string) {
@@ -85,7 +88,7 @@ export function NotificationsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <p className={`text-sm truncate ${!n.read ? 'font-semibold' : 'font-medium'}`}>{n.title}</p>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={typeBadgeVariant[n.type]}>{n.type}</Badge>
+                    <Badge variant={typeBadgeVariant[n.type]}>{n.type.replace('_', ' ')}</Badge>
                     {!n.read && <span className="w-2 h-2 bg-info rounded-full" />}
                   </div>
                 </div>
