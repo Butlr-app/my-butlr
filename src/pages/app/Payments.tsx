@@ -168,7 +168,7 @@ export function Payments() {
     <div className="flex">
     <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('payments.title')}</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('payments.title')}</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
@@ -184,16 +184,16 @@ export function Payments() {
 
       <div className="grid sm:grid-cols-3 gap-4">
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Total Revenue</p>
-          <p className="text-2xl font-mono font-medium">€{totalRevenue.toLocaleString()}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Total Revenue</p>
+          <p className="text-2xl tabular-nums font-medium">€{totalRevenue.toLocaleString()}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Pending</p>
-          <p className="text-2xl font-mono font-medium text-warning">€{totalPending.toLocaleString()}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Pending</p>
+          <p className="text-2xl tabular-nums font-medium text-warning">€{totalPending.toLocaleString()}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Transactions</p>
-          <p className="text-2xl font-mono font-medium">{payments.length}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Transactions</p>
+          <p className="text-2xl tabular-nums font-medium">{payments.length}</p>
         </Card>
       </div>
 
@@ -211,23 +211,23 @@ export function Payments() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guest</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guest</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.map(p => (
                     <tr key={p.id} className="border-b border-border hover:bg-muted/50 transition-colors h-14">
-                      <td className="px-4 text-sm font-mono">{p.date}</td>
+                      <td className="px-4 text-sm tabular-nums">{p.date}</td>
                       <td className="px-4 text-sm font-medium">{p.guest_name}</td>
                       <td className="px-4 text-sm text-muted-foreground">{p.property_name}</td>
                       <td className="px-4 text-sm text-muted-foreground capitalize">{p.type}</td>
-                      <td className="px-4 text-sm font-mono text-right">€{Number(p.amount).toLocaleString()}</td>
+                      <td className="px-4 text-sm tabular-nums text-right">€{Number(p.amount).toLocaleString()}</td>
                       <td className="px-4">
                         <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
                           <Badge variant={
@@ -259,7 +259,7 @@ export function Payments() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}

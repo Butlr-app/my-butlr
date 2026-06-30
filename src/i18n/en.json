@@ -57,6 +57,7 @@
     "no": "No"
   },
   "dashboard": {
+    "subtitle": "Here's your overview for today",
     "ownerTitle": "Owner Dashboard",
     "houseManagerTitle": "House Manager Dashboard",
     "conciergeTitle": "Concierge Dashboard",

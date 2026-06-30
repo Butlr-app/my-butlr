@@ -193,7 +193,7 @@ export function Contracts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Contracts</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Contracts</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> Export CSV
@@ -209,8 +209,8 @@ export function Contracts() {
           const count = contracts.filter(c => c.status === status).length
           return (
             <Card key={status} className="p-5">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 capitalize">{status}</p>
-              <p className="text-2xl font-mono font-medium">{count}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1 capitalize">{status}</p>
+              <p className="text-2xl tabular-nums font-medium">{count}</p>
             </Card>
           )
         })}
@@ -230,12 +230,12 @@ export function Contracts() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Contract</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guest</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contract</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guest</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,7 +249,7 @@ export function Contracts() {
                       </td>
                       <td className="px-4 text-sm font-medium">{c.guest_name}</td>
                       <td className="px-4 text-sm text-muted-foreground">{c.property_name}</td>
-                      <td className="px-4 text-sm font-mono">{c.date}</td>
+                      <td className="px-4 text-sm tabular-nums">{c.date}</td>
                       <td className="px-4">
                         <button onClick={() => advanceStatus(c.id, c.status)}>
                           <Badge variant={
@@ -297,7 +297,7 @@ export function Contracts() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
@@ -361,7 +361,7 @@ export function Contracts() {
             <input
               readOnly
               value={signingLink ?? ''}
-              className="flex-1 h-10 px-3 bg-muted border border-input rounded-sm text-sm font-mono"
+              className="flex-1 h-10 px-3 bg-muted border border-input rounded-sm text-sm tabular-nums"
             />
             <Button size="sm" onClick={copyLink}>
               <Copy className="w-4 h-4 mr-1" /> Copy

@@ -147,7 +147,7 @@ export function Partners() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('partners.title')}</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('partners.title')}</p>
         <div className="flex items-center gap-2">
           <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`partners-${new Date().toISOString().split('T')[0]}`} />
           <Button variant="gold" size="sm" onClick={openCreate}>
@@ -170,14 +170,14 @@ export function Partners() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Partner</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Commission</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Rating</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Bookings</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Partner</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commission</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bookings</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,7 +189,7 @@ export function Partners() {
                       </td>
                       <td className="px-4 text-sm text-muted-foreground">{p.category}</td>
                       <td className="px-4 text-sm text-muted-foreground">{p.location}</td>
-                      <td className="px-4 text-sm font-mono">{p.commission}%</td>
+                      <td className="px-4 text-sm tabular-nums">{p.commission}%</td>
                       <td className="px-4">
                         <button onClick={() => toggleStatus(p.id, p.status)}>
                           <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
@@ -198,10 +198,10 @@ export function Partners() {
                       <td className="px-4">
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-current text-warning" />
-                          <span className="text-sm font-mono">{Number(p.rating).toFixed(1)}</span>
+                          <span className="text-sm tabular-nums">{Number(p.rating).toFixed(1)}</span>
                         </div>
                       </td>
-                      <td className="px-4 text-sm font-mono text-right">{p.bookings_count}</td>
+                      <td className="px-4 text-sm tabular-nums text-right">{p.bookings_count}</td>
                       <td className="px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -222,7 +222,7 @@ export function Partners() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
