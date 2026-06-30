@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { BottomNav } from './BottomNav'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -10,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/app/reservations': 'Reservations',
   '/app/guest-portal': 'Guest Portal',
   '/app/services': 'Services',
+  '/app/service-requests': 'Service Requests',
   '/app/tasks': 'Tasks',
   '/app/calendar': 'Calendar',
   '/app/partners': 'Partners',
@@ -28,12 +30,13 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <div className={cn('transition-all duration-200', collapsed ? 'lg:ml-16' : 'lg:ml-60')}>
+      <div className={cn('transition-all duration-200', collapsed ? 'lg:ml-16' : 'lg:ml-64')}>
         <Topbar title={title} onMenuClick={() => setMobileOpen(true)} />
-        <main className="p-4 sm:p-6">
+        <main className="p-4 sm:p-6 pb-24 lg:pb-6">
           <Outlet />
         </main>
       </div>
+      <BottomNav onMenuClick={() => setMobileOpen(true)} />
     </div>
   )
 }

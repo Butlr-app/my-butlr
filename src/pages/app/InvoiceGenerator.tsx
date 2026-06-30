@@ -266,7 +266,7 @@ export function InvoiceGenerator() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Invoice Generator</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Invoice Generator</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={generatePDF} disabled={generating}>
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
@@ -286,7 +286,7 @@ export function InvoiceGenerator() {
             <h3 className="text-base font-semibold">Invoice Details</h3>
           </div>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Invoice number"
                 value={invoiceNumber}
@@ -346,7 +346,7 @@ export function InvoiceGenerator() {
               value={form.clientAddress}
               onChange={e => update('clientAddress', e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="City / Zip"
                 value={form.clientCity}

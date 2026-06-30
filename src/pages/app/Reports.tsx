@@ -8,7 +8,7 @@ import { usePayments, useReservations, useProperties, usePartners } from '@/lib/
 import { useToast } from '@/components/ui/Toast'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { exportReportPdf, generateCsv, downloadCsv } from '@/lib/importExport'
-import { Loader2, FileDown, Sheet } from 'lucide-react'
+import { Loader2, FileDown, Sheet, Euro, ConciergeBell, Percent, Wallet } from 'lucide-react'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const RES_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'] as const
@@ -75,10 +75,15 @@ export function Reports() {
       return { label: m, value: Math.round((occupiedDays / denom) * 100) }
     })
 
-    // Average occupancy across the selected year (year-scoped, derived from monthly trend)
-    const occupancyRate = Math.round(
-      occupancyTrend.reduce((s, m) => s + m.value, 0) / occupancyTrend.length
-    )
+    // Headline occupancy: point-in-time (properties occupied today / total),
+    // matching the Overview KPI and the per-property cards below.
+    const occupiedProps = new Set(
+      reservations
+        .filter(r => r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress'))
+        .map(r => r.property_id)
+        .filter(Boolean)
+    ).size
+    const occupancyRate = totalProps > 0 ? Math.round((occupiedProps / totalProps) * 100) : 0
 
     // Reservations by status
     const byStatus = RES_STATUSES.map(s => ({
@@ -186,7 +191,7 @@ export function Reports() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('reports.title')}</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('reports.title')}</p>
         <div className="flex items-center gap-2">
           <Select
             value={year}
@@ -206,10 +211,10 @@ export function Reports() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label={t('reports.totalRevenue')} value={stats.totalRevenue} prefix="€" />
-        <MetricCard label={t('reports.serviceRevenue')} value={stats.serviceRevenue} prefix="€" />
-        <MetricCard label={t('reports.occupancy')} value={`${stats.occupancyRate}%`} />
-        <MetricCard label={t('reports.avgGuestSpend')} value={stats.avgSpend} prefix="€" />
+        <MetricCard label={t('reports.totalRevenue')} value={stats.totalRevenue} prefix="€" icon={Euro} tone="success" />
+        <MetricCard label={t('reports.serviceRevenue')} value={stats.serviceRevenue} prefix="€" icon={ConciergeBell} tone="primary" />
+        <MetricCard label={t('reports.occupancy')} value={`${stats.occupancyRate}%`} icon={Percent} tone="info" />
+        <MetricCard label={t('reports.avgGuestSpend')} value={stats.avgSpend} prefix="€" icon={Wallet} tone="warning" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -242,19 +247,19 @@ export function Reports() {
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-border">
               <p className="text-sm">{t('reports.bookingRevenue')}</p>
-              <p className="text-sm font-mono font-medium">€{(stats.totalRevenue - stats.serviceRevenue).toLocaleString()}</p>
+              <p className="text-sm tabular-nums font-medium">€{(stats.totalRevenue - stats.serviceRevenue).toLocaleString()}</p>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border">
               <p className="text-sm">{t('reports.serviceRevenue')}</p>
-              <p className="text-sm font-mono font-medium">€{stats.serviceRevenue.toLocaleString()}</p>
+              <p className="text-sm tabular-nums font-medium">€{stats.serviceRevenue.toLocaleString()}</p>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border">
               <p className="text-sm">{t('reports.totalPayments')}</p>
-              <p className="text-sm font-mono font-medium">{stats.totalPayments}</p>
+              <p className="text-sm tabular-nums font-medium">{stats.totalPayments}</p>
             </div>
             <div className="flex items-center justify-between py-2">
               <p className="text-sm font-semibold">{t('reports.totalRevenue')}</p>
-              <p className="text-sm font-mono font-semibold">€{stats.totalRevenue.toLocaleString()}</p>
+              <p className="text-sm tabular-nums font-semibold">€{stats.totalRevenue.toLocaleString()}</p>
             </div>
           </div>
         </Card>
@@ -269,7 +274,7 @@ export function Reports() {
                 <div key={item.service} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <p className="text-sm">{item.service}</p>
-                    <p className="text-sm font-mono">€{item.revenue.toLocaleString()}</p>
+                    <p className="text-sm tabular-nums">€{item.revenue.toLocaleString()}</p>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-foreground/60 rounded-full" style={{ width: `${item.pct}%` }} />
@@ -292,7 +297,7 @@ export function Reports() {
                     <p className="text-sm font-medium">{item.property}</p>
                     <p className="text-xs text-muted-foreground">{item.occupancy}% {t('reports.occupancy').toLowerCase()}</p>
                   </div>
-                  <p className="text-sm font-mono font-medium">€{item.revenue.toLocaleString()}</p>
+                  <p className="text-sm tabular-nums font-medium">€{item.revenue.toLocaleString()}</p>
                 </div>
               ))
             )}
@@ -311,7 +316,7 @@ export function Reports() {
                     <p className="text-sm font-medium">{item.partner}</p>
                     <p className="text-xs text-muted-foreground">{item.bookings} bookings</p>
                   </div>
-                  <p className="text-sm font-mono font-medium">€{item.commission}</p>
+                  <p className="text-sm tabular-nums font-medium">€{item.commission}</p>
                 </div>
               ))
             )}

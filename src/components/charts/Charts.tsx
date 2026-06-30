@@ -1,4 +1,4 @@
-// Lightweight monochrome SVG charts. No external dependencies.
+// Lightweight SVG charts (violet accent). No external dependencies.
 
 function formatCompact(value: number): string {
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
@@ -17,7 +17,7 @@ export function BarChart({ data, label }: { data: ChartDatum[]; label?: string }
   return (
     <div className="w-full">
       {label && (
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground mb-3">{label}</p>
+        <p className="text-sm font-semibold text-foreground mb-3">{label}</p>
       )}
       <svg viewBox={`0 0 ${Math.max(data.length * (barWidth + 8), 100)} 160`} className="w-full h-40" preserveAspectRatio="xMidYMid meet">
         {data.map((d, i) => {
@@ -32,8 +32,8 @@ export function BarChart({ data, label }: { data: ChartDatum[]; label?: string }
                 width={barWidth}
                 height={barHeight}
                 fill="currentColor"
-                className="text-foreground/70"
-                rx={3}
+                className="text-primary"
+                rx={4}
               >
                 <animate attributeName="height" from="0" to={barHeight} dur="0.6s" fill="freeze" />
                 <animate attributeName="y" from="130" to={y} dur="0.6s" fill="freeze" />
@@ -72,13 +72,13 @@ export function LineChart({ data, label }: { data: ChartDatum[]; label?: string 
   return (
     <div className="w-full">
       {label && (
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground mb-3">{label}</p>
+        <p className="text-sm font-semibold text-foreground mb-3">{label}</p>
       )}
       <svg viewBox={`0 0 ${width} ${height + 20}`} className="w-full h-36" preserveAspectRatio="xMidYMid meet">
-        <path d={areaD} fill="currentColor" className="text-foreground/10" />
-        <path d={pathD} fill="none" stroke="currentColor" strokeWidth="2" className="text-foreground/70" />
+        <path d={areaD} fill="currentColor" className="text-primary/10" />
+        <path d={pathD} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-primary" />
         {points.map((p, i) => (
-          <circle key={data[i].label + i} cx={p.x} cy={p.y} r="3" fill="currentColor" className="text-foreground" />
+          <circle key={data[i].label + i} cx={p.x} cy={p.y} r="3" fill="currentColor" className="text-primary" />
         ))}
         {data.map((d, i) => (
           <text key={d.label + i} x={points[i].x} y={height + 12} textAnchor="middle" className="fill-muted-foreground" fontSize="8" fontFamily="monospace">
@@ -112,7 +112,7 @@ export function DonutChart({ data, label, centerLabel, centerValue }: {
   return (
     <div className="w-full">
       {label && (
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground mb-3">{label}</p>
+        <p className="text-sm font-semibold text-foreground mb-3">{label}</p>
       )}
       <div className="flex items-center gap-6">
         <svg viewBox={`0 0 ${size} ${size}`} className="w-36 h-36 shrink-0 -rotate-90">
@@ -131,7 +131,7 @@ export function DonutChart({ data, label, centerLabel, centerValue }: {
                 strokeWidth={stroke}
                 strokeDasharray={`${dash} ${circumference - dash}`}
                 strokeDashoffset={-offset}
-                className="text-foreground"
+                className="text-primary"
                 style={{ opacity: 1 - i * (0.6 / Math.max(data.length - 1, 1)) }}
               />
             )
@@ -142,7 +142,7 @@ export function DonutChart({ data, label, centerLabel, centerValue }: {
         <div className="flex-1 space-y-2">
           {(centerLabel || centerValue) && (
             <div className="mb-3">
-              {centerValue && <p className="text-2xl font-mono font-semibold">{centerValue}</p>}
+              {centerValue && <p className="text-2xl font-bold">{centerValue}</p>}
               {centerLabel && <p className="text-xs text-muted-foreground">{centerLabel}</p>}
             </div>
           )}
@@ -152,7 +152,7 @@ export function DonutChart({ data, label, centerLabel, centerValue }: {
                 <span className="w-2.5 h-2.5 rounded-full bg-foreground shrink-0" style={{ opacity: 1 - i * (0.6 / Math.max(data.length - 1, 1)) }} />
                 <span className="text-sm truncate">{d.label}</span>
               </div>
-              <span className="text-sm font-mono text-muted-foreground shrink-0">{d.value}</span>
+              <span className="text-sm tabular-nums text-muted-foreground shrink-0">{d.value}</span>
             </div>
           ))}
         </div>

@@ -118,7 +118,7 @@ export function ContractSigning() {
       <div className="max-w-2xl w-full space-y-6">
         <div className="text-center">
           <h1 className="text-xl font-bold">butlr</h1>
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mt-1">Contract Signing</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mt-1">Contract Signing</p>
         </div>
 
         <Card className="p-6">

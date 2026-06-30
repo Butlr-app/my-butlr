@@ -6,6 +6,7 @@
     "guestPortal": "Portail Invités",
     "messages": "Messagerie",
     "services": "Services",
+    "serviceRequests": "Demandes de services",
     "tasks": "Tâches",
     "calendar": "Calendrier",
     "partners": "Partenaires",
@@ -18,7 +19,8 @@
     "notifications": "Notifications",
     "reports": "Rapports",
     "settings": "Paramètres",
-    "search": "Recherche"
+    "search": "Recherche",
+    "menu": "Menu"
   },
   "apa": {
     "title": "APA — Encaissement & Reversements",
@@ -99,6 +101,7 @@
     "no": "Non"
   },
   "dashboard": {
+    "subtitle": "Voici votre aperçu du jour",
     "ownerTitle": "Tableau de bord Propriétaire",
     "houseManagerTitle": "Tableau de bord House Manager",
     "conciergeTitle": "Tableau de bord Concierge",

@@ -6,6 +6,7 @@
     "guestPortal": "Guest Portal",
     "messages": "Messages",
     "services": "Services",
+    "serviceRequests": "Service Requests",
     "tasks": "Tasks",
     "calendar": "Calendar",
     "partners": "Partners",
@@ -18,7 +19,8 @@
     "notifications": "Notifications",
     "reports": "Reports",
     "settings": "Settings",
-    "search": "Search"
+    "search": "Search",
+    "menu": "Menu"
   },
   "apa": {
     "title": "APA — Collection & Payouts",
@@ -99,6 +101,7 @@
     "no": "No"
   },
   "dashboard": {
+    "subtitle": "Here's your overview for today",
     "ownerTitle": "Owner Dashboard",
     "houseManagerTitle": "House Manager Dashboard",
     "conciergeTitle": "Concierge Dashboard",

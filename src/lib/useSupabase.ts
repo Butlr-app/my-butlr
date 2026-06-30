@@ -426,7 +426,7 @@ export function useProfile() {
 export interface Notification {
   id: string
   user_id: string | null
-  type: 'reservation' | 'task' | 'payment' | 'system'
+  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request'
   title: string
   message: string | null
   read: boolean
@@ -643,6 +643,8 @@ export function usePropertyImages(propertyId: string | undefined) {
 
 // ─── Service Requests ────────────────────────────────────────────────────────
 
+export type ServiceRequestStatus = 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
+
 export interface ServiceRequest {
   id: string
   reservation_id: string | null
@@ -652,7 +654,9 @@ export interface ServiceRequest {
   details: string | null
   preferred_date: string | null
   preferred_time: string | null
-  status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
+  status: ServiceRequestStatus
+  partner_id: string | null
+  quoted_price: number | null
   created_at: string
   updated_at: string
 }
@@ -674,6 +678,24 @@ export function useServiceRequests(reservationId?: string) {
 
   useEffect(() => { fetchRequests() }, [fetchRequests])
 
+  useEffect(() => {
+    const channel = supabase
+      .channel(`service-requests-${reservationId ?? 'all'}-${crypto.randomUUID()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_requests' }, (payload) => {
+        const row = payload.new as ServiceRequest
+        const removed = payload.old as ServiceRequest
+        if (reservationId && row?.reservation_id !== reservationId && removed?.reservation_id !== reservationId) return
+        setRequests(prev => {
+          if (payload.eventType === 'DELETE') return prev.filter(r => r.id !== removed.id)
+          if (payload.eventType === 'UPDATE') return prev.map(r => (r.id === row.id ? row : r))
+          if (prev.some(r => r.id === row.id)) return prev
+          return [row, ...prev]
+        })
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [reservationId])
+
   const addRequest = async (req: Partial<ServiceRequest>) => {
     const { data, error } = await supabase
       .from('service_requests')
@@ -681,11 +703,44 @@ export function useServiceRequests(reservationId?: string) {
       .select()
       .single()
     if (error) throw new Error(error.message)
-    setRequests(prev => [data as ServiceRequest, ...prev])
+    setRequests(prev => (prev.some(r => r.id === (data as ServiceRequest).id) ? prev : [data as ServiceRequest, ...prev]))
+    // Notify staff (broadcast notification) that a new service request came in.
+    await supabase.from('notifications').insert({
+      user_id: null,
+      type: 'service_request',
+      title: 'New service request',
+      message: `${(data as ServiceRequest).service_name} requested by a guest`,
+      related_id: (data as ServiceRequest).id,
+      read: false,
+    })
     return data as ServiceRequest
   }
 
-  return { requests, loading, addRequest, refetch: fetchRequests }
+  const updateRequest = async (id: string, patch: Partial<ServiceRequest>) => {
+    const { data, error } = await supabase
+      .from('service_requests')
+      .update({ ...patch, updated_at: new Date().toISOString() } as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    const updated = data as ServiceRequest
+    setRequests(prev => prev.map(r => (r.id === id ? updated : r)))
+    // Notify the guest of a status change on their request.
+    if (patch.status && updated.guest_user_id) {
+      await supabase.from('notifications').insert({
+        user_id: updated.guest_user_id,
+        type: 'service_request',
+        title: 'Service request update',
+        message: `Your "${updated.service_name}" request is now ${patch.status.replace('_', ' ')}`,
+        related_id: updated.id,
+        read: false,
+      })
+    }
+    return updated
+  }
+
+  return { requests, loading, addRequest, updateRequest, refetch: fetchRequests }
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────

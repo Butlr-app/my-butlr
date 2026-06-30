@@ -26,6 +26,7 @@ const typeIcons: Record<Notification['type'], string> = {
   task: 'T',
   payment: 'P',
   system: 'S',
+  service_request: 'SR',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -33,6 +34,7 @@ const typeColors: Record<Notification['type'], string> = {
   task: 'bg-warning/10 text-warning',
   payment: 'bg-success/10 text-success',
   system: 'bg-muted text-muted-foreground',
+  service_request: 'bg-info/10 text-info',
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {
@@ -92,7 +94,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
-          className="h-8 px-2 bg-muted border-0 rounded-md text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-ring hidden sm:block"
+          className="h-9 px-3 bg-muted border-0 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring hidden sm:block"
         >
           {roles.map(r => (
             <option key={r.value} value={r.value}>{r.label}</option>
@@ -107,7 +109,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && query.trim()) navigate(`/app/search?q=${encodeURIComponent(query)}`) }}
-            className="h-9 pl-9 pr-4 bg-muted border-0 rounded-md text-sm w-56 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-9 pl-9 pr-4 bg-muted border-0 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -194,7 +196,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
 
         <button
           onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')}
-          className="h-8 px-2 rounded-md hover:bg-muted transition-colors flex items-center gap-1 text-xs font-mono uppercase tracking-wider"
+          className="h-9 px-2.5 rounded-xl hover:bg-muted transition-colors flex items-center gap-1 text-xs font-semibold"
           title={language === 'fr' ? 'Switch to English' : 'Passer en Français'}
         >
           <Globe className="w-3.5 h-3.5" />
