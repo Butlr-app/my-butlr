@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/authContext'
 import { useReservations, useContracts } from '@/lib/useSupabase'
 import {
@@ -7,6 +8,7 @@ import {
 
 export function GuestProfile() {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   const { data: reservations } = useReservations()
   const { data: contracts } = useContracts()
 
@@ -141,7 +143,7 @@ export function GuestProfile() {
       {/* Logout */}
       <div className="px-5 mt-6">
         <button
-          onClick={() => signOut()}
+          onClick={async () => { await signOut(); navigate('/login') }}
           className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-semibold bg-white rounded-2xl border border-gray-100 shadow-sm active:bg-red-50 transition-colors"
         >
           <LogOut className="w-4 h-4" />

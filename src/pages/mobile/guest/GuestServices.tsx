@@ -19,7 +19,7 @@ const SERVICE_IMAGES: Record<string, string> = {
 
 export function GuestServices() {
   const { data: services, loading: lSvc } = useServices()
-  const { data: reservations } = useReservations()
+  const { data: reservations, loading: lRes } = useReservations()
   const { user } = useAuth()
   const { toast } = useToast()
   const [selectedService, setSelectedService] = useState<string | null>(null)
@@ -28,14 +28,14 @@ export function GuestServices() {
   const [saving, setSaving] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
-  const guestReservations = reservations.filter(r => r.guest_email === user?.email)
+  const guestReservations = reservations.filter(r => r.guest_email === user?.email && r.status !== 'cancelled')
   const currentReservation = guestReservations.find(r =>
     r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress')
-  ) ?? guestReservations[0]
+  ) ?? guestReservations.sort((a, b) => new Date(b.arrival).getTime() - new Date(a.arrival).getTime())[0]
 
   const { requests, addRequest } = useServiceRequests(currentReservation?.id)
 
-  const loading = lSvc
+  const loading = lSvc || lRes
 
   if (loading) {
     return (
@@ -48,16 +48,20 @@ export function GuestServices() {
   const availableServices = services.filter(s => s.available)
 
   const handleRequest = async () => {
-    if (!selectedService) return
+    if (!selectedService || !currentReservation) return
+    if (requestForm.details && requestForm.details.length > 1000) {
+      toast('Details must be under 1000 characters', 'error')
+      return
+    }
     setSaving(true)
     try {
       const svc = services.find(s => s.id === selectedService)
       await addRequest({
-        reservation_id: currentReservation?.id ?? null,
+        reservation_id: currentReservation.id,
         guest_user_id: user?.id ?? null,
         service_id: selectedService,
         service_name: svc?.name ?? 'Service',
-        details: requestForm.details || null,
+        details: requestForm.details.trim() || null,
         preferred_date: requestForm.preferred_date || null,
         preferred_time: requestForm.preferred_time || null,
         status: 'pending',

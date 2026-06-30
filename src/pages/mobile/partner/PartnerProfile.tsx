@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/authContext'
 import { useReservations } from '@/lib/useSupabase'
 import {
@@ -7,6 +8,7 @@ import {
 
 export function PartnerProfile() {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   const { data: reservations } = useReservations()
 
   const totalRevenue = reservations.reduce((sum, r) => sum + Number(r.total_amount), 0)
@@ -134,7 +136,7 @@ export function PartnerProfile() {
       {/* Logout */}
       <div className="px-5 mt-6">
         <button
-          onClick={() => signOut()}
+          onClick={async () => { await signOut(); navigate('/login') }}
           className="w-full flex items-center justify-center gap-2 py-4 text-red-400 font-semibold bg-gray-900 rounded-2xl border border-gray-800 active:bg-red-500/10 transition-colors"
         >
           <LogOut className="w-4 h-4" />

@@ -28,8 +28,9 @@ export function PartnerDashboard() {
 
   const months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
   const currentMonth = new Date().getMonth()
+  const currentYear = new Date().getFullYear()
   const monthlyRevenue = months.map((_, idx) => {
-    return reservations.filter(r => new Date(r.arrival).getMonth() === idx)
+    return reservations.filter(r => { const d = new Date(r.arrival); return d.getFullYear() === currentYear && d.getMonth() === idx })
       .reduce((sum, r) => sum + Number(r.total_amount), 0)
   })
   const maxMonthly = Math.max(...monthlyRevenue, 1)
