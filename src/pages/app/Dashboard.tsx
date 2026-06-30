@@ -2,7 +2,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useDashboardKPIs, useReservations, useTasks, usePayments, useProperties, usePartners, useServices } from '@/lib/useSupabase'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
 import { useRoleFilter } from '@/lib/useRoleFilter'
@@ -33,10 +33,10 @@ function OwnerDashboard() {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label={t('dashboard.totalRevenue')} value={totalRevenue} prefix="€" />
-        <MetricCard label={t('dashboard.occupancyRate')} value={`${kpis.occupancyRate}%`} />
-        <MetricCard label={t('dashboard.totalProperties')} value={properties.length} />
-        <MetricCard label={t('dashboard.activeReservations')} value={activeReservations} />
+        <MetricCard label={t('dashboard.totalRevenue')} value={totalRevenue} prefix="€" icon={Euro} tone="success" />
+        <MetricCard label={t('dashboard.occupancyRate')} value={`${kpis.occupancyRate}%`} icon={Percent} tone="primary" />
+        <MetricCard label={t('dashboard.totalProperties')} value={properties.length} icon={Building2} tone="info" />
+        <MetricCard label={t('dashboard.activeReservations')} value={activeReservations} icon={CalendarCheck} tone="warning" />
       </div>
       <Card className="p-5">
         <BarChart data={monthlyData} label={t('dashboard.monthlyRevenue')} />
@@ -67,10 +67,10 @@ function HouseManagerDashboard() {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label={t('dashboard.tasksInProgress')} value={tasksInProgress} />
-        <MetricCard label={t('dashboard.arrivalsToday')} value={arrivalsToday} />
-        <MetricCard label={t('dashboard.departuresToday')} value={departuresToday} />
-        <MetricCard label={t('dashboard.managedProperties')} value={properties.length} />
+        <MetricCard label={t('dashboard.tasksInProgress')} value={tasksInProgress} icon={ClipboardList} tone="primary" />
+        <MetricCard label={t('dashboard.arrivalsToday')} value={arrivalsToday} icon={Plane} tone="success" />
+        <MetricCard label={t('dashboard.departuresToday')} value={departuresToday} icon={LogOut} tone="warning" />
+        <MetricCard label={t('dashboard.managedProperties')} value={properties.length} icon={Building2} tone="info" />
       </div>
       <Card className="p-5">
         <BarChart data={weekData} label={t('dashboard.tasksInProgress')} />
@@ -101,9 +101,9 @@ function ConciergeDashboard() {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.pendingRequests')} value={pendingRequests} />
-        <MetricCard label={t('dashboard.completedThisWeek')} value={completedThisWeek} />
-        <MetricCard label={t('dashboard.upcomingArrivals')} value={upcomingArrivals} />
+        <MetricCard label={t('dashboard.pendingRequests')} value={pendingRequests} icon={ConciergeBell} tone="warning" />
+        <MetricCard label={t('dashboard.completedThisWeek')} value={completedThisWeek} icon={CheckCircle2} tone="success" />
+        <MetricCard label={t('dashboard.upcomingArrivals')} value={upcomingArrivals} icon={CalendarClock} tone="primary" />
       </div>
       <Card className="p-5">
         <BarChart data={statusData} label={t('dashboard.openTasks')} />
@@ -136,9 +136,9 @@ function PartnerDashboard() {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.monthlyCommissions')} value={monthCommissions} prefix="€" />
-        <MetricCard label={t('dashboard.servicesProvided')} value={totalServices} />
-        <MetricCard label={t('dashboard.averageRating')} value={avgRating} />
+        <MetricCard label={t('dashboard.monthlyCommissions')} value={monthCommissions} prefix="€" icon={Euro} tone="success" />
+        <MetricCard label={t('dashboard.servicesProvided')} value={totalServices} icon={ConciergeBell} tone="primary" />
+        <MetricCard label={t('dashboard.averageRating')} value={avgRating} icon={Star} tone="warning" />
       </div>
       <Card className="p-5">
         <LineChart data={commData} label={t('dashboard.monthlyCommissions')} />
@@ -161,9 +161,9 @@ function GuestDashboard() {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.currentReservation')} value={currentRes ? '1' : '0'} />
-        <MetricCard label={t('dashboard.availableServices')} value={availableServices} />
-        <MetricCard label={t('dashboard.propertyInfo')} value={currentRes?.property?.name ?? '—'} />
+        <MetricCard label={t('dashboard.currentReservation')} value={currentRes ? '1' : '0'} icon={CalendarCheck} tone="primary" />
+        <MetricCard label={t('dashboard.availableServices')} value={availableServices} icon={ConciergeBell} tone="info" />
+        <MetricCard label={t('dashboard.propertyInfo')} value={currentRes?.property?.name ?? '—'} icon={Building2} tone="success" />
       </div>
       {currentRes && (
         <Card className="p-5">
@@ -213,11 +213,15 @@ export function Dashboard() {
 
   return (
     <div className={`space-y-6 transition-all duration-300 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
-          {t(titleKey)}
-        </span>
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-soft text-primary shrink-0">
+          <Sparkles className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight leading-tight">{t(titleKey)}</h2>
+          <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
+        </div>
+        {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-1" />}
       </div>
 
       {role === 'owner' && <OwnerDashboard />}
