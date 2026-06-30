@@ -2,12 +2,12 @@
 -- Run via Supabase SQL Editor or supabase db seed
 
 -- Properties
-INSERT INTO properties (id, name, location, type, status, bedrooms, bathrooms, max_guests, description) VALUES
-  ('a1000000-0000-0000-0000-000000000001', 'Villa French Way', 'Saint-Tropez, France', 'villa', 'active', 5, 4, 10, 'Stunning Mediterranean villa with infinity pool overlooking the bay of Saint-Tropez. Private garden, staff quarters, and direct beach access.'),
-  ('a1000000-0000-0000-0000-000000000002', 'French West Yacht', 'Caribbean', 'yacht', 'active', 4, 3, 8, 'Luxury 42m motor yacht with crew of 6. Sun deck, jacuzzi, water toys, and gourmet galley kitchen.'),
-  ('a1000000-0000-0000-0000-000000000003', 'Villa Mauritius', 'Grand Baie, Mauritius', 'villa', 'active', 6, 5, 12, 'Tropical beachfront villa with private lagoon access. Lush gardens, outdoor dining pavilion, and dedicated spa room.'),
-  ('a1000000-0000-0000-0000-000000000004', 'Chalet Verbier', 'Verbier, Switzerland', 'chalet', 'maintenance', 4, 3, 8, 'Premium ski-in/ski-out chalet in the heart of Verbier. Sauna, cinema room, and panoramic Alpine views.'),
-  ('a1000000-0000-0000-0000-000000000005', 'Penthouse Marais', 'Paris, France', 'apartment', 'active', 3, 2, 6, 'Elegant top-floor apartment in Le Marais with private rooftop terrace and Eiffel Tower views.')
+INSERT INTO properties (id, name, location, type, status, bedrooms, bathrooms, max_guests, description, image_url) VALUES
+  ('a1000000-0000-0000-0000-000000000001', 'Villa French Way', 'Saint-Tropez, France', 'villa', 'active', 5, 4, 10, 'Stunning Mediterranean villa with infinity pool overlooking the bay of Saint-Tropez. Private garden, staff quarters, and direct beach access.', '/images/property-villa-french-way.jpg'),
+  ('a1000000-0000-0000-0000-000000000002', 'French West Yacht', 'Caribbean', 'yacht', 'active', 4, 3, 8, 'Luxury 42m motor yacht with crew of 6. Sun deck, jacuzzi, water toys, and gourmet galley kitchen.', '/images/property-french-west-yacht.jpg'),
+  ('a1000000-0000-0000-0000-000000000003', 'Villa Mauritius', 'Grand Baie, Mauritius', 'villa', 'active', 6, 5, 12, 'Tropical beachfront villa with private lagoon access. Lush gardens, outdoor dining pavilion, and dedicated spa room.', '/images/property-villa-mauritius.jpg'),
+  ('a1000000-0000-0000-0000-000000000004', 'Chalet Verbier', 'Verbier, Switzerland', 'chalet', 'maintenance', 4, 3, 8, 'Premium ski-in/ski-out chalet in the heart of Verbier. Sauna, cinema room, and panoramic Alpine views.', '/images/property-chalet-verbier.jpg'),
+  ('a1000000-0000-0000-0000-000000000005', 'Penthouse Marais', 'Paris, France', 'apartment', 'active', 3, 2, 6, 'Elegant top-floor apartment in Le Marais with private rooftop terrace and Eiffel Tower views.', '/images/property-penthouse-marais.jpg')
 ON CONFLICT (id) DO NOTHING;
 
 -- Reservations
