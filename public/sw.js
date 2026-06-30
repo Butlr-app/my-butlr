@@ -1,11 +1,13 @@
 /* My Butlr service worker — offline support + push notifications */
-const VERSION = 'butlr-v1'
+const VERSION = 'butlr-v2'
 const APP_SHELL = `${VERSION}-shell`
 const RUNTIME = `${VERSION}-runtime`
 const OFFLINE_URL = '/offline.html'
 
 const PRECACHE_URLS = [
   OFFLINE_URL,
+  '/',
+  '/index.html',
   '/manifest.webmanifest',
   '/favicon.svg',
   '/icon-192.png',
@@ -55,6 +57,8 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const cached = await caches.match(request)
           if (cached) return cached
+          const root = await caches.match('/')
+          if (root) return root
           const shell = await caches.match('/index.html')
           if (shell) return shell
           return caches.match(OFFLINE_URL)

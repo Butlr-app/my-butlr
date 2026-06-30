@@ -96,12 +96,17 @@ export function ServiceRequests() {
 
   const confirmApprove = async () => {
     if (!approveTarget) return
+    const quotedPrice = approvePrice.trim() === '' ? null : Number(approvePrice)
+    if (quotedPrice !== null && (!Number.isFinite(quotedPrice) || quotedPrice < 0)) {
+      toast('Quoted price must be a non-negative number', 'error')
+      return
+    }
     setApproveSaving(true)
     try {
       await updateRequest(approveTarget.id, {
         status: 'approved',
         partner_id: approvePartner || null,
-        quoted_price: approvePrice ? Number(approvePrice) : null,
+        quoted_price: quotedPrice,
       })
       toast('Request approved')
       setApproveTarget(null)
