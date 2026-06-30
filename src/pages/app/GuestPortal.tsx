@@ -117,7 +117,11 @@ export function GuestPortal() {
             </div>
             <div className="text-right">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Day {daysBetween(activeReservation.arrival, today) + 1} of {daysBetween(activeReservation.arrival, activeReservation.departure)}
+                {(() => {
+                  const totalNights = daysBetween(activeReservation.arrival, activeReservation.departure)
+                  const currentDay = Math.min(Math.max(daysBetween(activeReservation.arrival, today) + 1, 1), totalNights)
+                  return `Day ${currentDay} of ${totalNights}`
+                })()}
               </p>
               <Badge variant="success" className="mt-1">Active Stay</Badge>
             </div>
