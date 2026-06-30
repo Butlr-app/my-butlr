@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Search
+  FilePlus, Receipt, Bell, MessageSquare, Wallet, Search
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -41,6 +41,7 @@ const navItems = [
   { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },
   { to: '/app/partners', icon: Handshake, labelKey: 'nav.partners', page: 'partners' },
   { to: '/app/payments', icon: CreditCard, labelKey: 'nav.payments', page: 'payments' },
+  { to: '/app/apa', icon: Wallet, labelKey: 'nav.apa', page: 'apa' },
   { to: '/app/contracts', icon: FileText, labelKey: 'nav.contracts', page: 'contracts' },
   { to: '/app/contracts/generate', icon: FilePlus, labelKey: 'nav.contractGen', page: 'contracts' },
   { to: '/app/invoices', icon: Receipt, labelKey: 'nav.invoices', page: 'invoices' },
