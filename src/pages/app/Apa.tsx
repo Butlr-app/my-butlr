@@ -91,6 +91,14 @@ export function Apa() {
     try {
       for (const po of pending) {
         await updatePayout(po.id, { status: 'paid', paid_at: new Date().toISOString() })
+        await insertNotification({
+          user_id: null,
+          type: 'payment',
+          title: t('apa.payoutSent'),
+          message: `${po.payee_name} — ${euro(po.net_amount)}`,
+          data: { payee: po.payee_name, net: po.net_amount },
+          related_id: po.id,
+        }).catch(() => {})
       }
       await refetch()
       toast(t('apa.reversedAll').replace('{n}', String(pending.length)))
@@ -215,7 +223,7 @@ export function Apa() {
                   <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
                     <span className="text-sm font-mono font-medium">{t('apa.net')}: {euro(Number(po.net_amount))}</span>
                     {po.status === 'pending' && (
-                      <Button size="sm" disabled={busyId === po.id} onClick={() => handleReverse(po)}>
+                      <Button size="sm" disabled={busyId === po.id || generating} onClick={() => handleReverse(po)}>
                         {busyId === po.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t('apa.reverse')}
                       </Button>
                     )}
@@ -256,7 +264,7 @@ export function Apa() {
                       </td>
                       <td className="px-3 text-right">
                         {po.status === 'pending' ? (
-                          <Button size="sm" disabled={busyId === po.id} onClick={() => handleReverse(po)}>
+                          <Button size="sm" disabled={busyId === po.id || generating} onClick={() => handleReverse(po)}>
                             {busyId === po.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t('apa.reverse')}
                           </Button>
                         ) : (
