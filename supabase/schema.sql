@@ -310,6 +310,41 @@ CREATE TABLE IF NOT EXISTS checkins (
 ALTER TABLE checkins ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated manage checkins" ON checkins FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- ─── APA payouts table (centralized collection + reversements) ───────────────
+CREATE TABLE IF NOT EXISTS payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payment_id UUID REFERENCES payments(id) ON DELETE CASCADE,
+  reservation_id UUID REFERENCES reservations(id),
+  payee_type TEXT NOT NULL CHECK (payee_type IN ('villa', 'partner')),
+  payee_name TEXT NOT NULL,
+  gross_amount DECIMAL(10,2) NOT NULL,
+  commission_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  net_amount DECIMAL(10,2) NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid')),
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(payment_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(status);
+CREATE INDEX IF NOT EXISTS idx_payouts_payee ON payouts(payee_type, payee_name);
+
+ALTER TABLE payouts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Owner and agency manage payouts" ON payouts FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role IN ('owner', 'agency')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role IN ('owner', 'agency')
+    )
+  );
+
 -- Function to handle new user registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$

@@ -307,7 +307,15 @@ export function Payments() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
+              <Input
+                label={form.type === 'service' ? 'Partner Name' : 'Guest Name'}
+                required
+                value={form.guest_name}
+                onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))}
+              />
+              {form.type === 'service' && (
+                <p className="text-[11px] text-muted-foreground mt-1">Use the partner or provider name for service payments.</p>
+              )}
               {errors.guest_name && <p className="text-xs text-destructive mt-1">{errors.guest_name}</p>}
             </div>
             <Input label="Property" value={form.property_name} onChange={e => setForm(f => ({ ...f, property_name: e.target.value }))} />

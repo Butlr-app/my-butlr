@@ -130,7 +130,7 @@ export function Apa() {
               min={0}
               max={100}
               value={platformRate}
-              onChange={e => setPlatformRate(Number(e.target.value))}
+              onChange={e => setPlatformRate(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
               className="w-20"
             />
           </div>
