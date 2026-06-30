@@ -156,7 +156,7 @@ export function Invoices() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Invoices</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Invoices</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> Export CSV
@@ -170,13 +170,13 @@ export function Invoices() {
       <div className="grid sm:grid-cols-5 gap-4">
         {(['draft', 'sent', 'paid', 'overdue'] as const).map(status => (
           <Card key={status} className="p-5">
-            <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1 capitalize">{status}</p>
-            <p className="text-2xl font-mono font-medium">{stats[status]}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1 capitalize">{status}</p>
+            <p className="text-2xl tabular-nums font-medium">{stats[status]}</p>
           </Card>
         ))}
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
-          <p className="text-2xl font-mono font-medium">{fmt(stats.totalHT)} €</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Revenue</p>
+          <p className="text-2xl tabular-nums font-medium">{fmt(stats.totalHT)} €</p>
         </Card>
       </div>
 
@@ -213,19 +213,63 @@ export function Invoices() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(inv => (
+              <Card key={inv.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-mono truncate">{inv.invoice_number}</span>
+                    </div>
+                    <p className="text-sm font-medium truncate mt-0.5">{inv.client_name}</p>
+                  </div>
+                  <Badge variant={statusBadge[inv.status]}>{inv.status}</Badge>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span className="font-mono">{inv.created_at.split('T')[0]}</span>
+                  <span className="font-mono text-foreground">{fmt(inv.total_ttc)} € TTC</span>
+                </div>
+                {inv.is_recurring && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <RefreshCw className="w-3.5 h-3.5" /> {inv.recurring_interval ?? 'recurring'}
+                  </span>
+                )}
+                <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
+                  {inv.status === 'draft' && (
+                    <button onClick={() => markAsSent(inv.id)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Mark as sent">
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
+                  {(inv.status === 'sent' || inv.status === 'overdue') && (
+                    <button onClick={() => sendReminder(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send reminder">
+                      <Bell className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={() => openEdit(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Edit">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: inv.id, name: inv.invoice_number })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5" title="Delete">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Invoice</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Client</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Total HT</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Total TTC</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Recurring</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total HT</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total TTC</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recurring</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -234,13 +278,13 @@ export function Invoices() {
                       <td className="px-4">
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-mono">{inv.invoice_number}</span>
+                          <span className="text-sm tabular-nums">{inv.invoice_number}</span>
                         </div>
                       </td>
                       <td className="px-4 text-sm font-medium">{inv.client_name}</td>
-                      <td className="px-4 text-sm font-mono">{inv.created_at.split('T')[0]}</td>
-                      <td className="px-4 text-sm font-mono text-right">{fmt(inv.total_ht)} €</td>
-                      <td className="px-4 text-sm font-mono text-right">{fmt(inv.total_ttc)} €</td>
+                      <td className="px-4 text-sm tabular-nums">{inv.created_at.split('T')[0]}</td>
+                      <td className="px-4 text-sm tabular-nums text-right">{fmt(inv.total_ht)} €</td>
+                      <td className="px-4 text-sm tabular-nums text-right">{fmt(inv.total_ttc)} €</td>
                       <td className="px-4">
                         <Badge variant={statusBadge[inv.status]}>{inv.status}</Badge>
                       </td>
@@ -281,7 +325,7 @@ export function Invoices() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}

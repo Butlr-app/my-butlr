@@ -65,7 +65,7 @@ export function Payments() {
 
   const validate = () => {
     const errs: Record<string, string> = {}
-    if (!form.guest_name.trim()) errs.guest_name = 'Guest name is required'
+    if (!form.guest_name.trim()) errs.guest_name = form.type === 'service' ? 'Partner name is required' : 'Guest name is required'
     if (form.amount <= 0) errs.amount = 'Amount must be positive'
     if (!form.date) errs.date = 'Date is required'
     setErrors(errs)
@@ -168,7 +168,7 @@ export function Payments() {
     <div className="flex">
     <div className="flex-1 min-w-0 space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">{t('payments.title')}</p>
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('payments.title')}</p>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
@@ -176,7 +176,7 @@ export function Payments() {
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> {t('importExport.exportCsv')}
           </Button>
-          <Button size="sm" onClick={openCreate}>
+          <Button variant="gold" size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> {t('payments.title')}
           </Button>
         </div>
@@ -184,16 +184,16 @@ export function Payments() {
 
       <div className="grid sm:grid-cols-3 gap-4">
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Total Revenue</p>
-          <p className="text-2xl font-mono font-medium">€{totalRevenue.toLocaleString()}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Total Revenue</p>
+          <p className="text-2xl tabular-nums font-medium">€{totalRevenue.toLocaleString()}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Pending</p>
-          <p className="text-2xl font-mono font-medium text-warning">€{totalPending.toLocaleString()}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Pending</p>
+          <p className="text-2xl tabular-nums font-medium text-warning">€{totalPending.toLocaleString()}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Transactions</p>
-          <p className="text-2xl font-mono font-medium">{payments.length}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Transactions</p>
+          <p className="text-2xl tabular-nums font-medium">{payments.length}</p>
         </Card>
       </div>
 
@@ -202,32 +202,69 @@ export function Payments() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No payments match your search.' : 'No payments recorded.'}
           </p>
-          {!query && <Button size="sm" onClick={openCreate}>Record payment</Button>}
+          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Record payment</Button>}
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <div className="lg:hidden space-y-3">
+            {paginated.map(p => (
+              <Card key={p.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.guest_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.property_name}</p>
+                  </div>
+                  <p className="text-sm font-mono shrink-0">€{Number(p.amount).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono">{p.date}</span>
+                    <span className="capitalize">· {p.type}</span>
+                  </div>
+                  <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                    <Badge variant={
+                      p.status === 'paid' ? 'success' :
+                      p.status === 'failed' ? 'destructive' :
+                      p.status === 'refunded' ? 'info' : 'warning'
+                    }>
+                      {p.status}
+                    </Badge>
+                  </button>
+                </div>
+                <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
+                  <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="overflow-hidden hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guest</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guest</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.map(p => (
                     <tr key={p.id} className="border-b border-border hover:bg-muted/50 transition-colors h-14">
-                      <td className="px-4 text-sm font-mono">{p.date}</td>
+                      <td className="px-4 text-sm tabular-nums">{p.date}</td>
                       <td className="px-4 text-sm font-medium">{p.guest_name}</td>
                       <td className="px-4 text-sm text-muted-foreground">{p.property_name}</td>
                       <td className="px-4 text-sm text-muted-foreground capitalize">{p.type}</td>
-                      <td className="px-4 text-sm font-mono text-right">€{Number(p.amount).toLocaleString()}</td>
+                      <td className="px-4 text-sm tabular-nums text-right">€{Number(p.amount).toLocaleString()}</td>
                       <td className="px-4">
                         <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
                           <Badge variant={
@@ -259,7 +296,7 @@ export function Payments() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs font-mono text-muted-foreground">{page + 1} / {totalPages}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
               <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
             </div>
           )}
@@ -268,14 +305,22 @@ export function Payments() {
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Edit Payment' : 'Record Payment'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
+              <Input
+                label={form.type === 'service' ? 'Partner Name' : 'Guest Name'}
+                required
+                value={form.guest_name}
+                onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))}
+              />
+              {form.type === 'service' && (
+                <p className="text-[11px] text-muted-foreground mt-1">Use the partner or provider name for service payments.</p>
+              )}
               {errors.guest_name && <p className="text-xs text-destructive mt-1">{errors.guest_name}</p>}
             </div>
             <Input label="Property" value={form.property_name} onChange={e => setForm(f => ({ ...f, property_name: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type"
               value={form.type}
@@ -299,7 +344,7 @@ export function Payments() {
               ]}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Input label="Amount (€)" type="number" min={0} required value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
               {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount}</p>}

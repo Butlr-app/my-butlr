@@ -94,6 +94,29 @@ CREATE TABLE IF NOT EXISTS partners (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Service Requests
+CREATE TABLE IF NOT EXISTS service_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reservation_id UUID REFERENCES reservations(id) ON DELETE CASCADE,
+  guest_user_id UUID REFERENCES auth.users(id),
+  service_id UUID REFERENCES services(id),
+  service_name TEXT NOT NULL,
+  details TEXT,
+  preferred_date DATE,
+  preferred_time TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'in_progress', 'completed', 'cancelled')),
+  partner_id UUID REFERENCES partners(id),
+  quoted_price DECIMAL(10,2),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE service_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated manage service_requests" ON service_requests FOR ALL TO authenticated USING (true);
+
+-- Enable Realtime for service requests
+ALTER PUBLICATION supabase_realtime ADD TABLE service_requests;
+
 -- Payments
 CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -218,7 +241,7 @@ CREATE POLICY "Authenticated manage contract_templates" ON contract_templates FO
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL DEFAULT 'system' CHECK (type IN ('reservation', 'task', 'payment', 'system')),
+  type TEXT NOT NULL DEFAULT 'system' CHECK (type IN ('reservation', 'task', 'payment', 'system', 'service_request')),
   title TEXT NOT NULL,
   message TEXT,
   read BOOLEAN NOT NULL DEFAULT false,
@@ -309,6 +332,41 @@ CREATE TABLE IF NOT EXISTS checkins (
 
 ALTER TABLE checkins ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated manage checkins" ON checkins FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ─── APA payouts table (centralized collection + reversements) ───────────────
+CREATE TABLE IF NOT EXISTS payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payment_id UUID REFERENCES payments(id) ON DELETE CASCADE,
+  reservation_id UUID REFERENCES reservations(id),
+  payee_type TEXT NOT NULL CHECK (payee_type IN ('villa', 'partner')),
+  payee_name TEXT NOT NULL,
+  gross_amount DECIMAL(10,2) NOT NULL,
+  commission_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  net_amount DECIMAL(10,2) NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid')),
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(payment_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts(status);
+CREATE INDEX IF NOT EXISTS idx_payouts_payee ON payouts(payee_type, payee_name);
+
+ALTER TABLE payouts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Owner and agency manage payouts" ON payouts FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role IN ('owner', 'agency')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role IN ('owner', 'agency')
+    )
+  );
 
 -- Function to handle new user registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()

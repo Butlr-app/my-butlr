@@ -17,12 +17,14 @@ import { Reservations } from './pages/app/Reservations'
 import { GuestPortal } from './pages/app/GuestPortal'
 import { Messages } from './pages/app/Messages'
 import { Services } from './pages/app/Services'
+import { ServiceRequests } from './pages/app/ServiceRequests'
 import { Tasks } from './pages/app/Tasks'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
 import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
 import { Reports } from './pages/app/Reports'
+import { Apa } from './pages/app/Apa'
 import { Settings } from './pages/app/Settings'
 import { SearchResults } from './pages/app/SearchResults'
 import { ForgotPassword } from './pages/ForgotPassword'
@@ -75,6 +77,7 @@ export default function App() {
           <Route path="guest-portal" element={<GuestPortal />} />
           <Route path="messages" element={<Messages />} />
           <Route path="services" element={<Services />} />
+          <Route path="service-requests" element={<ServiceRequests />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
@@ -85,6 +88,7 @@ export default function App() {
           <Route path="invoices/generate" element={<InvoiceGenerator />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="apa" element={<Apa />} />
           <Route path="settings" element={<Settings />} />
           <Route path="search" element={<SearchResults />} />
         </Route>
