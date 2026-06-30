@@ -65,7 +65,7 @@ export function Payments() {
 
   const validate = () => {
     const errs: Record<string, string> = {}
-    if (!form.guest_name.trim()) errs.guest_name = 'Guest name is required'
+    if (!form.guest_name.trim()) errs.guest_name = form.type === 'service' ? 'Partner name is required' : 'Guest name is required'
     if (form.amount <= 0) errs.amount = 'Amount must be positive'
     if (!form.date) errs.date = 'Date is required'
     setErrors(errs)
