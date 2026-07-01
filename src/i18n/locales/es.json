@@ -356,5 +356,33 @@
       "terms": "Términos",
       "copyright": "© 2026 My Butlr. Todos los derechos reservados."
     }
+  },
+  "ai": {
+    "title": "Asistente IA",
+    "subtitle": "Tu conserje inteligente",
+    "open": "Abrir asistente IA",
+    "close": "Cerrar asistente IA",
+    "placeholder": "Pregúntame lo que quieras...",
+    "thinking": "Pensando...",
+    "clearHistory": "Borrar historial",
+    "welcomeTitle": "¡Hola! Soy tu asistente IA",
+    "welcomeSubtitle": "Puedo ayudarte a gestionar tus propiedades, huéspedes y servicios de forma inteligente.",
+    "quickTasks": "Tareas prioritarias",
+    "quickRevenue": "Análisis ingresos",
+    "quickServices": "Sugerencias servicios",
+    "quickCheckin": "Próximo check-in",
+    "insights": "Insights IA",
+    "suggestedTasks": "Tareas sugeridas",
+    "suggestedReplies": "Respuestas sugeridas",
+    "analyzingTasks": "Analizando tareas pendientes...",
+    "poweredBy": "Impulsado por IA",
+    "confidence": "Confianza",
+    "accept": "Añadir",
+    "tasksCreated": "tarea(s) creada(s)",
+    "insightRevenue": "Ingresos",
+    "insightOccupancy": "Ocupación",
+    "insightGuest": "Huéspedes",
+    "insightMaintenance": "Mantenimiento",
+    "insightOpportunity": "Oportunidad"
   }
 }

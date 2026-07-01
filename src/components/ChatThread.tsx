@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useMessages, type Service } from '@/lib/useSupabase'
@@ -8,6 +8,7 @@ import { MessageBubble } from './chat/MessageBubble'
 import { VoiceRecorder } from './chat/VoiceRecorder'
 import { ChatImageUpload } from './chat/ChatImageUpload'
 import { ServicePicker } from './chat/ServicePicker'
+import { AiReplySuggestions } from './ai/AiReplySuggestions'
 
 interface ChatThreadProps {
   reservationId: string
@@ -44,6 +45,17 @@ export function ChatThread({
   useEffect(() => {
     markRead(userId)
   }, [reservationId, messages.length, markRead, userId])
+
+  // Find last message from guest for AI suggestions
+  const lastGuestMsg = useMemo(() => {
+    const guestMsgs = messages.filter(m => m.sender_id !== userId && m.message_type === 'text')
+    return guestMsgs.length > 0 ? guestMsgs[guestMsgs.length - 1].content : null
+  }, [messages, userId])
+
+  const lastGuestSender = useMemo(() => {
+    const guestMsgs = messages.filter(m => m.sender_id !== userId && m.message_type === 'text')
+    return guestMsgs.length > 0 ? guestMsgs[guestMsgs.length - 1].sender_name : undefined
+  }, [messages, userId])
 
   const handleSend = async () => {
     if (!msgText.trim()) return
@@ -156,6 +168,15 @@ export function ChatThread({
         ))}
         <div ref={bottomRef} />
       </div>
+
+      {/* AI reply suggestions — only for managers, not guests */}
+      {senderRole !== 'guest' && (
+        <AiReplySuggestions
+          lastGuestMessage={lastGuestMsg}
+          guestName={lastGuestSender}
+          onSelect={(reply) => setMsgText(reply)}
+        />
+      )}
 
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-1 relative">
