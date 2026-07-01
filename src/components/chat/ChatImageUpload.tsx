@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { ImagePlus, X, Loader2 } from 'lucide-react'
 import { uploadChatAttachment } from '@/lib/storage'
 
@@ -12,6 +12,12 @@ export function ChatImageUpload({ onUploaded, disabled }: ChatImageUploadProps) 
   const [preview, setPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
 
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview)
+    }
+  }, [preview])
+
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return
     setPreview(URL.createObjectURL(file))
@@ -23,6 +29,7 @@ export function ChatImageUpload({ onUploaded, disabled }: ChatImageUploadProps) 
       // upload failed silently
     }
     setUploading(false)
+    if (preview) URL.revokeObjectURL(preview)
     setPreview(null)
   }
 
@@ -52,7 +59,7 @@ export function ChatImageUpload({ onUploaded, disabled }: ChatImageUploadProps) 
             )}
             <button
               type="button"
-              onClick={() => setPreview(null)}
+              onClick={() => { if (preview) URL.revokeObjectURL(preview); setPreview(null) }}
               className="absolute top-1 right-1 p-0.5 bg-black/60 rounded-full"
             >
               <X className="w-3 h-3 text-white" />

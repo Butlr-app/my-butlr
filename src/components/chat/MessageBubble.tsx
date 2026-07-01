@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Play, Pause } from 'lucide-react'
 import { ServiceCard } from './ServiceCard'
 import type { Message, ServiceMessageMeta } from '@/lib/useSupabase'
@@ -37,18 +37,31 @@ function getRoleLabel(role: string | null): string | null {
 
 function VoicePlayer({ url }: { url: string }) {
   const [playing, setPlaying] = useState(false)
-  const [audioEl] = useState(() => {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [barHeights] = useState(() =>
+    Array.from({ length: 20 }, (_, i) => 6 + Math.sin(i * 0.8) * 6 + Math.random() * 4),
+  )
+
+  useEffect(() => {
     const a = new Audio(url)
-    a.addEventListener('ended', () => setPlaying(false))
-    return a
-  })
+    const onEnded = () => setPlaying(false)
+    a.addEventListener('ended', onEnded)
+    audioRef.current = a
+    return () => {
+      a.pause()
+      a.removeEventListener('ended', onEnded)
+      audioRef.current = null
+    }
+  }, [url])
 
   const toggle = () => {
+    const a = audioRef.current
+    if (!a) return
     if (playing) {
-      audioEl.pause()
+      a.pause()
       setPlaying(false)
     } else {
-      audioEl.play()
+      a.play()
       setPlaying(true)
     }
   }
@@ -65,11 +78,11 @@ function VoicePlayer({ url }: { url: string }) {
         <Play className="w-4 h-4" />
       )}
       <div className="flex items-center gap-0.5">
-        {Array.from({ length: 20 }).map((_, i) => (
+        {barHeights.map((h, i) => (
           <span
             key={i}
             className="w-0.5 rounded-full bg-current opacity-60"
-            style={{ height: `${6 + Math.sin(i * 0.8) * 6 + Math.random() * 4}px` }}
+            style={{ height: `${h}px` }}
           />
         ))}
       </div>

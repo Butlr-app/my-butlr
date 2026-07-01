@@ -14,6 +14,7 @@ export function VoiceRecorder({ onRecorded, disabled }: VoiceRecorderProps) {
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const elapsedRef = useRef(0)
 
   useEffect(() => {
     return () => {
@@ -37,7 +38,7 @@ export function VoiceRecorder({ onRecorded, disabled }: VoiceRecorderProps) {
         setUploading(true)
         try {
           const url = await uploadChatAttachment(blob, 'voice')
-          onRecorded(url, elapsed)
+          onRecorded(url, elapsedRef.current)
         } catch {
           // silently fail; parent will not get the url
         }
@@ -48,11 +49,12 @@ export function VoiceRecorder({ onRecorded, disabled }: VoiceRecorderProps) {
       recorder.start()
       setRecording(true)
       setElapsed(0)
-      timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
+      elapsedRef.current = 0
+      timerRef.current = setInterval(() => setElapsed(s => { elapsedRef.current = s + 1; return s + 1 }), 1000)
     } catch {
       // microphone denied
     }
-  }, [elapsed, onRecorded])
+  }, [onRecorded])
 
   const stop = useCallback(() => {
     if (mediaRef.current && mediaRef.current.state !== 'inactive') {
