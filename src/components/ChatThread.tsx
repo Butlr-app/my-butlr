@@ -53,7 +53,7 @@ export function ChatThread({
   }, [messages, userId])
 
   const lastGuestSender = useMemo(() => {
-    const guestMsgs = messages.filter(m => m.sender_id !== userId)
+    const guestMsgs = messages.filter(m => m.sender_id !== userId && m.message_type === 'text')
     return guestMsgs.length > 0 ? guestMsgs[guestMsgs.length - 1].sender_name : undefined
   }, [messages, userId])
 

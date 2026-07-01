@@ -301,6 +301,7 @@ export function Dashboard() {
   const { data: rawReservations, loading: loadingRes } = useReservations()
   const { data: rawTasks, loading: loadingTasks } = useTasks()
   const { data: rawPayments, loading: loadingPay } = usePayments()
+  const { data: properties } = useProperties()
   const [animateIn, setAnimateIn] = useState(false)
 
   const reservations = filterReservations(rawReservations)
@@ -350,7 +351,7 @@ export function Dashboard() {
             return arrival >= now && arrival <= weekLater && r.status !== 'cancelled'
           }).length}
           pendingTasks={tasks.filter(t => t.status === 'todo' || t.status === 'in_progress').length}
-          propertiesCount={reservations.length}
+          propertiesCount={properties.length}
         />
       )}
 
