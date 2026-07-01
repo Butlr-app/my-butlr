@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { useRole } from '@/lib/roleContext'
-import { useRolePermissions, CONFIGURABLE_PAGES, type RolePermissions } from '@/lib/useRolePermissions'
+import { useRolePermissions, CONFIGURABLE_PAGES, type RolePermissions } from '@/lib/useSupabase'
 
 const BASE_TABS = ['Account', 'Team', 'Properties', 'Payments', 'Services']
 

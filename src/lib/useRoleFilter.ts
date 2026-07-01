@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice } from './useSupabase'
-import { useRolePermissions } from './useRolePermissions'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -151,7 +150,7 @@ export function useRoleFilter() {
       apa: ['owner', 'agency'],
       reports: ['owner', 'agency'],
     }
-    return (editRoles[page] ?? ['owner', 'agency', 'house_manager', 'concierge']).includes(role)
+    return (editRoles[page] ?? []).includes(role)
   }
 
   function isVisible(page: string): boolean {
