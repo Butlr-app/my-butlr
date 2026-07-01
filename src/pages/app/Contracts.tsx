@@ -28,7 +28,7 @@ export function Contracts() {
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
-  const { canEdit } = useRoleFilter()
+  const { canEdit, filterContracts } = useRoleFilter()
   const editable = canEdit('contracts')
   const [signingLink, setSigningLink] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -41,7 +41,7 @@ export function Contracts() {
 
   useEffect(() => { setPage(0) }, [query])
 
-  const filtered = contracts.filter(c => {
+  const filtered = filterContracts(contracts).filter(c => {
     if (!query) return true
     const q = query.toLowerCase()
     return c.guest_name.toLowerCase().includes(q) || (c.property_name ?? '').toLowerCase().includes(q) || c.type.toLowerCase().includes(q)
@@ -211,7 +211,7 @@ export function Contracts() {
 
       <div className="grid sm:grid-cols-5 gap-4">
         {(['draft', 'sent', 'signed', 'archived', 'expired'] as const).map(status => {
-          const count = contracts.filter(c => c.status === status).length
+          const count = filterContracts(contracts).filter(c => c.status === status).length
           return (
             <Card key={status} className="p-5">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1 capitalize">{status}</p>
@@ -238,7 +238,18 @@ export function Contracts() {
                     <p className="text-sm font-medium truncate">{c.guest_name}</p>
                     <p className="text-xs text-muted-foreground truncate">{c.property_name}</p>
                   </div>
-                  <button onClick={() => advanceStatus(c.id, c.status)} className="shrink-0">
+                  {editable ? (
+                    <button onClick={() => advanceStatus(c.id, c.status)} className="shrink-0">
+                      <Badge variant={
+                        c.status === 'signed' ? 'success' :
+                        c.status === 'sent' ? 'info' :
+                        c.status === 'archived' ? 'muted' :
+                        c.status === 'expired' ? 'muted' : 'warning'
+                      }>
+                        {c.status}
+                      </Badge>
+                    </button>
+                  ) : (
                     <Badge variant={
                       c.status === 'signed' ? 'success' :
                       c.status === 'sent' ? 'info' :
@@ -247,7 +258,7 @@ export function Contracts() {
                     }>
                       {c.status}
                     </Badge>
-                  </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <FileText className="w-3.5 h-3.5" />
