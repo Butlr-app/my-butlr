@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -136,6 +136,18 @@ export function useRoleFilter() {
     }
   }
 
+  function filterServiceProviders(providers: ServiceProvider[]): ServiceProvider[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+      case 'house_manager':
+      case 'concierge':
+        return providers
+      default:
+        return []
+    }
+  }
+
   function canEdit(page: string): boolean {
     if (role === 'owner' || role === 'agency') return true
     const rolePerms = permissions[role]
@@ -170,6 +182,7 @@ export function useRoleFilter() {
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
+      'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
       payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       apa: ['owner', 'agency', 'house_manager'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],
@@ -194,6 +207,7 @@ export function useRoleFilter() {
     filterPartners,
     filterContracts,
     filterInvoices,
+    filterServiceProviders,
     canEdit,
     isVisible,
   }
