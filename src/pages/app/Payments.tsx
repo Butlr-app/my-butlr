@@ -31,8 +31,9 @@ export function Payments() {
   const { toast } = useToast()
   const { query, filters } = useSearch()
   const { t } = useTranslation()
-  const { filterPayments } = useRoleFilter()
+  const { filterPayments, canEdit } = useRoleFilter()
   const payments = filterPayments(rawPayments)
+  const editable = canEdit('payments')
   const [showForm, setShowForm] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -176,9 +177,11 @@ export function Payments() {
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> {t('importExport.exportCsv')}
           </Button>
-          <Button variant="gold" size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> {t('payments.title')}
-          </Button>
+          {editable && (
+            <Button variant="gold" size="sm" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-1" /> {t('payments.title')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -202,7 +205,7 @@ export function Payments() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No payments match your search.' : 'No payments recorded.'}
           </p>
-          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Record payment</Button>}
+          {!query && editable && <Button variant="gold" size="sm" onClick={openCreate}>Record payment</Button>}
         </Card>
       ) : (
         <>
@@ -221,7 +224,17 @@ export function Payments() {
                     <span className="font-mono">{p.date}</span>
                     <span className="capitalize">· {p.type}</span>
                   </div>
-                  <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                  {editable ? (
+                    <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                      <Badge variant={
+                        p.status === 'paid' ? 'success' :
+                        p.status === 'failed' ? 'destructive' :
+                        p.status === 'refunded' ? 'info' : 'warning'
+                      }>
+                        {p.status}
+                      </Badge>
+                    </button>
+                  ) : (
                     <Badge variant={
                       p.status === 'paid' ? 'success' :
                       p.status === 'failed' ? 'destructive' :
@@ -229,16 +242,18 @@ export function Payments() {
                     }>
                       {p.status}
                     </Badge>
-                  </button>
+                  )}
                 </div>
-                <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
-                  <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {editable && (
+                  <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
+                    <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -254,7 +269,7 @@ export function Payments() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Amount</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                    {editable && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -266,7 +281,17 @@ export function Payments() {
                       <td className="px-4 text-sm text-muted-foreground capitalize">{p.type}</td>
                       <td className="px-4 text-sm tabular-nums text-right">€{Number(p.amount).toLocaleString()}</td>
                       <td className="px-4">
-                        <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                        {editable ? (
+                          <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                            <Badge variant={
+                              p.status === 'paid' ? 'success' :
+                              p.status === 'failed' ? 'destructive' :
+                              p.status === 'refunded' ? 'info' : 'warning'
+                            }>
+                              {p.status}
+                            </Badge>
+                          </button>
+                        ) : (
                           <Badge variant={
                             p.status === 'paid' ? 'success' :
                             p.status === 'failed' ? 'destructive' :
@@ -274,18 +299,20 @@ export function Payments() {
                           }>
                             {p.status}
                           </Badge>
-                        </button>
+                        )}
                       </td>
-                      <td className="px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                      {editable && (
+                        <td className="px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

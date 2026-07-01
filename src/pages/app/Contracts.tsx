@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { supabase } from '@/lib/supabase'
 import { Plus, Loader2, Trash2, FileText, Pencil, Download, Send, Link2, Copy, Archive } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
 
@@ -27,6 +28,8 @@ export function Contracts() {
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { canEdit } = useRoleFilter()
+  const editable = canEdit('contracts')
   const [signingLink, setSigningLink] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -198,9 +201,11 @@ export function Contracts() {
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> Export CSV
           </Button>
-          <Button variant="gold" size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> New contract
-          </Button>
+          {editable && (
+            <Button variant="gold" size="sm" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-1" /> New contract
+            </Button>
+          )}
         </div>
       </div>
 
@@ -221,7 +226,7 @@ export function Contracts() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No contracts match your search.' : 'No contracts yet.'}
           </p>
-          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Create contract</Button>}
+          {!query && editable && <Button variant="gold" size="sm" onClick={openCreate}>Create contract</Button>}
         </Card>
       ) : (
         <>
@@ -249,29 +254,31 @@ export function Contracts() {
                   <span className="capitalize">{c.type.replace(/_/g, ' ')}</span>
                   <span className="font-mono ml-auto">{c.date}</span>
                 </div>
-                <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
-                  {c.status === 'draft' && (
-                    <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send for signature">
-                      <Send className="w-4 h-4" />
+                {editable && (
+                  <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
+                    {c.status === 'draft' && (
+                      <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send for signature">
+                        <Send className="w-4 h-4" />
+                      </button>
+                    )}
+                    {(c.status === 'draft' || c.status === 'sent') && (
+                      <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Get signing link">
+                        <Link2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {c.status === 'signed' && (
+                      <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Archive">
+                        <Archive className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5">
+                      <Pencil className="w-4 h-4" />
                     </button>
-                  )}
-                  {(c.status === 'draft' || c.status === 'sent') && (
-                    <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Get signing link">
-                      <Link2 className="w-4 h-4" />
+                    <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5">
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
-                  {c.status === 'signed' && (
-                    <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Archive">
-                      <Archive className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -286,7 +293,7 @@ export function Contracts() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                    {editable && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -302,7 +309,18 @@ export function Contracts() {
                       <td className="px-4 text-sm text-muted-foreground">{c.property_name}</td>
                       <td className="px-4 text-sm tabular-nums">{c.date}</td>
                       <td className="px-4">
-                        <button onClick={() => advanceStatus(c.id, c.status)}>
+                        {editable ? (
+                          <button onClick={() => advanceStatus(c.id, c.status)}>
+                            <Badge variant={
+                              c.status === 'signed' ? 'success' :
+                              c.status === 'sent' ? 'info' :
+                              c.status === 'archived' ? 'muted' :
+                              c.status === 'expired' ? 'muted' : 'warning'
+                            }>
+                              {c.status}
+                            </Badge>
+                          </button>
+                        ) : (
                           <Badge variant={
                             c.status === 'signed' ? 'success' :
                             c.status === 'sent' ? 'info' :
@@ -311,33 +329,35 @@ export function Contracts() {
                           }>
                             {c.status}
                           </Badge>
-                        </button>
+                        )}
                       </td>
-                      <td className="px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {c.status === 'draft' && (
-                            <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send for signature">
-                              <Send className="w-4 h-4" />
+                      {editable && (
+                        <td className="px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {c.status === 'draft' && (
+                              <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send for signature">
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
+                            {(c.status === 'draft' || c.status === 'sent') && (
+                              <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Get signing link">
+                                <Link2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {c.status === 'signed' && (
+                              <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Archive">
+                                <Archive className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                              <Pencil className="w-4 h-4" />
                             </button>
-                          )}
-                          {(c.status === 'draft' || c.status === 'sent') && (
-                            <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Get signing link">
-                              <Link2 className="w-4 h-4" />
+                            <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          )}
-                          {c.status === 'signed' && (
-                            <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Archive">
-                              <Archive className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

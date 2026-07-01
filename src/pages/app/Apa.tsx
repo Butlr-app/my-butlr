@@ -9,12 +9,15 @@ import { buildPayoutDrafts, DEFAULT_PLATFORM_RATE } from '@/lib/apa'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { Loader2, Wallet, Building2, Handshake, RefreshCw, CheckCircle2, Banknote } from 'lucide-react'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const euro = (n: number) => `€${Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
 export function Apa() {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { canEdit } = useRoleFilter()
+  const editable = canEdit('apa')
   const { data: payments, loading: lPay, update: updatePayment } = usePayments()
   const { data: payouts, loading: lPayouts, insertMany, update: updatePayout, refetch } = usePayouts()
   const { data: partners, loading: lPart } = usePartners()
@@ -130,19 +133,21 @@ export function Apa() {
           </p>
           <p className="text-sm text-muted-foreground mt-1">{t('apa.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        {editable && (
           <div className="flex items-center gap-2">
-            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground whitespace-nowrap">{t('apa.platformRate')}</label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              value={platformRate}
-              onChange={e => setPlatformRate(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
-              className="w-20"
-            />
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground whitespace-nowrap">{t('apa.platformRate')}</label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={platformRate}
+                onChange={e => setPlatformRate(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                className="w-20"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -173,9 +178,11 @@ export function Apa() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-sm font-mono">{euro(Number(p.amount))}</span>
-                  <Button size="sm" disabled={busyId === p.id} onClick={() => handleEncaisser(p.id)}>
-                    {busyId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t('apa.collect')}
-                  </Button>
+                  {editable && (
+                    <Button size="sm" disabled={busyId === p.id} onClick={() => handleEncaisser(p.id)}>
+                      {busyId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t('apa.collect')}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -187,15 +194,17 @@ export function Apa() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h3 className="text-sm font-semibold flex items-center gap-2"><RefreshCw className="w-4 h-4" /> {t('apa.payoutsTitle')}</h3>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" disabled={generating || ungenerated.length === 0} onClick={handleGenerate}>
-              {generating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
-              {t('apa.generate')}{ungenerated.length > 0 ? ` (${ungenerated.length})` : ''}
-            </Button>
-            <Button size="sm" disabled={generating || payouts.every(p => p.status === 'paid')} onClick={handleReverseAll}>
-              {t('apa.reverseAll')}
-            </Button>
-          </div>
+          {editable && (
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" disabled={generating || ungenerated.length === 0} onClick={handleGenerate}>
+                {generating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                {t('apa.generate')}{ungenerated.length > 0 ? ` (${ungenerated.length})` : ''}
+              </Button>
+              <Button size="sm" disabled={generating || payouts.every(p => p.status === 'paid')} onClick={handleReverseAll}>
+                {t('apa.reverseAll')}
+              </Button>
+            </div>
+          )}
         </div>
 
         {payouts.length === 0 ? (
@@ -222,7 +231,7 @@ export function Apa() {
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
                     <span className="text-sm font-mono font-medium">{t('apa.net')}: {euro(Number(po.net_amount))}</span>
-                    {po.status === 'pending' && (
+                    {editable && po.status === 'pending' && (
                       <Button size="sm" disabled={busyId === po.id || generating} onClick={() => handleReverse(po)}>
                         {busyId === po.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t('apa.reverse')}
                       </Button>
@@ -263,12 +272,14 @@ export function Apa() {
                         <Badge variant={po.status === 'paid' ? 'success' : 'warning'}>{t(`apa.status.${po.status}`)}</Badge>
                       </td>
                       <td className="px-3 text-right">
-                        {po.status === 'pending' ? (
+                        {po.status === 'pending' && editable ? (
                           <Button size="sm" disabled={busyId === po.id || generating} onClick={() => handleReverse(po)}>
                             {busyId === po.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t('apa.reverse')}
                           </Button>
-                        ) : (
+                        ) : po.status === 'paid' ? (
                           <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 className="w-3.5 h-3.5" /> {t('apa.done')}</span>
+                        ) : (
+                          <Badge variant="warning">{t('apa.status.pending')}</Badge>
                         )}
                       </td>
                     </tr>

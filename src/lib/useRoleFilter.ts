@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, type Property, type Reservation, type Task, type Service, type Payment, type Partner } from './useSupabase'
+import { useRoleAssignments, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -88,9 +88,8 @@ export function useRoleFilter() {
       case 'agency':
         return payments
       case 'house_manager':
-        return payments
       case 'concierge':
-        return []
+        return payments
       case 'partner':
         return payments.filter(p => p.type === 'commission')
       case 'guest':
@@ -104,10 +103,48 @@ export function useRoleFilter() {
     switch (role) {
       case 'owner':
       case 'agency':
+      case 'house_manager':
+      case 'concierge':
         return partners
       default:
         return []
     }
+  }
+
+  function filterContracts(contracts: Contract[]): Contract[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+      case 'house_manager':
+      case 'concierge':
+        return contracts
+      default:
+        return []
+    }
+  }
+
+  function filterInvoices(invoices: Invoice[]): Invoice[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+      case 'house_manager':
+      case 'concierge':
+        return invoices
+      default:
+        return []
+    }
+  }
+
+  function canEdit(page: string): boolean {
+    const editRoles: Record<string, Role[]> = {
+      partners: ['owner', 'agency'],
+      payments: ['owner', 'agency', 'house_manager'],
+      contracts: ['owner', 'agency', 'house_manager'],
+      invoices: ['owner', 'agency', 'house_manager'],
+      apa: ['owner', 'agency'],
+      reports: ['owner', 'agency'],
+    }
+    return (editRoles[page] ?? ['owner', 'agency', 'house_manager', 'concierge']).includes(role)
   }
 
   function isVisible(page: string): boolean {
@@ -121,11 +158,13 @@ export function useRoleFilter() {
       'service-requests': ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
-      partners: ['owner', 'agency'],
-      payments: ['owner', 'agency', 'partner'],
-      apa: ['owner', 'agency'],
-      contracts: ['owner', 'agency'],
-      reports: ['owner', 'agency'],
+      partners: ['owner', 'agency', 'house_manager', 'concierge'],
+      payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
+      apa: ['owner', 'agency', 'house_manager'],
+      contracts: ['owner', 'agency', 'house_manager', 'concierge'],
+      invoices: ['owner', 'agency', 'house_manager', 'concierge'],
+      reports: ['owner', 'agency', 'house_manager'],
+      notifications: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
       settings: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
     }
     return (visibility[page] ?? []).includes(role)
@@ -141,6 +180,9 @@ export function useRoleFilter() {
     filterServices,
     filterPayments,
     filterPartners,
+    filterContracts,
+    filterInvoices,
+    canEdit,
     isVisible,
   }
 }

@@ -2,7 +2,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useDashboardKPIs, useReservations, useTasks, usePayments, useProperties, usePartners, useServices } from '@/lib/useSupabase'
-import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles } from 'lucide-react'
+import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles, CreditCard, Handshake, Inbox } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
 import { useRoleFilter } from '@/lib/useRoleFilter'
@@ -50,11 +50,15 @@ function HouseManagerDashboard() {
   const { data: tasks } = useTasks()
   const { data: reservations } = useReservations()
   const { data: properties } = useProperties()
+  const { data: payments } = usePayments()
+  const { data: partners } = usePartners()
 
   const today = new Date().toISOString().split('T')[0]
   const tasksInProgress = tasks.filter(t => t.status === 'in_progress').length
   const arrivalsToday = reservations.filter(r => r.arrival === today && (r.status === 'confirmed' || r.status === 'pending')).length
   const departuresToday = reservations.filter(r => r.departure === today && (r.status === 'confirmed' || r.status === 'in_progress')).length
+  const pendingPayments = payments.filter(p => p.status === 'pending').length
+  const activePartners = partners.filter(p => p.status === 'active').length
 
   const weekData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => {
     const dayTasks = tasks.filter(t => {
@@ -66,11 +70,13 @@ function HouseManagerDashboard() {
 
   return (
     <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard label={t('dashboard.tasksInProgress')} value={tasksInProgress} icon={ClipboardList} tone="primary" />
         <MetricCard label={t('dashboard.arrivalsToday')} value={arrivalsToday} icon={Plane} tone="success" />
         <MetricCard label={t('dashboard.departuresToday')} value={departuresToday} icon={LogOut} tone="warning" />
         <MetricCard label={t('dashboard.managedProperties')} value={properties.length} icon={Building2} tone="info" />
+        <MetricCard label={t('dashboard.pendingPayments')} value={pendingPayments} icon={CreditCard} tone="warning" />
+        <MetricCard label={t('dashboard.activePartners')} value={activePartners} icon={Handshake} tone="success" />
       </div>
       <Card className="p-5">
         <BarChart data={weekData} label={t('dashboard.tasksInProgress')} />
@@ -83,6 +89,9 @@ function ConciergeDashboard() {
   const { t } = useTranslation()
   const { data: tasks } = useTasks()
   const { data: reservations } = useReservations()
+  const { data: payments } = usePayments()
+  const { data: partners } = usePartners()
+  const { data: services } = useServices()
 
   const today = new Date().toISOString().split('T')[0]
   const pendingRequests = tasks.filter(t => t.status === 'todo').length
@@ -90,6 +99,9 @@ function ConciergeDashboard() {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay())
   const completedThisWeek = tasks.filter(t => t.status === 'done' && new Date(t.updated_at) >= weekStart).length
   const upcomingArrivals = reservations.filter(r => r.arrival > today && (r.status === 'confirmed' || r.status === 'pending')).length
+  const activePartners = partners.filter(p => p.status === 'active').length
+  const availableServices = services.filter(s => s.available).length
+  const pendingPayments = payments.filter(p => p.status === 'pending').length
 
   const statusData = [
     { label: 'Todo', value: tasks.filter(t => t.status === 'todo').length },
@@ -104,6 +116,9 @@ function ConciergeDashboard() {
         <MetricCard label={t('dashboard.pendingRequests')} value={pendingRequests} icon={ConciergeBell} tone="warning" />
         <MetricCard label={t('dashboard.completedThisWeek')} value={completedThisWeek} icon={CheckCircle2} tone="success" />
         <MetricCard label={t('dashboard.upcomingArrivals')} value={upcomingArrivals} icon={CalendarClock} tone="primary" />
+        <MetricCard label={t('dashboard.activePartners')} value={activePartners} icon={Handshake} tone="info" />
+        <MetricCard label={t('dashboard.availableServices')} value={availableServices} icon={Inbox} tone="success" />
+        <MetricCard label={t('dashboard.pendingPayments')} value={pendingPayments} icon={CreditCard} tone="warning" />
       </div>
       <Card className="p-5">
         <BarChart data={statusData} label={t('dashboard.openTasks')} />
