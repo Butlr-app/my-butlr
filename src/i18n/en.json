@@ -446,5 +446,230 @@
       "keys_access": "Keys",
       "cleaning": "Cleaning"
     }
+  },
+  "onboarding": {
+    "setupYourAccount": "Setting up your account",
+    "stepOf": "Step {current} of {total}",
+    "back": "Back",
+    "continue": "Continue",
+    "settingUp": "Setting up...",
+    "goToDashboard": "Go to Dashboard",
+    "skipForNow": "Skip for now",
+    "steps": {
+      "welcome": "Welcome",
+      "profile": "Profile",
+      "company": "Company",
+      "property": "Property",
+      "team": "Team",
+      "workspace": "Workspace",
+      "workflow": "Workflow",
+      "portal": "Portal",
+      "business": "Business",
+      "services": "Services",
+      "discover": "Discover",
+      "preferences": "Preferences",
+      "done": "Done"
+    },
+    "title": {
+      "owner": "Welcome, Owner!",
+      "houseManager": "Welcome, House Manager!",
+      "concierge": "Welcome, Concierge!",
+      "agency": "Welcome, Agency!",
+      "partner": "Welcome, Partner!",
+      "guest": "Welcome to Butlr!"
+    },
+    "subtitle": {
+      "owner": "Let's set up your management space. In a few steps, your platform will be ready to manage your luxury properties.",
+      "houseManager": "Discover your management tools. We'll set up your workspace to efficiently manage your properties.",
+      "concierge": "Set up your concierge space. Manage requests, services and guest satisfaction.",
+      "agency": "Set up your agency portal. Access availability, book services and manage your clients.",
+      "partner": "Set up your service provider profile. Offer your services and grow your business with Butlr.",
+      "guest": "Welcome to your guest space. Discover available services and enjoy your stay."
+    },
+    "features": {
+      "owner": {
+        "properties": "Property Management",
+        "propertiesDesc": "Add and manage your villas, yachts and chalets with detailed listings.",
+        "reservations": "Reservations & Calendar",
+        "reservationsDesc": "Track all your reservations, arrivals and departures in real time.",
+        "payments": "Payments & Invoicing",
+        "paymentsDesc": "Manage collections, payouts and generate professional invoices.",
+        "team": "Team Management",
+        "teamDesc": "Invite your house managers, concierges and partners to collaborate."
+      },
+      "manager": {
+        "tasks": "Task Management",
+        "tasksDesc": "Organize and track all maintenance and preparation tasks.",
+        "calendar": "Centralized Calendar",
+        "calendarDesc": "View arrivals, departures and events across all your properties.",
+        "properties": "Your Properties",
+        "propertiesDesc": "Access details and listings of your assigned properties.",
+        "messages": "Messages",
+        "messagesDesc": "Easily communicate with owners, concierges and guests."
+      },
+      "concierge": {
+        "requests": "Service Requests",
+        "requestsDesc": "Receive and process guest requests in real time.",
+        "services": "Service Catalog",
+        "servicesDesc": "Offer premium services: private chef, spa, transport and more.",
+        "tasks": "Task Tracking",
+        "tasksDesc": "Manage your tasks and progress for each property.",
+        "partners": "Partner Network",
+        "partnersDesc": "Collaborate with your trusted network of service providers."
+      },
+      "agency": {
+        "availability": "Availability",
+        "availabilityDesc": "Check availability for all properties at a glance.",
+        "booking": "Service Pre-booking",
+        "bookingDesc": "Book premium services for your clients before their arrival.",
+        "inquiries": "Inquiries & Contact",
+        "inquiriesDesc": "Send inquiries directly to the property management team."
+      },
+      "partner": {
+        "services": "Your Services",
+        "servicesDesc": "Showcase your services and manage your catalog of offerings.",
+        "earnings": "Earnings Tracking",
+        "earningsDesc": "Track your commissions and payment history in real time.",
+        "reputation": "Reputation",
+        "reputationDesc": "View your ratings and grow your business."
+      },
+      "guest": {
+        "services": "Available Services",
+        "servicesDesc": "Book unique experiences: private chef, spa, excursions and more.",
+        "guides": "Property Guides",
+        "guidesDesc": "Find all instructions and tips for Wi-Fi, pool, spa and amenities.",
+        "messages": "Contact Your Concierge",
+        "messagesDesc": "Send a message to your dedicated concierge anytime."
+      }
+    },
+    "profile": {
+      "title": "Your Profile",
+      "subtitle": "Complete your profile to personalize your experience.",
+      "fullName": "Full Name",
+      "phone": "Phone"
+    },
+    "company": {
+      "title": "Company Information",
+      "subtitle": "This information will appear on your invoices and contracts.",
+      "name": "Company Name",
+      "address": "Address",
+      "email": "Contact Email",
+      "phone": "Phone"
+    },
+    "property": {
+      "title": "Your First Property",
+      "subtitle": "Add your first property to get started. You can add more later.",
+      "name": "Property Name",
+      "address": "Location",
+      "type": "Property Type",
+      "bedrooms": "Bedrooms",
+      "surface": "Surface (m²)",
+      "hint": "You can complete the details and add photos from the Properties page."
+    },
+    "team": {
+      "title": "Invite Your Team",
+      "subtitle": "Invite your team members to join your platform. Each will get role-appropriate access.",
+      "email": "Email",
+      "role": "Role",
+      "partner": "Partner",
+      "addMore": "Add another member",
+      "hint": "Invitations will be sent by email. You can add more from Settings."
+    },
+    "workspace": {
+      "title": "Your Workspace",
+      "subtitle": "Here are the tools available to efficiently manage your properties.",
+      "properties": "Assigned Properties",
+      "propertiesDesc": "View detailed listings of properties assigned to you.",
+      "tasks": "Task Management",
+      "tasksDesc": "Create, assign and track maintenance, cleaning and preparation tasks.",
+      "calendar": "Calendar",
+      "calendarDesc": "View planned arrivals, departures and interventions.",
+      "notifications": "Notifications",
+      "notificationsDesc": "Receive real-time alerts for new tasks and arrivals.",
+      "partners": "Provider Directory",
+      "partnersDesc": "Access your network of favorite and backup service providers."
+    },
+    "workflow": {
+      "title": "Your Workflow",
+      "subtitle": "Discover the typical workflow for handling guest requests.",
+      "step1": "Receive Requests",
+      "step1Desc": "Guest requests arrive in your service requests inbox.",
+      "step2": "Process & Coordinate",
+      "step2Desc": "Coordinate with partners and providers to fulfill each request.",
+      "step3": "Track Tasks",
+      "step3Desc": "Track each task's progress and update status in real time.",
+      "step4": "Validate & Invoice",
+      "step4Desc": "Validate completed services and manage associated invoicing."
+    },
+    "portal": {
+      "title": "Your Agency Portal",
+      "subtitle": "Discover the features of your dedicated portal.",
+      "availability": "Real-time Availability",
+      "availabilityDesc": "Check each property's availability with an interactive calendar.",
+      "booking": "Service Pre-booking",
+      "bookingDesc": "Book premium services for your clients: chef, spa, transport and more.",
+      "inquiries": "Custom Inquiries",
+      "inquiriesDesc": "Send availability, pricing or special service requests.",
+      "secure": "Secure Space",
+      "secureDesc": "Your data and your clients' data are protected and confidential."
+    },
+    "business": {
+      "title": "Your Business",
+      "subtitle": "Present your company and services to attract new clients.",
+      "companyName": "Company Name",
+      "specialty": "Specialty",
+      "specialtyPlaceholder": "e.g. Private Chef, Massage, VIP Transport",
+      "location": "Service Area",
+      "phone": "Phone",
+      "email": "Professional Email"
+    },
+    "serviceSelect": {
+      "title": "Your Services",
+      "subtitle": "Select the service categories you offer.",
+      "hint": "You can detail each service with pricing from your dashboard."
+    },
+    "services": {
+      "chef": "Private Chef",
+      "spa": "Spa & Wellness",
+      "cleaning": "Cleaning",
+      "transport": "Transport",
+      "security": "Security",
+      "yacht": "Yacht & Sailing",
+      "excursion": "Excursions",
+      "childcare": "Childcare"
+    },
+    "discover": {
+      "title": "Discover Your Stay",
+      "subtitle": "Here's everything available to make your stay unforgettable.",
+      "services": "A La Carte Services",
+      "servicesDesc": "Book a private chef, massage, transport or any other experience.",
+      "guides": "Practical Guides",
+      "guidesDesc": "Instructions for Wi-Fi, pool, spa and all amenities.",
+      "messages": "Your Concierge",
+      "messagesDesc": "A dedicated concierge is available to answer all your questions.",
+      "notifications": "Notifications",
+      "notificationsDesc": "Stay informed of updates and information about your stay."
+    },
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "Configure your display and regional preferences.",
+      "language": "Language",
+      "currency": "Currency",
+      "timezone": "Timezone"
+    },
+    "done": {
+      "title": "You're all set!",
+      "subtitle": "Your account is configured. You can access your dashboard.",
+      "name": "Name",
+      "company": "Company",
+      "property": "Property",
+      "services": "Services",
+      "selected": "selected",
+      "invitations": "Invitations",
+      "members": "member(s)",
+      "language": "Language",
+      "currency": "Currency",
+      "successToast": "Account configured successfully!"
+    }
   }
 }
