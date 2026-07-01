@@ -506,5 +506,28 @@
     "roomsChecked": "Rooms Checked",
     "issuesFound": "Issues Found",
     "knownIssues": "Known Issues"
+  },
+  "ai": {
+    "title": "AI Assistant",
+    "subtitle": "Your intelligent concierge",
+    "open": "Open AI Assistant",
+    "close": "Close AI Assistant",
+    "placeholder": "Ask me anything...",
+    "thinking": "Thinking...",
+    "clearHistory": "Clear history",
+    "welcomeTitle": "Hello! I'm your AI assistant",
+    "welcomeSubtitle": "I can help you manage your properties, guests, and services intelligently.",
+    "quickTasks": "Priority tasks",
+    "quickRevenue": "Revenue analysis",
+    "quickServices": "Service suggestions",
+    "quickCheckin": "Next check-in",
+    "insights": "AI Insights",
+    "suggestedTasks": "Suggested tasks",
+    "suggestedReplies": "Suggested replies",
+    "analyzingTasks": "Analyzing upcoming tasks...",
+    "poweredBy": "Powered by AI",
+    "confidence": "Confidence",
+    "accept": "Add",
+    "tasksCreated": "task(s) created"
   }
 }
