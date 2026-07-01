@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { BottomNav } from './BottomNav'
+import { AiAssistantPanel } from '@/components/ai/AiAssistantPanel'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +40,7 @@ export function AppLayout() {
         </main>
       </div>
       <BottomNav onMenuClick={() => setMobileOpen(true)} />
+      <AiAssistantPanel />
     </div>
   )
 }

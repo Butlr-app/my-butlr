@@ -8,12 +8,13 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { ExportButton } from '@/components/ExportButton'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { useTasks, useProperties, useNotifications, type Task } from '@/lib/useSupabase'
+import { useTasks, useProperties, useNotifications, useReservations, type Task } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { Plus, Loader2, Pencil, Trash2, Filter } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
+import { AiTaskSuggestions } from '@/components/ai/AiTaskSuggestions'
 
 const columns = [
   { id: 'todo', label: 'To do' },
@@ -33,6 +34,7 @@ const emptyForm = {
 export function Tasks() {
   const { data: rawTasks, loading, insert, update, remove } = useTasks()
   const { data: properties } = useProperties()
+  const { data: reservations } = useReservations()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query, filters } = useSearch()
@@ -178,6 +180,26 @@ export function Tasks() {
           </Button>
         </div>
       </div>
+
+      {/* AI Task Suggestions */}
+      <AiTaskSuggestions
+        reservations={reservations.map(r => ({
+          guest_name: r.guest_name,
+          arrival: r.arrival,
+          departure: r.departure,
+          property_name: r.property?.name,
+          status: r.status,
+        }))}
+        existingTasks={tasks.map(t => ({ title: t.title, status: t.status }))}
+        onAccept={async (title, description) => {
+          try {
+            await insert({ title, description, property_id: null, priority: 'medium', due_date: null, status: 'todo' })
+            toast(t('ai.tasksCreated'))
+          } catch (err) {
+            toast((err as Error).message, 'error')
+          }
+        }}
+      />
 
       <div className="grid lg:grid-cols-4 gap-4">
         {columns.map(col => {
