@@ -1069,7 +1069,7 @@ export function useRolePermissions() {
   useEffect(() => {
     async function resolveOwner() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) { setLoading(false); return }
       // Check if user has role_assignments (i.e. they're a staff member, not the owner)
       const { data: assignments } = await supabase
         .from('role_assignments')

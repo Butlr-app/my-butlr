@@ -27,7 +27,7 @@ export function Invoices() {
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
-  const { canEdit, filterInvoices } = useRoleFilter()
+  const { role, canEdit, filterInvoices } = useRoleFilter()
   const editable = canEdit('invoices')
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
@@ -54,20 +54,22 @@ export function Invoices() {
       return true
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoices, statusFilter, dateFrom, dateTo, query])
+  }, [invoices, statusFilter, dateFrom, dateTo, query, role])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const roleFiltered = filterInvoices(invoices)
-  const stats = useMemo(() => ({
-    draft: roleFiltered.filter(i => i.status === 'draft').length,
-    sent: roleFiltered.filter(i => i.status === 'sent').length,
-    paid: roleFiltered.filter(i => i.status === 'paid').length,
-    overdue: roleFiltered.filter(i => i.status === 'overdue').length,
-    totalHT: roleFiltered.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.total_ht), 0),
+  const stats = useMemo(() => {
+    const roleFiltered = filterInvoices(invoices)
+    return {
+      draft: roleFiltered.filter(i => i.status === 'draft').length,
+      sent: roleFiltered.filter(i => i.status === 'sent').length,
+      paid: roleFiltered.filter(i => i.status === 'paid').length,
+      overdue: roleFiltered.filter(i => i.status === 'overdue').length,
+      totalHT: roleFiltered.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.total_ht), 0),
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [invoices])
+  }, [invoices, role])
 
   const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
