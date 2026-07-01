@@ -74,7 +74,7 @@ export function Signup() {
             <span className="text-success text-lg">✓</span>
           </div>
           <h2 className="text-lg font-semibold mb-2">Account created</h2>
-          <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
+          <p className="text-sm text-muted-foreground">Redirecting to setup...</p>
         </div>
       </div>
     )
