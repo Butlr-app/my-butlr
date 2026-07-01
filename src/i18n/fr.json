@@ -341,5 +341,27 @@
       "save": "Enregistrer",
       "create": "Créer le guide"
     }
+  },
+  "guestGuides": {
+    "title": "Guides de la propriété",
+    "subtitle": "Instructions et conseils pour votre séjour",
+    "loading": "Chargement des guides...",
+    "empty": "Aucun guide disponible pour le moment.",
+    "backToGuides": "Retour aux guides",
+    "categories": {
+      "all": "Tous",
+      "general": "Général",
+      "spa": "Spa",
+      "home_automation": "Domotique",
+      "entertainment": "Divertissement",
+      "security": "Sécurité",
+      "kitchen": "Cuisine",
+      "pool": "Piscine",
+      "heating_cooling": "Climatisation",
+      "wifi_tech": "Wi-Fi",
+      "outdoor": "Extérieur",
+      "keys_access": "Clés",
+      "cleaning": "Ménage"
+    }
   }
 }

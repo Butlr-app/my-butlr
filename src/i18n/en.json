@@ -341,5 +341,27 @@
       "save": "Save changes",
       "create": "Create guide"
     }
+  },
+  "guestGuides": {
+    "title": "Property Guides",
+    "subtitle": "Instructions & tips for your stay",
+    "loading": "Loading guides...",
+    "empty": "No guides available yet.",
+    "backToGuides": "Back to guides",
+    "categories": {
+      "all": "All",
+      "general": "General",
+      "spa": "Spa",
+      "home_automation": "Automation",
+      "entertainment": "Entertainment",
+      "security": "Security",
+      "kitchen": "Kitchen",
+      "pool": "Pool",
+      "heating_cooling": "Climate",
+      "wifi_tech": "Wi-Fi",
+      "outdoor": "Outdoor",
+      "keys_access": "Keys",
+      "cleaning": "Cleaning"
+    }
   }
 }

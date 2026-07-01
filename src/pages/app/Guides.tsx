@@ -305,7 +305,7 @@ export function Guides() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         title={t('guides.deleteTitle')}
-        message={`${t('guides.deleteMessage')} "${deleteTarget?.name}"?`}
+        message={`${t('guides.deleteMessage')} "${deleteTarget?.name}"`}
       />
     </div>
   )
