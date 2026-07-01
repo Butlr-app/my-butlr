@@ -789,8 +789,10 @@ export function Onboarding() {
       summaryItems.push({ label: t('onboarding.done.invitations'), value: `${validInvites} ${t('onboarding.done.members')}` })
     }
 
-    summaryItems.push({ label: t('onboarding.done.language'), value: prefs.language.toUpperCase() })
-    summaryItems.push({ label: t('onboarding.done.currency'), value: prefs.currency })
+    if (steps.some(s => s.id === 'preferences')) {
+      summaryItems.push({ label: t('onboarding.done.language'), value: prefs.language.toUpperCase() })
+      summaryItems.push({ label: t('onboarding.done.currency'), value: prefs.currency })
+    }
 
     return (
       <div className="space-y-4 text-center py-4">
