@@ -10,7 +10,7 @@ export function AiAssistantPanel() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const { messages, loading, sendMessage, clearHistory } = useAiAssistant()
+  const { messages, loading, error, sendMessage, clearHistory } = useAiAssistant()
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -128,6 +128,14 @@ export function AiAssistantPanel() {
               <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                 <span className="text-xs text-muted-foreground">{t('ai.thinking')}</span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex justify-start">
+              <div className="bg-destructive/10 text-destructive rounded-2xl rounded-bl-md px-4 py-3 text-xs">
+                {error}
               </div>
             </div>
           )}
