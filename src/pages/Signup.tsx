@@ -42,7 +42,7 @@ export function Signup() {
       setNeedsConfirmation(true)
     } else {
       setSuccess(true)
-      setTimeout(() => navigate('/app'), 1500)
+      setTimeout(() => navigate('/app/onboarding'), 1500)
     }
   }
 
