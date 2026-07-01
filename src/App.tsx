@@ -21,6 +21,7 @@ import { ServiceRequests } from './pages/app/ServiceRequests'
 import { Tasks } from './pages/app/Tasks'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
+import { ServiceProviders } from './pages/app/ServiceProviders'
 import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
 import { Reports } from './pages/app/Reports'
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="tasks" element={<Tasks />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
+          <Route path="service-providers" element={<ServiceProviders />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
           <Route path="contracts/generate" element={<ContractGenerator />} />

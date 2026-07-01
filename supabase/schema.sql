@@ -94,6 +94,29 @@ CREATE TABLE IF NOT EXISTS partners (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Service Providers Directory
+CREATE TABLE IF NOT EXISTS service_providers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  category TEXT,
+  specialty TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  visit_days TEXT,
+  notes TEXT,
+  is_favorite BOOLEAN DEFAULT false,
+  is_backup BOOLEAN DEFAULT false,
+  property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE service_providers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated read service_providers" ON service_providers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated manage service_providers" ON service_providers FOR ALL TO authenticated USING (true);
+
 -- Service Requests
 CREATE TABLE IF NOT EXISTS service_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

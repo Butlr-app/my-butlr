@@ -98,6 +98,24 @@ export interface Partner {
   created_at: string
 }
 
+export interface ServiceProvider {
+  id: string
+  name: string
+  category: string | null
+  specialty: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  visit_days: string | null
+  notes: string | null
+  is_favorite: boolean
+  is_backup: boolean
+  property_id: string | null
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
 export interface Payment {
   id: string
   reservation_id: string | null
@@ -356,6 +374,10 @@ export function useTasks() {
 
 export function usePartners() {
   return useTable<Partner>('partners')
+}
+
+export function useServiceProviders() {
+  return useTable<ServiceProvider>('service_providers')
 }
 
 export function usePayments() {
