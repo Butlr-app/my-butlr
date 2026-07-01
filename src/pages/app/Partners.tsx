@@ -31,8 +31,9 @@ export function Partners() {
   const { toast } = useToast()
   const { query } = useSearch()
   const { t } = useTranslation()
-  const { filterPartners } = useRoleFilter()
+  const { filterPartners, canEdit } = useRoleFilter()
   const partners = filterPartners(rawPartners)
+  const editable = canEdit('partners')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -150,9 +151,11 @@ export function Partners() {
         <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('partners.title')}</p>
         <div className="flex items-center gap-2">
           <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`partners-${new Date().toISOString().split('T')[0]}`} />
-          <Button variant="gold" size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> {t('partners.addPartner')}
-          </Button>
+          {editable && (
+            <Button variant="gold" size="sm" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-1" /> {t('partners.addPartner')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -161,7 +164,7 @@ export function Partners() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No partners match your search.' : 'No partners yet.'}
           </p>
-          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add partner</Button>}
+          {!query && editable && <Button variant="gold" size="sm" onClick={openCreate}>Add partner</Button>}
         </Card>
       ) : (
         <>
@@ -173,9 +176,13 @@ export function Partners() {
                     <p className="text-sm font-medium truncate">{p.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{p.email || p.contact}</p>
                   </div>
-                  <button onClick={() => toggleStatus(p.id, p.status)} className="shrink-0">
+                  {editable ? (
+                    <button onClick={() => toggleStatus(p.id, p.status)} className="shrink-0">
+                      <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
+                    </button>
+                  ) : (
                     <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
-                  </button>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{p.category}</span>
@@ -187,14 +194,16 @@ export function Partners() {
                   </span>
                   <span className="font-mono">{p.bookings_count} bookings</span>
                 </div>
-                <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
-                  <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {editable && (
+                  <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
+                    <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -211,7 +220,7 @@ export function Partners() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bookings</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                    {editable && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -225,9 +234,13 @@ export function Partners() {
                       <td className="px-4 text-sm text-muted-foreground">{p.location}</td>
                       <td className="px-4 text-sm tabular-nums">{p.commission}%</td>
                       <td className="px-4">
-                        <button onClick={() => toggleStatus(p.id, p.status)}>
+                        {editable ? (
+                          <button onClick={() => toggleStatus(p.id, p.status)}>
+                            <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
+                          </button>
+                        ) : (
                           <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
-                        </button>
+                        )}
                       </td>
                       <td className="px-4">
                         <div className="flex items-center gap-1">
@@ -236,16 +249,18 @@ export function Partners() {
                         </div>
                       </td>
                       <td className="px-4 text-sm tabular-nums text-right">{p.bookings_count}</td>
-                      <td className="px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                      {editable && (
+                        <td className="px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -10,6 +10,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useInvoices, useNotifications, type Invoice } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 import { Loader2, Download, FileText, Pencil, Trash2, Plus, Send, RefreshCw, Bell } from 'lucide-react'
 
 const PAGE_SIZE = 20
@@ -26,6 +27,8 @@ export function Invoices() {
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
+  const { role, canEdit, filterInvoices } = useRoleFilter()
+  const editable = canEdit('invoices')
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
@@ -40,7 +43,7 @@ export function Invoices() {
   useEffect(() => { setPage(0) }, [query, statusFilter, dateFrom, dateTo])
 
   const filtered = useMemo(() => {
-    return invoices.filter(inv => {
+    return filterInvoices(invoices).filter(inv => {
       if (statusFilter && inv.status !== statusFilter) return false
       if (dateFrom && inv.created_at < dateFrom) return false
       if (dateTo && inv.created_at > dateTo + 'T23:59:59') return false
@@ -50,18 +53,23 @@ export function Invoices() {
       }
       return true
     })
-  }, [invoices, statusFilter, dateFrom, dateTo, query])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoices, statusFilter, dateFrom, dateTo, query, role])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const stats = useMemo(() => ({
-    draft: invoices.filter(i => i.status === 'draft').length,
-    sent: invoices.filter(i => i.status === 'sent').length,
-    paid: invoices.filter(i => i.status === 'paid').length,
-    overdue: invoices.filter(i => i.status === 'overdue').length,
-    totalHT: invoices.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.total_ht), 0),
-  }), [invoices])
+  const stats = useMemo(() => {
+    const roleFiltered = filterInvoices(invoices)
+    return {
+      draft: roleFiltered.filter(i => i.status === 'draft').length,
+      sent: roleFiltered.filter(i => i.status === 'sent').length,
+      paid: roleFiltered.filter(i => i.status === 'paid').length,
+      overdue: roleFiltered.filter(i => i.status === 'overdue').length,
+      totalHT: roleFiltered.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.total_ht), 0),
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoices, role])
 
   const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -161,9 +169,11 @@ export function Invoices() {
           <Button variant="secondary" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-1" /> Export CSV
           </Button>
-          <Button size="sm" onClick={() => navigate('/app/invoices/generate')}>
-            <Plus className="w-4 h-4 mr-1" /> New Invoice
-          </Button>
+          {editable && (
+            <Button size="sm" onClick={() => navigate('/app/invoices/generate')}>
+              <Plus className="w-4 h-4 mr-1" /> New Invoice
+            </Button>
+          )}
         </div>
       </div>
 
@@ -209,7 +219,7 @@ export function Invoices() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No invoices match your search.' : 'No invoices yet.'}
           </p>
-          {!query && <Button size="sm" onClick={() => navigate('/app/invoices/generate')}>Create first invoice</Button>}
+          {!query && editable && <Button size="sm" onClick={() => navigate('/app/invoices/generate')}>Create first invoice</Button>}
         </Card>
       ) : (
         <>
@@ -235,24 +245,26 @@ export function Invoices() {
                     <RefreshCw className="w-3.5 h-3.5" /> {inv.recurring_interval ?? 'recurring'}
                   </span>
                 )}
-                <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
-                  {inv.status === 'draft' && (
-                    <button onClick={() => markAsSent(inv.id)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Mark as sent">
-                      <Send className="w-4 h-4" />
+                {editable && (
+                  <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
+                    {inv.status === 'draft' && (
+                      <button onClick={() => markAsSent(inv.id)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Mark as sent">
+                        <Send className="w-4 h-4" />
+                      </button>
+                    )}
+                    {(inv.status === 'sent' || inv.status === 'overdue') && (
+                      <button onClick={() => sendReminder(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send reminder">
+                        <Bell className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => openEdit(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Edit">
+                      <Pencil className="w-4 h-4" />
                     </button>
-                  )}
-                  {(inv.status === 'sent' || inv.status === 'overdue') && (
-                    <button onClick={() => sendReminder(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send reminder">
-                      <Bell className="w-4 h-4" />
+                    <button onClick={() => setDeleteTarget({ id: inv.id, name: inv.invoice_number })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5" title="Delete">
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
-                  <button onClick={() => openEdit(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Edit">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setDeleteTarget({ id: inv.id, name: inv.invoice_number })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5" title="Delete">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -269,7 +281,7 @@ export function Invoices() {
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total TTC</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recurring</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                    {editable && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -295,26 +307,28 @@ export function Invoices() {
                           </span>
                         ) : '—'}
                       </td>
-                      <td className="px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {inv.status === 'draft' && (
-                            <button onClick={() => markAsSent(inv.id)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Mark as sent">
-                              <Send className="w-4 h-4" />
+                      {editable && (
+                        <td className="px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {inv.status === 'draft' && (
+                              <button onClick={() => markAsSent(inv.id)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Mark as sent">
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
+                            {(inv.status === 'sent' || inv.status === 'overdue') && (
+                              <button onClick={() => sendReminder(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send reminder">
+                                <Bell className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button onClick={() => openEdit(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Edit">
+                              <Pencil className="w-4 h-4" />
                             </button>
-                          )}
-                          {(inv.status === 'sent' || inv.status === 'overdue') && (
-                            <button onClick={() => sendReminder(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send reminder">
-                              <Bell className="w-4 h-4" />
+                            <button onClick={() => setDeleteTarget({ id: inv.id, name: inv.invoice_number })} className="text-muted-foreground hover:text-destructive transition-colors p-1" title="Delete">
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          )}
-                          <button onClick={() => openEdit(inv)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Edit">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteTarget({ id: inv.id, name: inv.invoice_number })} className="text-muted-foreground hover:text-destructive transition-colors p-1" title="Delete">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

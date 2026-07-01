@@ -136,7 +136,9 @@
     "activeStays": "Active Stays",
     "guestRequests": "Guest Requests",
     "serviceRevenue": "Service Revenue",
-    "pendingTasks": "Pending Tasks"
+    "pendingTasks": "Pending Tasks",
+    "pendingPayments": "Pending Payments",
+    "activePartners": "Active Partners"
   },
   "properties": {
     "title": "Properties",

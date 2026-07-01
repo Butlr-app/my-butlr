@@ -10,13 +10,18 @@ import { useToast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
 import { ImageUpload } from '@/components/ui/ImageUpload'
+import { useRole } from '@/lib/roleContext'
+import { useRolePermissions, CONFIGURABLE_PAGES, type RolePermissions } from '@/lib/useSupabase'
 
-const settingsTabs = ['Account', 'Team', 'Properties', 'Payments', 'Services']
+const BASE_TABS = ['Account', 'Team', 'Properties', 'Payments', 'Services']
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState('Account')
   const { profile, loading, updateProfile } = useProfile()
   const { toast } = useToast()
+  const { role } = useRole()
+
+  const settingsTabs = role === 'owner' ? [...BASE_TABS, 'Permissions'] : BASE_TABS
 
   return (
     <div className="space-y-6">
@@ -45,6 +50,7 @@ export function Settings() {
       {activeTab === 'Properties' && <PropertiesTab toast={toast} />}
       {activeTab === 'Payments' && <PaymentsTab />}
       {activeTab === 'Services' && <ServicesTab toast={toast} />}
+      {activeTab === 'Permissions' && <PermissionsTab toast={toast} />}
     </div>
   )
 }
@@ -647,5 +653,124 @@ function ServicesTab({ toast }: { toast: (msg: string, variant?: 'success' | 'er
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete service" message={`Delete "${deleteTarget?.name}"? This cannot be undone.`} />
     </>
+  )
+}
+
+/* ─── Permissions Tab ────────────────────────────────────────────────────── */
+
+const PAGE_LABELS: Record<string, string> = {
+  payments: 'Payments',
+  partners: 'Partners',
+  contracts: 'Contracts',
+  invoices: 'Invoices',
+  apa: 'APA',
+  reports: 'Reports',
+  notifications: 'Notifications',
+}
+
+function PermissionsTab({ toast }: { toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void }) {
+  const { permissions, loading, saving, savePermissions, DEFAULT_PERMISSIONS } = useRolePermissions()
+  const [local, setLocal] = useState<RolePermissions>(permissions)
+
+  useEffect(() => { setLocal(permissions) }, [permissions])
+
+  const toggle = (role: string, page: string, field: 'view' | 'edit') => {
+    setLocal(prev => {
+      const updated = JSON.parse(JSON.stringify(prev)) as RolePermissions
+      if (!updated[role]) updated[role] = {}
+      if (!updated[role][page]) updated[role][page] = { view: false, edit: false }
+      updated[role][page][field] = !updated[role][page][field]
+      if (field === 'view' && !updated[role][page].view) {
+        updated[role][page].edit = false
+      }
+      if (field === 'edit' && updated[role][page].edit) {
+        updated[role][page].view = true
+      }
+      return updated
+    })
+  }
+
+  const handleSave = async () => {
+    const err = await savePermissions(local)
+    if (err) {
+      toast(err.message, 'error')
+    } else {
+      toast('Permissions saved')
+    }
+  }
+
+  const handleReset = () => {
+    setLocal(DEFAULT_PERMISSIONS)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  const roles = ['house_manager', 'concierge'] as const
+  const roleLabels: Record<string, string> = { house_manager: 'House Manager', concierge: 'Concierge' }
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6">
+        <h3 className="text-base font-semibold mb-2">Role Permissions</h3>
+        <p className="text-sm text-muted-foreground mb-6">Configure which pages each role can view and edit.</p>
+
+        {roles.map(role => (
+          <div key={role} className="mb-8 last:mb-0">
+            <h4 className="text-sm font-semibold mb-3 text-foreground">{roleLabels[role]}</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Page</th>
+                    <th className="text-center py-2 px-4 font-medium text-muted-foreground">Can View</th>
+                    <th className="text-center py-2 px-4 font-medium text-muted-foreground">Can Edit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CONFIGURABLE_PAGES.map(page => {
+                    const perm = local[role]?.[page] ?? { view: false, edit: false }
+                    return (
+                      <tr key={page} className="border-b border-border/50">
+                        <td className="py-2.5 pr-4 font-medium">{PAGE_LABELS[page]}</td>
+                        <td className="text-center py-2.5 px-4">
+                          <input
+                            type="checkbox"
+                            checked={perm.view}
+                            onChange={() => toggle(role, page, 'view')}
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                          />
+                        </td>
+                        <td className="text-center py-2.5 px-4">
+                          <input
+                            type="checkbox"
+                            checked={perm.edit}
+                            onChange={() => toggle(role, page, 'edit')}
+                            disabled={!perm.view}
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer disabled:opacity-30"
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex items-center gap-3 pt-4 border-t border-border">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</> : 'Save Permissions'}
+          </Button>
+          <Button variant="secondary" onClick={handleReset}>Reset to Defaults</Button>
+        </div>
+      </Card>
+    </div>
   )
 }
