@@ -113,6 +113,10 @@ CREATE TABLE IF NOT EXISTS service_providers (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE service_providers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated read service_providers" ON service_providers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated manage service_providers" ON service_providers FOR ALL TO authenticated USING (true);
+
 -- Service Requests
 CREATE TABLE IF NOT EXISTS service_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

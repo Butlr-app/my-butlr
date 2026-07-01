@@ -11,7 +11,7 @@ import { useServiceProviders, useProperties, type ServiceProvider } from '@/lib/
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
-import { Star, Plus, Loader2, Trash2, Pencil, Phone, Mail, MapPin, Calendar, Heart, UserCheck, Filter } from 'lucide-react'
+import { Plus, Loader2, Trash2, Pencil, Phone, Mail, MapPin, Calendar, Heart, UserCheck, Filter } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
@@ -350,7 +350,7 @@ export function ServiceProviders() {
                       <td className="px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => toggleFavorite(p.id, p.is_favorite)} className={`transition-colors ${p.is_favorite ? 'text-warning' : 'text-muted-foreground hover:text-warning'}`}>
-                            <Star className={`w-4 h-4 ${p.is_favorite ? 'fill-current' : ''}`} />
+                            <Heart className={`w-4 h-4 ${p.is_favorite ? 'fill-current' : ''}`} />
                           </button>
                           <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
                             <Pencil className="w-4 h-4" />
