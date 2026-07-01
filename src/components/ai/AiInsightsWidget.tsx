@@ -44,6 +44,8 @@ export function AiInsightsWidget(props: AiInsightsWidgetProps) {
         setInsights(result)
         setLoading(false)
       }
+    }).catch(() => {
+      if (!cancelled) setLoading(false)
     })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps

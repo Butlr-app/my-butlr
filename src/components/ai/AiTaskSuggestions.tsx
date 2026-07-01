@@ -26,6 +26,8 @@ export function AiTaskSuggestions({ reservations, existingTasks, onAccept }: AiT
         setSuggestions(result)
         setLoading(false)
       }
+    }).catch(() => {
+      if (!cancelled) setLoading(false)
     })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps

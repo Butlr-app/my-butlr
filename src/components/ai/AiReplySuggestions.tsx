@@ -29,6 +29,8 @@ export function AiReplySuggestions({ lastGuestMessage, guestName, propertyName, 
         setSuggestions(result)
         setLoading(false)
       }
+    }).catch(() => {
+      if (!cancelled) setLoading(false)
     })
     return () => { cancelled = true }
   }, [lastGuestMessage, guestName, propertyName])
