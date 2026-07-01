@@ -745,12 +745,26 @@ export function useServiceRequests(reservationId?: string) {
 
 // ─── Messages ────────────────────────────────────────────────────────────────
 
+export type MessageType = 'text' | 'image' | 'voice' | 'service'
+
+export interface ServiceMessageMeta {
+  service_id: string
+  service_name: string
+  description?: string
+  price?: number
+  image_url?: string
+}
+
 export interface Message {
   id: string
   reservation_id: string | null
   sender_id: string
   sender_name: string
+  sender_role: string | null
   content: string
+  message_type: MessageType
+  attachment_url: string | null
+  metadata: ServiceMessageMeta | Record<string, unknown>
   read: boolean
   created_at: string
 }
@@ -790,9 +804,14 @@ export function useMessages(reservationId: string | undefined) {
   }, [reservationId])
 
   const sendMessage = async (msg: Omit<Message, 'id' | 'read' | 'created_at'>) => {
+    const payload = {
+      ...msg,
+      message_type: msg.message_type ?? 'text',
+      metadata: msg.metadata && Object.keys(msg.metadata).length > 0 ? msg.metadata : {},
+    }
     const { data, error } = await supabase
       .from('messages')
-      .insert(msg)
+      .insert(payload)
       .select()
       .single()
     if (error) throw new Error(error.message)
@@ -867,7 +886,8 @@ export function useConversations(currentUserId: string | undefined) {
         last_at: m.created_at,
         unread: 0,
       }
-      conv.last_message = m.content
+      const msgType = (m as Message).message_type ?? 'text'
+      conv.last_message = msgType === 'voice' ? '[voice]' : msgType === 'image' ? '[image]' : msgType === 'service' ? '[service]' : m.content
       conv.last_at = m.created_at
       if (!m.read && currentUserId && m.sender_id !== currentUserId) conv.unread += 1
       grouped[m.reservation_id] = conv

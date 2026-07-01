@@ -31,3 +31,26 @@ export function extractStoragePath(publicUrl: string): string | null {
   const match = publicUrl.match(/\/storage\/v1\/object\/public\/images\/(.+)$/)
   return match ? match[1] : null
 }
+
+const CHAT_BUCKET = 'chat-attachments'
+
+export async function uploadChatAttachment(
+  file: File | Blob,
+  folder: 'voice' | 'images',
+): Promise<string> {
+  const ext =
+    file instanceof File
+      ? (file.name.split('.').pop() ?? (folder === 'voice' ? 'webm' : 'jpg'))
+      : folder === 'voice'
+        ? 'webm'
+        : 'jpg'
+  const filePath = `${folder}/${crypto.randomUUID()}.${ext}`
+  const { error } = await supabase.storage.from(CHAT_BUCKET).upload(filePath, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: folder === 'voice' ? 'audio/webm' : file.type,
+  })
+  if (error) throw new Error(error.message)
+  const { data } = supabase.storage.from(CHAT_BUCKET).getPublicUrl(filePath)
+  return data.publicUrl
+}

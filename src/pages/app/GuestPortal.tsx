@@ -302,6 +302,7 @@ export function GuestPortal() {
           reservationId={currentReservation.id}
           userId={user?.id}
           senderName={currentReservation.guest_name || 'Guest'}
+          senderRole={role}
           subtitle="Chat with your house manager"
         />
       )}
