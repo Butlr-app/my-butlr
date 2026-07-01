@@ -199,11 +199,15 @@ function AgencyDashboard() {
       const propRes = reservations.filter(r =>
         r.property_id === prop.id && r.status !== 'cancelled' && r.arrival <= monthEnd && r.departure >= monthStart,
       )
+      const occupiedDays = new Set<string>()
       for (const r of propRes) {
-        const start = r.arrival < monthStart ? monthStart : r.arrival
-        const end = r.departure > monthEnd ? monthEnd : r.departure
-        occupiedSlots += Math.max(0, (new Date(end).getTime() - new Date(start).getTime()) / 86400000 + 1)
+        const start = r.arrival < monthStart ? new Date(monthStart) : new Date(r.arrival)
+        const end = r.departure > monthEnd ? new Date(monthEnd) : new Date(r.departure)
+        for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
+          occupiedDays.add(cur.toISOString().split('T')[0])
+        }
       }
+      occupiedSlots += occupiedDays.size
     }
     const availRate = totalSlots > 0 ? Math.round(((totalSlots - occupiedSlots) / totalSlots) * 100) : 100
     return { label: d.toLocaleString('default', { month: 'short' }), value: availRate }
