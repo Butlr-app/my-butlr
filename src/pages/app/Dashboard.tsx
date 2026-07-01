@@ -343,7 +343,7 @@ export function Dashboard() {
         <AiInsightsWidget
           occupancyRate={kpis.occupancyRate}
           revenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)}
-          previousRevenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0) * 0.88}
+          previousRevenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0) * 0.88 /* mock placeholder until historical data available */}
           upcomingArrivals={reservations.filter(r => {
             const arrival = new Date(r.arrival)
             const now = new Date()
