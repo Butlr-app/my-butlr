@@ -169,12 +169,14 @@ export function ChatThread({
         <div ref={bottomRef} />
       </div>
 
-      {/* AI reply suggestions */}
-      <AiReplySuggestions
-        lastGuestMessage={lastGuestMsg}
-        guestName={lastGuestSender}
-        onSelect={(reply) => setMsgText(reply)}
-      />
+      {/* AI reply suggestions — only for managers, not guests */}
+      {senderRole !== 'guest' && (
+        <AiReplySuggestions
+          lastGuestMessage={lastGuestMsg}
+          guestName={lastGuestSender}
+          onSelect={(reply) => setMsgText(reply)}
+        />
+      )}
 
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-1 relative">
