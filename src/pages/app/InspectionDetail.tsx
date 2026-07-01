@@ -27,7 +27,7 @@ export function InspectionDetail() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { inspections, update: updateInspection, remove: removeInspection } = useInspections()
+  const { inspections, loading: loadingInspection, update: updateInspection, remove: removeInspection } = useInspections()
   const { rooms, loading: loadingRooms, addRoom, updateRoom, removeRoom } = useInspectionRooms(id)
   const { reports, loading: loadingReports, addReport, updateReport, removeReport } = useInspectionReports(id)
 
@@ -47,10 +47,21 @@ export function InspectionDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null)
 
-  if (!inspection) {
+  if (loadingInspection) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!inspection) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/app/inspections')}>
+          <ArrowLeft className="w-4 h-4 mr-1" /> {t('common.back')}
+        </Button>
       </div>
     )
   }
@@ -527,7 +538,16 @@ function RoomCard({
           <ConfirmModal
             open={confirmDeleteRoom}
             onClose={() => setConfirmDeleteRoom(false)}
-            onConfirm={async () => { await onRemove(room.id); setConfirmDeleteRoom(false) }}
+            onConfirm={async () => {
+              try {
+                await onRemove(room.id)
+                toast(t('toast.deleted'))
+              } catch (err) {
+                toast((err as Error).message, 'error')
+              } finally {
+                setConfirmDeleteRoom(false)
+              }
+            }}
             title={t('common.delete')}
             message={t('inspections.confirmDelete')}
           />
@@ -552,6 +572,7 @@ function ReportCard({
   const { toast } = useToast()
 
   const severityVariant = report.severity === 'major' ? 'destructive' : report.severity === 'moderate' ? 'warning' : 'muted'
+  const [confirmDeleteReport, setConfirmDeleteReport] = useState(false)
 
   const toggleResolved = async () => {
     try {
@@ -584,10 +605,27 @@ function ReportCard({
         <Button variant="secondary" size="sm" onClick={toggleResolved}>
           <CheckCircle2 className={`w-3.5 h-3.5 ${report.resolved ? 'text-success' : 'text-muted-foreground'}`} />
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => onRemove(report.id)}>
+        <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteReport(true)}>
           <Trash2 className="w-3.5 h-3.5 text-destructive" />
         </Button>
       </div>
+
+      <ConfirmModal
+        open={confirmDeleteReport}
+        onClose={() => setConfirmDeleteReport(false)}
+        onConfirm={async () => {
+          try {
+            await onRemove(report.id)
+            toast(t('toast.deleted'))
+          } catch (err) {
+            toast((err as Error).message, 'error')
+          } finally {
+            setConfirmDeleteReport(false)
+          }
+        }}
+        title={t('common.delete')}
+        message={t('inspections.confirmDelete')}
+      />
     </div>
   )
 }

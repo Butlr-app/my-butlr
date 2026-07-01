@@ -32,7 +32,8 @@ export function Inspections() {
   })
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const safePage = Math.min(page, totalPages - 1)
+  const paginated = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
 
   const openCreate = () => {
     setForm({ inspector_name: '', property_id: '', notes: '' })
@@ -127,11 +128,11 @@ export function Inspections() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
-              <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+              <Button variant="secondary" size="sm" disabled={safePage === 0} onClick={() => setPage(p => p - 1)}>
                 {t('common.previous')}
               </Button>
-              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              <span className="text-xs tabular-nums text-muted-foreground">{safePage + 1} / {totalPages}</span>
+              <Button variant="secondary" size="sm" disabled={safePage >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
                 {t('common.next')}
               </Button>
             </div>

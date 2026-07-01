@@ -1373,11 +1373,20 @@ export function useInspections() {
 
   useEffect(() => { fetchInspections() }, [fetchInspections])
 
+  const enrichWithProperty = async (row: Inspection): Promise<Inspection> => {
+    if (!row.property_id) return row
+    const existing = inspections.find(i => i.property_id === row.property_id && i.property)
+    if (existing?.property) return { ...row, property: existing.property }
+    const { data: props } = await supabase.from('properties').select('*').eq('id', row.property_id).single()
+    return props ? { ...row, property: props as Property } : row
+  }
+
   const insert = async (row: Partial<Inspection>) => {
     const { data, error } = await supabase.from('inspections').insert(row as Record<string, unknown>).select().single()
     if (error) throw new Error(error.message)
-    await fetchInspections()
-    return data as Inspection
+    const enriched = await enrichWithProperty(data as Inspection)
+    setInspections(prev => [enriched, ...prev])
+    return enriched
   }
 
   const update = async (id: string, changes: Partial<Inspection>) => {
@@ -1388,8 +1397,9 @@ export function useInspections() {
       .select()
       .single()
     if (error) throw new Error(error.message)
-    await fetchInspections()
-    return data as Inspection
+    const enriched = await enrichWithProperty(data as Inspection)
+    setInspections(prev => prev.map(i => i.id === id ? enriched : i))
+    return enriched
   }
 
   const remove = async (id: string) => {
