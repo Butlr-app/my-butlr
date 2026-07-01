@@ -41,6 +41,7 @@ import { GuestStays } from './pages/mobile/guest/GuestStays'
 import { GuestServices } from './pages/mobile/guest/GuestServices'
 import { GuestMessages } from './pages/mobile/guest/GuestMessages'
 import { GuestProfile } from './pages/mobile/guest/GuestProfile'
+import { GuestGuides } from './pages/mobile/guest/GuestGuides'
 import { PartnerLayout } from './pages/mobile/partner/PartnerLayout'
 import { PartnerDashboard } from './pages/mobile/partner/PartnerDashboard'
 import { PartnerBookings } from './pages/mobile/partner/PartnerBookings'
@@ -51,6 +52,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
+import { Guides } from './pages/app/Guides'
 import { CookieConsent } from './components/CookieConsent'
 import { InstallPrompt } from './components/InstallPrompt'
 
@@ -100,6 +102,7 @@ export default function App() {
           <Route path="invoices/generate" element={<InvoiceGenerator />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="guides" element={<Guides />} />
           <Route path="apa" element={<Apa />} />
           <Route path="settings" element={<Settings />} />
           <Route path="search" element={<SearchResults />} />
@@ -110,6 +113,7 @@ export default function App() {
           <Route index element={<GuestExplore />} />
           <Route path="stays" element={<GuestStays />} />
           <Route path="services" element={<GuestServices />} />
+          <Route path="guides" element={<GuestGuides />} />
           <Route path="messages" element={<GuestMessages />} />
           <Route path="profile" element={<GuestProfile />} />
         </Route>

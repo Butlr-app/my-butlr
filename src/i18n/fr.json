@@ -18,6 +18,7 @@
     "invoiceGen": "Gén. Facture",
     "notifications": "Notifications",
     "reports": "Rapports",
+    "guides": "Guides",
     "settings": "Paramètres",
     "search": "Recherche",
     "menu": "Menu"
@@ -303,5 +304,64 @@
     "iosInstall": "Appuyez sur",
     "iosInstall2": "puis « Sur l'écran d'accueil ».",
     "enablePush": "Activer les notifications push"
+  },
+  "guides": {
+    "title": "Guides Propriété",
+    "subtitle": "Créez des guides & notices pour vos invités",
+    "addGuide": "Ajouter un guide",
+    "edit": "Modifier",
+    "newGuide": "Nouveau Guide",
+    "editGuide": "Modifier le Guide",
+    "published": "Publié",
+    "draft": "Brouillon",
+    "created": "Guide créé",
+    "updated": "Guide mis à jour",
+    "deleted": "Guide supprimé",
+    "publishedToast": "Guide publié",
+    "unpublished": "Guide dépublié",
+    "deleteTitle": "Supprimer le guide",
+    "deleteMessage": "Supprimer ce guide ?",
+    "empty": "Aucun guide pour l'instant. Créez votre premier guide pour aider vos invités.",
+    "noMatch": "Aucun guide ne correspond à votre recherche.",
+    "allCategories": "Tous",
+    "errors": {
+      "titleRequired": "Le titre est requis",
+      "contentRequired": "Le contenu est requis"
+    },
+    "form": {
+      "title": "Titre",
+      "titlePlaceholder": "ex. Comment utiliser le spa",
+      "category": "Catégorie",
+      "property": "Propriété",
+      "allProperties": "Toutes les propriétés (général)",
+      "content": "Instructions",
+      "contentPlaceholder": "Écrivez des instructions détaillées pour vos invités...",
+      "publishImmediately": "Publier immédiatement (visible par les invités)",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "create": "Créer le guide"
+    }
+  },
+  "guestGuides": {
+    "title": "Guides de la propriété",
+    "subtitle": "Instructions et conseils pour votre séjour",
+    "loading": "Chargement des guides...",
+    "empty": "Aucun guide disponible pour le moment.",
+    "backToGuides": "Retour aux guides",
+    "categories": {
+      "all": "Tous",
+      "general": "Général",
+      "spa": "Spa",
+      "home_automation": "Domotique",
+      "entertainment": "Divertissement",
+      "security": "Sécurité",
+      "kitchen": "Cuisine",
+      "pool": "Piscine",
+      "heating_cooling": "Climatisation",
+      "wifi_tech": "Wi-Fi",
+      "outdoor": "Extérieur",
+      "keys_access": "Clés",
+      "cleaning": "Ménage"
+    }
   }
 }
