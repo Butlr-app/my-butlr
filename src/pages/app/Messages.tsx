@@ -5,13 +5,54 @@ import { ChatThread } from '@/components/ChatThread'
 import { useConversations } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
-import { MessageSquare, Loader2 } from 'lucide-react'
+import { MessageSquare, Loader2, Image, Mic, ConciergeBell } from 'lucide-react'
 
 const roleLabels: Record<string, string> = {
   owner: 'Owner',
   house_manager: 'House Manager',
   concierge: 'Concierge',
   agency: 'Agency',
+}
+
+const roleColors: Record<string, string> = {
+  owner: 'bg-amber-500',
+  house_manager: 'bg-blue-500',
+  concierge: 'bg-emerald-500',
+  agency: 'bg-purple-500',
+  guest: 'bg-gray-400',
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function LastMessagePreview({ text }: { text: string }) {
+  if (text.startsWith('[voice]')) {
+    return (
+      <span className="flex items-center gap-1">
+        <Mic className="w-3 h-3" /> Voice message
+      </span>
+    )
+  }
+  if (text.startsWith('[image]')) {
+    return (
+      <span className="flex items-center gap-1">
+        <Image className="w-3 h-3" /> Photo
+      </span>
+    )
+  }
+  if (text.startsWith('[service]')) {
+    return (
+      <span className="flex items-center gap-1">
+        <ConciergeBell className="w-3 h-3" /> Service shared
+      </span>
+    )
+  }
+  return <>{text}</>
 }
 
 export function Messages() {
@@ -62,34 +103,50 @@ export function Messages() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="md:col-span-1 overflow-hidden flex flex-col" style={{ height: '480px' }}>
+          <Card className="md:col-span-1 overflow-hidden flex flex-col" style={{ height: '540px' }}>
             <div className="px-4 py-3 border-b border-border">
               <h3 className="text-sm font-semibold">Conversations</h3>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {conversations.map(conv => (
-                <button
-                  key={conv.reservation_id}
-                  onClick={() => setSelectedId(conv.reservation_id)}
-                  className={`w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors flex gap-3 ${
-                    selectedId === conv.reservation_id ? 'bg-muted/60' : ''
-                  }`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium truncate">{conv.guest_name}</p>
-                      <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(conv.last_at)}</span>
+              {conversations.map(conv => {
+                const initials = getInitials(conv.guest_name)
+                const isActive = selectedId === conv.reservation_id
+                return (
+                  <button
+                    key={conv.reservation_id}
+                    onClick={() => setSelectedId(conv.reservation_id)}
+                    className={`w-full text-left px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors flex gap-3 ${
+                      isActive ? 'bg-muted/60' : ''
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className={`w-10 h-10 rounded-full ${roleColors['guest']} flex items-center justify-center shrink-0`}>
+                      <span className="text-xs font-bold text-white">{initials}</span>
                     </div>
-                    {conv.property_name && (
-                      <p className="text-[11px] text-muted-foreground truncate">{conv.property_name}</p>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-sm font-medium truncate">{conv.guest_name}</p>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-400 text-white font-medium shrink-0">
+                            Guest
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(conv.last_at)}</span>
+                      </div>
+                      {conv.property_name && (
+                        <p className="text-[11px] text-muted-foreground truncate">{conv.property_name}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        <LastMessagePreview text={conv.last_message} />
+                      </p>
+                    </div>
+                    {conv.unread > 0 && (
+                      <Badge variant="destructive" className="shrink-0 self-center">{conv.unread}</Badge>
                     )}
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{conv.last_message}</p>
-                  </div>
-                  {conv.unread > 0 && (
-                    <Badge variant="destructive" className="shrink-0 self-center">{conv.unread}</Badge>
-                  )}
-                </button>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           </Card>
 
@@ -100,11 +157,13 @@ export function Messages() {
                 reservationId={selected.reservation_id}
                 userId={user?.id}
                 senderName={senderName}
+                senderRole={role}
                 title={selected.guest_name}
                 subtitle={selected.property_name ?? 'Conversation'}
+                height="540px"
               />
             ) : (
-              <Card className="flex items-center justify-center" style={{ height: '480px' }}>
+              <Card className="flex items-center justify-center" style={{ height: '540px' }}>
                 <p className="text-sm text-muted-foreground">Select a conversation</p>
               </Card>
             )}

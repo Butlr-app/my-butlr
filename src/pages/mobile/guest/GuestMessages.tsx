@@ -50,14 +50,23 @@ export function GuestMessages() {
       {/* Header */}
       <div className="px-5 pt-14 pb-4 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
             <span className="text-white font-bold text-sm">B</span>
           </div>
           <div>
             <h1 className="text-base font-bold text-gray-900">Your Concierge</h1>
-            <p className="text-xs text-gray-400">
-              {currentReservation.property?.name ?? 'Your stay'} &middot; Usually responds in 5 min
-            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500 text-white font-medium">
+                Manager
+              </span>
+              <p className="text-xs text-gray-400">
+                {currentReservation.property?.name ?? 'Your stay'}
+              </p>
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-[10px] text-gray-400">Online</span>
           </div>
         </div>
       </div>
@@ -68,7 +77,9 @@ export function GuestMessages() {
           reservationId={currentReservation.id}
           userId={user?.id}
           senderName={currentReservation.guest_name || 'Guest'}
+          senderRole="guest"
           subtitle="Your concierge"
+          showServicePicker={false}
         />
       </div>
     </div>
