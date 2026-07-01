@@ -214,7 +214,7 @@ export function Invoices() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No invoices match your search.' : 'No invoices yet.'}
           </p>
-          {!query && <Button size="sm" onClick={() => navigate('/app/invoices/generate')}>Create first invoice</Button>}
+          {!query && editable && <Button size="sm" onClick={() => navigate('/app/invoices/generate')}>Create first invoice</Button>}
         </Card>
       ) : (
         <>
