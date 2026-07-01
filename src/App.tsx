@@ -55,6 +55,8 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
+import { Inspections } from './pages/app/Inspections'
+import { InspectionDetail } from './pages/app/InspectionDetail'
 import { CookieConsent } from './components/CookieConsent'
 import { InstallPrompt } from './components/InstallPrompt'
 
@@ -108,6 +110,8 @@ export default function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="guides" element={<Guides />} />
           <Route path="apa" element={<Apa />} />
+          <Route path="inspections" element={<Inspections />} />
+          <Route path="inspections/:id" element={<InspectionDetail />} />
           <Route path="settings" element={<Settings />} />
           <Route path="search" element={<SearchResults />} />
         </Route>
