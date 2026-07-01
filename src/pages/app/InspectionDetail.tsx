@@ -341,6 +341,7 @@ function RoomCard({
   const { toast } = useToast()
   const [uploading, setUploading] = useState<'reference' | 'current' | null>(null)
   const [overlayOpacity, setOverlayOpacity] = useState(0.4)
+  const [confirmDeleteRoom, setConfirmDeleteRoom] = useState(false)
   const refInputRef = useRef<HTMLInputElement>(null)
   const curInputRef = useRef<HTMLInputElement>(null)
 
@@ -518,10 +519,18 @@ function RoomCard({
 
           {/* Actions */}
           <div className="flex justify-end">
-            <Button variant="secondary" size="sm" onClick={() => onRemove(room.id)}>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteRoom(true)}>
               <Trash2 className="w-3.5 h-3.5 text-destructive mr-1" /> {t('common.delete')}
             </Button>
           </div>
+
+          <ConfirmModal
+            open={confirmDeleteRoom}
+            onClose={() => setConfirmDeleteRoom(false)}
+            onConfirm={async () => { await onRemove(room.id); setConfirmDeleteRoom(false) }}
+            title={t('common.delete')}
+            message={t('inspections.confirmDelete')}
+          />
         </div>
       )}
     </div>
