@@ -2,11 +2,13 @@ import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
 import { useRoleAssignments, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice } from './useSupabase'
+import { useRolePermissions } from './useRolePermissions'
 
 export function useRoleFilter() {
   const { role } = useRole()
   const { user } = useAuth()
   const { assignedPropertyIds, loading } = useRoleAssignments(user?.id)
+  const { permissions } = useRolePermissions()
 
   const assignedSet = useMemo(() => new Set(assignedPropertyIds), [assignedPropertyIds])
 
@@ -136,6 +138,11 @@ export function useRoleFilter() {
   }
 
   function canEdit(page: string): boolean {
+    if (role === 'owner' || role === 'agency') return true
+    const rolePerms = permissions[role]
+    if (rolePerms && rolePerms[page]) {
+      return rolePerms[page].edit
+    }
     const editRoles: Record<string, Role[]> = {
       partners: ['owner', 'agency'],
       payments: ['owner', 'agency', 'house_manager'],
@@ -148,6 +155,11 @@ export function useRoleFilter() {
   }
 
   function isVisible(page: string): boolean {
+    if (role === 'owner' || role === 'agency') return true
+    const rolePerms = permissions[role]
+    if (rolePerms && rolePerms[page]) {
+      return rolePerms[page].view
+    }
     const visibility: Record<string, Role[]> = {
       dashboard: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
       properties: ['owner', 'house_manager', 'concierge', 'agency'],
