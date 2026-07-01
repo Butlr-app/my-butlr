@@ -22,7 +22,8 @@
     "guides": "Guides",
     "settings": "Settings",
     "search": "Search",
-    "menu": "Menu"
+    "menu": "Menu",
+    "inspections": "Inspections"
   },
   "apa": {
     "title": "APA — Collection & Payouts",
@@ -400,5 +401,56 @@
       "keys_access": "Keys",
       "cleaning": "Cleaning"
     }
+  },
+  "inspections": {
+    "title": "Property Inspections",
+    "subtitle": "Inspections between each guest",
+    "newInspection": "New Inspection",
+    "inspector": "Inspector",
+    "property": "Property",
+    "selectProperty": "Select a property",
+    "date": "Date",
+    "status": "Status",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "notes": "Notes",
+    "rooms": "Rooms",
+    "addRoom": "Add Room",
+    "roomName": "Room Name",
+    "referencePhoto": "Reference Photo",
+    "currentPhoto": "Current Photo",
+    "takePhoto": "Take Photo",
+    "overlay": "Overlay",
+    "overlayHelp": "The reference photo is overlaid to help reproduce the same angle.",
+    "comparison": "Comparison",
+    "reports": "Reports",
+    "addReport": "Add Report",
+    "reportTitle": "Title",
+    "reportDescription": "Description",
+    "severity": "Severity",
+    "minor": "Minor",
+    "moderate": "Moderate",
+    "major": "Major",
+    "knownIssue": "Known Issue",
+    "knownIssueHelp": "Known issues are excluded from comparison between inspections.",
+    "resolved": "Resolved",
+    "unresolved": "Unresolved",
+    "markResolved": "Mark Resolved",
+    "completeInspection": "Complete Inspection",
+    "deleteInspection": "Delete",
+    "confirmDelete": "Delete this inspection? This action cannot be undone.",
+    "roomStatus": {
+      "pending": "Pending",
+      "ok": "OK",
+      "issue_found": "Issue Found"
+    },
+    "noInspections": "No inspections yet. Create your first one to get started.",
+    "noRooms": "No rooms added yet.",
+    "noReports": "No reports yet.",
+    "photoMissing": "No photo",
+    "summary": "Summary",
+    "roomsChecked": "Rooms Checked",
+    "issuesFound": "Issues Found",
+    "knownIssues": "Known Issues"
   }
 }

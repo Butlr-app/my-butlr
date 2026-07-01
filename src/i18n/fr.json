@@ -22,7 +22,8 @@
     "guides": "Guides",
     "settings": "Paramètres",
     "search": "Recherche",
-    "menu": "Menu"
+    "menu": "Menu",
+    "inspections": "États des lieux"
   },
   "apa": {
     "title": "APA — Encaissement & Reversements",
@@ -400,5 +401,56 @@
       "keys_access": "Clés",
       "cleaning": "Ménage"
     }
+  },
+  "inspections": {
+    "title": "États des lieux",
+    "subtitle": "Inspections entre chaque client",
+    "newInspection": "Nouvel état des lieux",
+    "inspector": "Inspecteur",
+    "property": "Propriété",
+    "selectProperty": "Sélectionner une propriété",
+    "date": "Date",
+    "status": "Statut",
+    "inProgress": "En cours",
+    "completed": "Terminé",
+    "notes": "Notes",
+    "rooms": "Pièces",
+    "addRoom": "Ajouter une pièce",
+    "roomName": "Nom de la pièce",
+    "referencePhoto": "Photo de référence",
+    "currentPhoto": "Photo actuelle",
+    "takePhoto": "Prendre une photo",
+    "overlay": "Superposition",
+    "overlayHelp": "La photo de référence est superposée pour vous aider à reproduire le même angle.",
+    "comparison": "Comparaison",
+    "reports": "Signalements",
+    "addReport": "Ajouter un signalement",
+    "reportTitle": "Titre",
+    "reportDescription": "Description",
+    "severity": "Gravité",
+    "minor": "Mineur",
+    "moderate": "Modéré",
+    "major": "Majeur",
+    "knownIssue": "Problème connu",
+    "knownIssueHelp": "Les problèmes connus sont exclus de la comparaison entre inspections.",
+    "resolved": "Résolu",
+    "unresolved": "Non résolu",
+    "markResolved": "Marquer résolu",
+    "completeInspection": "Terminer l'inspection",
+    "deleteInspection": "Supprimer",
+    "confirmDelete": "Supprimer cet état des lieux ? Cette action est irréversible.",
+    "roomStatus": {
+      "pending": "En attente",
+      "ok": "Conforme",
+      "issue_found": "Problème détecté"
+    },
+    "noInspections": "Aucun état des lieux. Créez le premier pour commencer.",
+    "noRooms": "Aucune pièce ajoutée.",
+    "noReports": "Aucun signalement.",
+    "photoMissing": "Pas de photo",
+    "summary": "Résumé",
+    "roomsChecked": "Pièces inspectées",
+    "issuesFound": "Problèmes trouvés",
+    "knownIssues": "Problèmes connus"
   }
 }
