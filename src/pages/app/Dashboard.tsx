@@ -10,6 +10,7 @@ import { useTranslation } from '@/i18n/LanguageContext'
 import { useState, useEffect } from 'react'
 import { BarChart, LineChart } from '@/components/charts/Charts'
 import { useAuth } from '@/lib/authContext'
+import { AiInsightsWidget } from '@/components/ai/AiInsightsWidget'
 
 function OwnerDashboard() {
   const { t } = useTranslation()
@@ -296,6 +297,7 @@ export function Dashboard() {
   const { role } = useRole()
   const { t } = useTranslation()
   const { filterReservations, filterTasks, filterPayments } = useRoleFilter()
+  const { kpis } = useDashboardKPIs()
   const { data: rawReservations, loading: loadingRes } = useReservations()
   const { data: rawTasks, loading: loadingTasks } = useTasks()
   const { data: rawPayments, loading: loadingPay } = usePayments()
@@ -334,6 +336,23 @@ export function Dashboard() {
       {(role === 'agency') && <AgencyDashboard />}
       {role === 'partner' && <PartnerDashboard />}
       {role === 'guest' && <GuestDashboard />}
+
+      {/* AI Insights — visible for management roles */}
+      {role !== 'guest' && role !== 'partner' && (
+        <AiInsightsWidget
+          occupancyRate={kpis.occupancyRate}
+          revenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)}
+          previousRevenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0) * 0.88}
+          upcomingArrivals={reservations.filter(r => {
+            const arrival = new Date(r.arrival)
+            const now = new Date()
+            const weekLater = new Date(now.getTime() + 7 * 86400000)
+            return arrival >= now && arrival <= weekLater && r.status !== 'cancelled'
+          }).length}
+          pendingTasks={tasks.filter(t => t.status === 'todo' || t.status === 'in_progress').length}
+          propertiesCount={reservations.length}
+        />
+      )}
 
       {/* Common sections for non-guest roles */}
       {role !== 'guest' && (
