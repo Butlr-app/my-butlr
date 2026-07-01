@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { useAuth } from '@/lib/authContext'
-import { useProfile } from '@/lib/useSupabase'
+import { useProfile, type Profile } from '@/lib/useSupabase'
 import { supabase } from '@/lib/supabase'
 import { useTranslation, type Language } from '@/i18n/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
@@ -228,7 +228,7 @@ export function Onboarding() {
     setSaving(true)
 
     try {
-      const profileUpdates: Record<string, unknown> = {
+      const profileUpdates: Partial<Profile> = {
         onboarding_completed: true,
       }
       if (profileForm.full_name) profileUpdates.full_name = profileForm.full_name
@@ -245,7 +245,7 @@ export function Onboarding() {
         if (business.phone) profileUpdates.phone = business.phone
       }
 
-      await updateProfile(profileUpdates as Parameters<typeof updateProfile>[0])
+      await updateProfile(profileUpdates)
 
       const hasPrefsStep = steps.some(s => s.id === 'preferences')
       if (hasPrefsStep) {
