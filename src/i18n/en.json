@@ -668,7 +668,8 @@
       "invitations": "Invitations",
       "members": "member(s)",
       "language": "Language",
-      "currency": "Currency"
+      "currency": "Currency",
+      "successToast": "Account configured successfully!"
     }
   }
 }

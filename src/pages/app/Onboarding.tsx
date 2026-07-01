@@ -8,7 +8,8 @@ import { ImageUpload } from '@/components/ui/ImageUpload'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/useSupabase'
 import { supabase } from '@/lib/supabase'
-import { useTranslation } from '@/i18n/LanguageContext'
+import { useTranslation, type Language } from '@/i18n/LanguageContext'
+import { useToast } from '@/components/ui/Toast'
 import type { Role } from '@/lib/roleContext'
 import {
   Building2, Home, Settings2, CheckCircle2, User, Users, ConciergeBell,
@@ -161,7 +162,8 @@ export function Onboarding() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { profile, loading: profileLoading, updateProfile } = useProfile()
-  const { t } = useTranslation()
+  const { t, setLanguage } = useTranslation()
+  const { toast } = useToast()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [animateIn, setAnimateIn] = useState(true)
@@ -245,6 +247,12 @@ export function Onboarding() {
 
       await updateProfile(profileUpdates as Parameters<typeof updateProfile>[0])
 
+      if (prefs.language === 'fr' || prefs.language === 'en') {
+        setLanguage(prefs.language as Language)
+      }
+      localStorage.setItem('butlr-currency', prefs.currency)
+      localStorage.setItem('butlr-timezone', prefs.timezone)
+
       if ((detectedRole === 'owner') && property.name) {
         await supabase.from('properties').insert({
           owner_id: user.id,
@@ -282,6 +290,7 @@ export function Onboarding() {
         try { await supabase.from('services').insert(serviceInserts) } catch { /* ignore */ }
       }
 
+      toast(t('onboarding.done.successToast'), 'success')
       navigate('/app')
     } catch {
       navigate('/app')

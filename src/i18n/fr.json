@@ -668,7 +668,8 @@
       "invitations": "Invitations",
       "members": "membre(s)",
       "language": "Langue",
-      "currency": "Devise"
+      "currency": "Devise",
+      "successToast": "Compte configuré avec succès !"
     }
   }
 }
