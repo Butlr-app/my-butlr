@@ -183,6 +183,7 @@ export function useRoleFilter() {
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
+      'concierge-portal': ['owner', 'agency'],
       payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       apa: ['owner', 'agency', 'house_manager'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],

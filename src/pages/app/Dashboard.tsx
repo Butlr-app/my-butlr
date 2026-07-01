@@ -1,14 +1,15 @@
 import { MetricCard } from '@/components/ui/MetricCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { useDashboardKPIs, useReservations, useTasks, usePayments, useProperties, usePartners, useServices } from '@/lib/useSupabase'
-import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles, CreditCard, Handshake, Inbox } from 'lucide-react'
+import { useDashboardKPIs, useReservations, useTasks, usePayments, useProperties, usePartners, useServices, useServiceRequests } from '@/lib/useSupabase'
+import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles, CreditCard, Handshake, Inbox, Briefcase, ShoppingBag, HelpCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { useState, useEffect } from 'react'
 import { BarChart, LineChart } from '@/components/charts/Charts'
+import { useAuth } from '@/lib/authContext'
 
 function OwnerDashboard() {
   const { t } = useTranslation()
@@ -162,6 +163,94 @@ function PartnerDashboard() {
   )
 }
 
+function AgencyDashboard() {
+  const { t } = useTranslation()
+  const { data: properties } = useProperties()
+  const { data: reservations } = useReservations()
+  const { data: services } = useServices()
+  const { requests } = useServiceRequests()
+  const { user } = useAuth()
+
+  const today = new Date().toISOString().split('T')[0]
+  const activeProps = properties.filter(p => p.status === 'active')
+
+  const propsWithAvailability = activeProps.filter(prop => {
+    const propRes = reservations.filter(r =>
+      r.property_id === prop.id && r.status !== 'cancelled' && r.arrival <= today && r.departure >= today,
+    )
+    return propRes.length === 0
+  }).length
+
+  const myRequests = requests.filter(r => r.guest_user_id === user?.id)
+  const pendingInquiries = myRequests.filter(r => r.service_name.startsWith('Inquiry:') && r.status === 'pending').length
+  const bookedServices = myRequests.filter(r => !r.service_name.startsWith('Inquiry:')).length
+  const availableServices = services.filter(s => s.available).length
+
+  const monthlyAvailability = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() + i)
+    const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+    const monthEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+    const totalSlots = activeProps.length * daysInMonth
+    let occupiedSlots = 0
+    for (const prop of activeProps) {
+      const propRes = reservations.filter(r =>
+        r.property_id === prop.id && r.status !== 'cancelled' && r.arrival <= monthEnd && r.departure >= monthStart,
+      )
+      const occupiedDays = new Set<string>()
+      for (const r of propRes) {
+        const start = r.arrival < monthStart ? new Date(monthStart) : new Date(r.arrival)
+        const end = r.departure > monthEnd ? new Date(monthEnd) : new Date(r.departure)
+        for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
+          occupiedDays.add(cur.toISOString().split('T')[0])
+        }
+      }
+      occupiedSlots += occupiedDays.size
+    }
+    const availRate = totalSlots > 0 ? Math.round(((totalSlots - occupiedSlots) / totalSlots) * 100) : 100
+    return { label: d.toLocaleString('default', { month: 'short' }), value: availRate }
+  })
+
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label={t('conciergePortal.propertiesAvailable')} value={`${propsWithAvailability}/${activeProps.length}`} icon={Building2} tone="success" />
+        <MetricCard label={t('conciergePortal.pendingInquiries')} value={pendingInquiries} icon={HelpCircle} tone="warning" />
+        <MetricCard label={t('conciergePortal.bookedServices')} value={bookedServices} icon={ShoppingBag} tone="primary" />
+        <MetricCard label={t('dashboard.availableServices')} value={availableServices} icon={ConciergeBell} tone="info" />
+      </div>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">{t('conciergePortal.availability')}</h3>
+          <Link to="/app/concierge-portal" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <BarChart data={monthlyAvailability} label={t('conciergePortal.availability') + ' (%)'} />
+      </Card>
+
+      <Link
+        to="/app/concierge-portal"
+        className="block rounded-xl border border-primary/20 bg-primary/5 p-5 hover:bg-primary/10 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/20 text-primary">
+            <Briefcase className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">{t('nav.conciergePortal')}</p>
+            <p className="text-xs text-muted-foreground">{t('conciergePortal.subtitle')}</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto" />
+        </div>
+      </Link>
+    </>
+  )
+}
+
 function GuestDashboard() {
   const { t } = useTranslation()
   const { data: reservations } = useReservations()
@@ -242,7 +331,7 @@ export function Dashboard() {
       {role === 'owner' && <OwnerDashboard />}
       {role === 'house_manager' && <HouseManagerDashboard />}
       {role === 'concierge' && <ConciergeDashboard />}
-      {(role === 'agency') && <OwnerDashboard />}
+      {(role === 'agency') && <AgencyDashboard />}
       {role === 'partner' && <PartnerDashboard />}
       {role === 'guest' && <GuestDashboard />}
 
