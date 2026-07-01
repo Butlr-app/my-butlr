@@ -515,6 +515,7 @@
     "placeholder": "Posez-moi une question...",
     "thinking": "Réflexion en cours...",
     "clearHistory": "Effacer l'historique",
+    "clearHistoryConfirm": "Cela supprimera tous les messages. Continuer ?",
     "welcomeTitle": "Bonjour ! Je suis votre assistant IA",
     "welcomeSubtitle": "Je peux vous aider à gérer vos propriétés, guests et services de manière intelligente.",
     "quickTasks": "Tâches prioritaires",
