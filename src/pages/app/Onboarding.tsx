@@ -723,9 +723,6 @@ export function Onboarding() {
           options={[
             { value: 'fr', label: 'Français' },
             { value: 'en', label: 'English' },
-            { value: 'es', label: 'Español' },
-            { value: 'it', label: 'Italiano' },
-            { value: 'de', label: 'Deutsch' },
           ]}
         />
         <Select
