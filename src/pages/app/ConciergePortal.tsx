@@ -252,9 +252,11 @@ function ServicesTab() {
     if (!selectedService || !form.clientName.trim()) return
     setSaving(true)
     try {
+      const property = properties.find(p => p.id === form.propertyId)
       const details = [
         `Client: ${form.clientName}`,
         form.clientEmail ? `Email: ${form.clientEmail}` : '',
+        property ? `Property: ${property.name}` : '',
         form.notes || '',
       ].filter(Boolean).join('\n')
       await addRequest({
@@ -466,7 +468,7 @@ function InquiriesTab() {
     if (!form.message.trim()) return
     setSaving(true)
     try {
-      const label = t(subjectLabels[form.subject]?.key ?? 'conciergePortal.inqOther')
+      const label = subjectLabels[form.subject]?.en ?? 'Other'
       const property = properties.find(p => p.id === form.propertyId)
       const detailParts = [
         form.clientName ? `Client: ${form.clientName}` : '',
