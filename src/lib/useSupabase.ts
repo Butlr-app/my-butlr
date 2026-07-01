@@ -387,6 +387,75 @@ export function useCalendarEvents() {
   return useTable<CalendarEvent>('calendar_events')
 }
 
+// ─── Guides ──────────────────────────────────────────────────────────────────
+
+export interface Guide {
+  id: string
+  property_id: string | null
+  title: string
+  category: 'general' | 'spa' | 'home_automation' | 'entertainment' | 'security' | 'kitchen' | 'pool' | 'heating_cooling' | 'wifi_tech' | 'outdoor' | 'keys_access' | 'cleaning'
+  content: string | null
+  icon: string | null
+  published: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+  property?: Property
+}
+
+export function useGuides(propertyId?: string) {
+  const [data, setData] = useState<Guide[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    setLoading(true)
+    let query = supabase
+      .from('guides')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false })
+    if (propertyId) {
+      query = query.eq('property_id', propertyId)
+    }
+    const { data: rows } = await query
+    setData((rows ?? []) as Guide[])
+    setLoading(false)
+  }, [propertyId])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const insert = async (row: Partial<Guide>) => {
+    const { data: inserted, error } = await supabase
+      .from('guides')
+      .insert(row as Record<string, unknown>)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setData(prev => [inserted as Guide, ...prev])
+    return inserted as Guide
+  }
+
+  const update = async (id: string, changes: Partial<Guide>) => {
+    const { data: updated, error } = await supabase
+      .from('guides')
+      .update({ ...changes, updated_at: new Date().toISOString() } as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setData(prev => prev.map(r => r.id === id ? (updated as Guide) : r))
+    return updated as Guide
+  }
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from('guides').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setData(prev => prev.filter(r => r.id !== id))
+  }
+
+  return { data, loading, refetch: fetch, insert, update, remove }
+}
+
 export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)

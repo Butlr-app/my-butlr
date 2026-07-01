@@ -174,6 +174,7 @@ export function useRoleFilter() {
       apa: ['owner', 'agency', 'house_manager'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],
       invoices: ['owner', 'agency', 'house_manager', 'concierge'],
+      guides: ['owner', 'house_manager', 'concierge', 'agency'],
       reports: ['owner', 'agency', 'house_manager'],
       notifications: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
       settings: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],

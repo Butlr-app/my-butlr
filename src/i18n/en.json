@@ -18,6 +18,7 @@
     "invoiceGen": "Invoice Gen.",
     "notifications": "Notifications",
     "reports": "Reports",
+    "guides": "Guides",
     "settings": "Settings",
     "search": "Search",
     "menu": "Menu"
@@ -303,5 +304,42 @@
     "iosInstall": "Tap",
     "iosInstall2": "then \"Add to Home Screen\".",
     "enablePush": "Enable push notifications"
+  },
+  "guides": {
+    "title": "Property Guides",
+    "subtitle": "Create guides & instructions for your guests",
+    "addGuide": "Add guide",
+    "edit": "Edit",
+    "newGuide": "New Guide",
+    "editGuide": "Edit Guide",
+    "published": "Published",
+    "draft": "Draft",
+    "created": "Guide created",
+    "updated": "Guide updated",
+    "deleted": "Guide deleted",
+    "publishedToast": "Guide published",
+    "unpublished": "Guide unpublished",
+    "deleteTitle": "Delete guide",
+    "deleteMessage": "Delete this guide?",
+    "empty": "No guides yet. Create your first guide to help guests navigate your property.",
+    "noMatch": "No guides match your search.",
+    "allCategories": "All",
+    "errors": {
+      "titleRequired": "Title is required",
+      "contentRequired": "Content is required"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "e.g. How to use the spa",
+      "category": "Category",
+      "property": "Property",
+      "allProperties": "All properties (general)",
+      "content": "Instructions",
+      "contentPlaceholder": "Write detailed instructions for your guests...",
+      "publishImmediately": "Publish immediately (visible to guests)",
+      "cancel": "Cancel",
+      "save": "Save changes",
+      "create": "Create guide"
+    }
   }
 }

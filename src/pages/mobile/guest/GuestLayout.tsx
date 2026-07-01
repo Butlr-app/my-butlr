@@ -1,11 +1,12 @@
 import { MobileLayout } from '@/components/mobile/MobileLayout'
-import { Search, Calendar, Sparkles, MessageSquare, User } from 'lucide-react'
+import { Search, Calendar, Sparkles, MessageSquare, User, BookOpen } from 'lucide-react'
 import type { NavItem } from '@/components/mobile/BottomNav'
 
 const guestNavItems: NavItem[] = [
   { path: '/guest', label: 'Explore', icon: Search },
   { path: '/guest/stays', label: 'Stays', icon: Calendar },
   { path: '/guest/services', label: 'Services', icon: Sparkles },
+  { path: '/guest/guides', label: 'Guides', icon: BookOpen },
   { path: '/guest/messages', label: 'Messages', icon: MessageSquare },
   { path: '/guest/profile', label: 'Profile', icon: User },
 ]
