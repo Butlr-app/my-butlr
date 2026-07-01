@@ -20,8 +20,9 @@ export function PartnerEarnings() {
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const currentMonth = new Date().getMonth()
+  const currentYear = new Date().getFullYear()
   const monthlyRevenue = months.map((_, idx) => {
-    return reservations.filter(r => new Date(r.arrival).getMonth() === idx)
+    return reservations.filter(r => { const d = new Date(r.arrival); return d.getFullYear() === currentYear && d.getMonth() === idx })
       .reduce((sum, r) => sum + Number(r.total_amount), 0)
   })
   const maxMonthly = Math.max(...monthlyRevenue, 1)
@@ -75,7 +76,7 @@ export function PartnerEarnings() {
             <h3 className="text-sm font-bold text-white">Monthly Revenue</h3>
             <div className="flex items-center gap-1">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-medium text-gray-500">2025</span>
+              <span className="text-xs font-medium text-gray-500">{new Date().getFullYear()}</span>
             </div>
           </div>
           <div className="flex items-end gap-1 h-32">

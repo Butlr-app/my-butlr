@@ -16,10 +16,10 @@ export function GuestMessages() {
   }
 
   const today = new Date().toISOString().split('T')[0]
-  const guestReservations = reservations.filter(r => r.guest_email === user?.email)
+  const guestReservations = reservations.filter(r => r.guest_email === user?.email && r.status !== 'cancelled')
   const currentReservation = guestReservations.find(r =>
     r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress')
-  ) ?? guestReservations[0]
+  ) ?? guestReservations.sort((a, b) => new Date(b.arrival).getTime() - new Date(a.arrival).getTime())[0]
 
   if (!currentReservation) {
     return (
