@@ -247,11 +247,14 @@ export function Onboarding() {
 
       await updateProfile(profileUpdates as Parameters<typeof updateProfile>[0])
 
-      if (prefs.language === 'fr' || prefs.language === 'en') {
-        setLanguage(prefs.language as Language)
+      const hasPrefsStep = steps.some(s => s.id === 'preferences')
+      if (hasPrefsStep) {
+        if (prefs.language === 'fr' || prefs.language === 'en') {
+          setLanguage(prefs.language as Language)
+        }
+        localStorage.setItem('butlr-currency', prefs.currency)
+        localStorage.setItem('butlr-timezone', prefs.timezone)
       }
-      localStorage.setItem('butlr-currency', prefs.currency)
-      localStorage.setItem('butlr-timezone', prefs.timezone)
 
       if ((detectedRole === 'owner') && property.name) {
         await supabase.from('properties').insert({
