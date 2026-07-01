@@ -41,7 +41,7 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6">
+    <div className="bg-background text-foreground min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-xl font-bold tracking-tight">butlr</span>
