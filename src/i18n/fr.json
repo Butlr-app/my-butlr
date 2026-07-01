@@ -446,5 +446,28 @@
       "keys_access": "Clés",
       "cleaning": "Ménage"
     }
+  },
+  "ai": {
+    "title": "Assistant IA",
+    "subtitle": "Votre concierge intelligent",
+    "open": "Ouvrir l'assistant IA",
+    "close": "Fermer l'assistant IA",
+    "placeholder": "Posez-moi une question...",
+    "thinking": "Réflexion en cours...",
+    "clearHistory": "Effacer l'historique",
+    "welcomeTitle": "Bonjour ! Je suis votre assistant IA",
+    "welcomeSubtitle": "Je peux vous aider à gérer vos propriétés, guests et services de manière intelligente.",
+    "quickTasks": "Tâches prioritaires",
+    "quickRevenue": "Analyse revenus",
+    "quickServices": "Suggestions services",
+    "quickCheckin": "Prochain check-in",
+    "insights": "Insights IA",
+    "suggestedTasks": "Tâches suggérées",
+    "suggestedReplies": "Réponses suggérées",
+    "analyzingTasks": "Analyse des tâches à venir...",
+    "poweredBy": "Propulsé par l'IA",
+    "confidence": "Confiance",
+    "accept": "Ajouter",
+    "tasksCreated": "tâche(s) créée(s)"
   }
 }
