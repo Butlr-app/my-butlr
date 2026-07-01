@@ -2,12 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { Sparkles, X, Send, Loader2, Trash2, Minimize2 } from 'lucide-react'
 import { useAiAssistant } from '@/lib/ai/useAiAssistant'
 import { useTranslation } from '@/i18n/LanguageContext'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { cn } from '@/lib/utils'
 
 export function AiAssistantPanel() {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const { messages, loading, sendMessage, clearHistory } = useAiAssistant()
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -65,7 +67,7 @@ export function AiAssistantPanel() {
             <p className="text-xs text-muted-foreground">{t('ai.subtitle')}</p>
           </div>
           <button
-            onClick={clearHistory}
+            onClick={() => setShowClearConfirm(true)}
             className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
             title={t('ai.clearHistory')}
           >
@@ -156,6 +158,14 @@ export function AiAssistantPanel() {
           </div>
         </div>
       </div>
+      <ConfirmModal
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => { clearHistory(); setShowClearConfirm(false) }}
+        title={t('ai.clearHistory')}
+        message={t('ai.clearHistoryConfirm') || 'This will erase all messages. Continue?'}
+        confirmLabel={t('ai.clearHistory')}
+      />
     </>
   )
 }

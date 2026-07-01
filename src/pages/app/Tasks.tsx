@@ -39,7 +39,7 @@ export function Tasks() {
   const { toast } = useToast()
   const { query, filters } = useSearch()
   const { t } = useTranslation()
-  const { filterTasks } = useRoleFilter()
+  const { filterTasks, filterReservations } = useRoleFilter()
   const tasks = filterTasks(rawTasks)
   const [showForm, setShowForm] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -183,7 +183,7 @@ export function Tasks() {
 
       {/* AI Task Suggestions */}
       <AiTaskSuggestions
-        reservations={reservations.map(r => ({
+        reservations={filterReservations(reservations).map(r => ({
           guest_name: r.guest_name,
           arrival: r.arrival,
           departure: r.departure,
