@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   company TEXT,
   role TEXT DEFAULT 'owner' CHECK (role IN ('owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest')),
   avatar_url TEXT,
+  onboarding_completed BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
