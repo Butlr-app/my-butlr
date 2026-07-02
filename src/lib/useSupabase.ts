@@ -889,7 +889,17 @@ export function useMessages(reservationId: string | undefined) {
         table: 'messages',
         filter: `reservation_id=eq.${reservationId}`,
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new as Message])
+        const incoming = payload.new as Message
+        setMessages(prev => (prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]))
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `reservation_id=eq.${reservationId}`,
+      }, (payload) => {
+        const updated = payload.new as Message
+        setMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)))
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -907,7 +917,9 @@ export function useMessages(reservationId: string | undefined) {
       .select()
       .single()
     if (error) throw new Error(error.message)
-    return data as Message
+    const inserted = data as Message
+    setMessages(prev => (prev.some(m => m.id === inserted.id) ? prev : [...prev, inserted]))
+    return inserted
   }
 
   const markRead = useCallback(async (currentUserId: string | undefined) => {
@@ -1308,6 +1320,200 @@ export function useDashboardKPIs() {
   }, [])
 
   return { kpis, loading }
+}
+
+// ─── Inspections ─────────────────────────────────────────────────────────────
+
+export interface Inspection {
+  id: string
+  property_id: string | null
+  inspector_name: string
+  status: 'in_progress' | 'completed'
+  notes: string | null
+  created_at: string
+  updated_at: string
+  property?: Property
+}
+
+export interface InspectionRoom {
+  id: string
+  inspection_id: string
+  room_name: string
+  reference_photo_url: string | null
+  current_photo_url: string | null
+  status: 'pending' | 'ok' | 'issue_found'
+  notes: string | null
+  created_at: string
+}
+
+export interface InspectionReport {
+  id: string
+  inspection_id: string
+  room_name: string | null
+  title: string
+  description: string | null
+  severity: 'minor' | 'moderate' | 'major'
+  photo_url: string | null
+  is_known_issue: boolean
+  resolved: boolean
+  created_at: string
+  updated_at: string
+}
+
+export function useInspections() {
+  const [inspections, setInspections] = useState<Inspection[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchInspections = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('inspections')
+      .select('*')
+      .order('created_at', { ascending: false })
+    const rows = (data ?? []) as Inspection[]
+
+    const propIds = [...new Set(rows.map(r => r.property_id).filter(Boolean))] as string[]
+    if (propIds.length > 0) {
+      const { data: props } = await supabase.from('properties').select('*').in('id', propIds)
+      const map: Record<string, Property> = {}
+      for (const p of (props ?? []) as Property[]) map[p.id] = p
+      setInspections(rows.map(r => ({ ...r, property: r.property_id ? map[r.property_id] : undefined })))
+    } else {
+      setInspections(rows)
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchInspections() }, [fetchInspections])
+
+  const enrichWithProperty = async (row: Inspection): Promise<Inspection> => {
+    if (!row.property_id) return row
+    const existing = inspections.find(i => i.property_id === row.property_id && i.property)
+    if (existing?.property) return { ...row, property: existing.property }
+    const { data: props } = await supabase.from('properties').select('*').eq('id', row.property_id).single()
+    return props ? { ...row, property: props as Property } : row
+  }
+
+  const insert = async (row: Partial<Inspection>) => {
+    const { data, error } = await supabase.from('inspections').insert(row as Record<string, unknown>).select().single()
+    if (error) throw new Error(error.message)
+    const enriched = await enrichWithProperty(data as Inspection)
+    setInspections(prev => [enriched, ...prev])
+    return enriched
+  }
+
+  const update = async (id: string, changes: Partial<Inspection>) => {
+    const { data, error } = await supabase
+      .from('inspections')
+      .update({ ...changes, updated_at: new Date().toISOString() } as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    const enriched = await enrichWithProperty(data as Inspection)
+    setInspections(prev => prev.map(i => i.id === id ? enriched : i))
+    return enriched
+  }
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from('inspections').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setInspections(prev => prev.filter(r => r.id !== id))
+  }
+
+  return { inspections, loading, insert, update, remove, refetch: fetchInspections }
+}
+
+export function useInspectionRooms(inspectionId: string | undefined) {
+  const [rooms, setRooms] = useState<InspectionRoom[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchRooms = useCallback(async () => {
+    if (!inspectionId) { setRooms([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('inspection_rooms')
+      .select('*')
+      .eq('inspection_id', inspectionId)
+      .order('created_at', { ascending: true })
+    setRooms((data ?? []) as InspectionRoom[])
+    setLoading(false)
+  }, [inspectionId])
+
+  useEffect(() => { fetchRooms() }, [fetchRooms])
+
+  const addRoom = async (room: Omit<InspectionRoom, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase.from('inspection_rooms').insert(room as Record<string, unknown>).select().single()
+    if (error) throw new Error(error.message)
+    setRooms(prev => [...prev, data as InspectionRoom])
+    return data as InspectionRoom
+  }
+
+  const updateRoom = async (id: string, changes: Partial<InspectionRoom>) => {
+    const { data, error } = await supabase
+      .from('inspection_rooms')
+      .update(changes as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setRooms(prev => prev.map(r => r.id === id ? (data as InspectionRoom) : r))
+    return data as InspectionRoom
+  }
+
+  const removeRoom = async (id: string) => {
+    const { error } = await supabase.from('inspection_rooms').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setRooms(prev => prev.filter(r => r.id !== id))
+  }
+
+  return { rooms, loading, addRoom, updateRoom, removeRoom, refetch: fetchRooms }
+}
+
+export function useInspectionReports(inspectionId: string | undefined) {
+  const [reports, setReports] = useState<InspectionReport[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchReports = useCallback(async () => {
+    if (!inspectionId) { setReports([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('inspection_reports')
+      .select('*')
+      .eq('inspection_id', inspectionId)
+      .order('created_at', { ascending: false })
+    setReports((data ?? []) as InspectionReport[])
+    setLoading(false)
+  }, [inspectionId])
+
+  useEffect(() => { fetchReports() }, [fetchReports])
+
+  const addReport = async (report: Omit<InspectionReport, 'id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase.from('inspection_reports').insert(report as Record<string, unknown>).select().single()
+    if (error) throw new Error(error.message)
+    setReports(prev => [data as InspectionReport, ...prev])
+    return data as InspectionReport
+  }
+
+  const updateReport = async (id: string, changes: Partial<InspectionReport>) => {
+    const { data, error } = await supabase
+      .from('inspection_reports')
+      .update({ ...changes, updated_at: new Date().toISOString() } as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setReports(prev => prev.map(r => r.id === id ? (data as InspectionReport) : r))
+    return data as InspectionReport
+  }
+
+  const removeReport = async (id: string) => {
+    const { error } = await supabase.from('inspection_reports').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setReports(prev => prev.filter(r => r.id !== id))
+  }
+
+  return { reports, loading, addReport, updateReport, removeReport, refetch: fetchReports }
 }
 
 // ─── Push notifications ────────────────────────────────────────────────────

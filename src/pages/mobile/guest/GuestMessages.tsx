@@ -38,7 +38,7 @@ export function GuestMessages() {
           </p>
           <div className="flex items-center gap-2 mt-6 px-4 py-3 bg-amber-50 rounded-2xl border border-amber-100">
             <Shield className="w-4 h-4 text-amber-600" />
-            <p className="text-xs text-amber-700">All messages are private and encrypted</p>
+            <p className="text-xs text-amber-700">Only you and your property's team can see these messages</p>
           </div>
         </div>
       </div>
@@ -63,10 +63,6 @@ export function GuestMessages() {
                 {currentReservation.property?.name ?? 'Your stay'}
               </p>
             </div>
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-[10px] text-gray-400">Online</span>
           </div>
         </div>
       </div>

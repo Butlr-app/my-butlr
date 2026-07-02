@@ -2,12 +2,15 @@ import { useRef, useState, useEffect } from 'react'
 import { ImagePlus, X, Loader2 } from 'lucide-react'
 import { uploadChatAttachment } from '@/lib/storage'
 
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024
+
 interface ChatImageUploadProps {
   onUploaded: (url: string) => void
+  onError?: (message: string) => void
   disabled?: boolean
 }
 
-export function ChatImageUpload({ onUploaded, disabled }: ChatImageUploadProps) {
+export function ChatImageUpload({ onUploaded, onError, disabled }: ChatImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -19,14 +22,21 @@ export function ChatImageUpload({ onUploaded, disabled }: ChatImageUploadProps) 
   }, [preview])
 
   const handleFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) return
+    if (!file.type.startsWith('image/')) {
+      onError?.('Only image files are allowed')
+      return
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      onError?.('Image too large (max 10 MB)')
+      return
+    }
     setPreview(URL.createObjectURL(file))
     setUploading(true)
     try {
       const url = await uploadChatAttachment(file, 'images')
       onUploaded(url)
-    } catch {
-      // upload failed silently
+    } catch (err) {
+      onError?.((err as Error).message || 'Image upload failed')
     }
     setUploading(false)
     if (preview) URL.revokeObjectURL(preview)

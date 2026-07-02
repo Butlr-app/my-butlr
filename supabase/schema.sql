@@ -462,3 +462,51 @@ CREATE POLICY "Authenticated users can read all guides"
   ON guides FOR SELECT
   TO authenticated
   USING (true);
+
+-- ─── Inspections (état des lieux) ────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS inspections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
+  inspector_name TEXT NOT NULL,
+  status TEXT DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS inspection_rooms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inspection_id UUID NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  room_name TEXT NOT NULL,
+  reference_photo_url TEXT,
+  current_photo_url TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'ok', 'issue_found')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS inspection_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inspection_id UUID NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  room_name TEXT,
+  title TEXT NOT NULL,
+  description TEXT,
+  severity TEXT DEFAULT 'minor' CHECK (severity IN ('minor', 'moderate', 'major')),
+  photo_url TEXT,
+  is_known_issue BOOLEAN DEFAULT false,
+  resolved BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_inspection_rooms_inspection ON inspection_rooms(inspection_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_reports_inspection ON inspection_reports(inspection_id);
+
+ALTER TABLE inspections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inspection_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inspection_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated manage inspections" ON inspections FOR ALL TO authenticated USING (true);
+CREATE POLICY "Authenticated manage inspection_rooms" ON inspection_rooms FOR ALL TO authenticated USING (true);
+CREATE POLICY "Authenticated manage inspection_reports" ON inspection_reports FOR ALL TO authenticated USING (true);
