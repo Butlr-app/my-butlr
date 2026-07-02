@@ -38,17 +38,23 @@ export async function uploadChatAttachment(
   file: File | Blob,
   folder: 'voice' | 'images',
 ): Promise<string> {
+  const mimeExt: Record<string, string> = {
+    'audio/webm': 'webm',
+    'audio/mp4': 'm4a',
+    'audio/aac': 'aac',
+  }
+  const baseType = file.type.split(';')[0]
   const ext =
     file instanceof File
       ? (file.name.split('.').pop() ?? (folder === 'voice' ? 'webm' : 'jpg'))
       : folder === 'voice'
-        ? 'webm'
+        ? (mimeExt[baseType] ?? 'webm')
         : 'jpg'
   const filePath = `${folder}/${crypto.randomUUID()}.${ext}`
   const { error } = await supabase.storage.from(CHAT_BUCKET).upload(filePath, file, {
     cacheControl: '3600',
     upsert: false,
-    contentType: folder === 'voice' ? 'audio/webm' : file.type,
+    contentType: folder === 'voice' ? (baseType || 'audio/webm') : file.type,
   })
   if (error) throw new Error(error.message)
   const { data } = supabase.storage.from(CHAT_BUCKET).getPublicUrl(filePath)

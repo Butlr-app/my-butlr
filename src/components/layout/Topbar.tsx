@@ -12,14 +12,7 @@ interface TopbarProps {
   onMenuClick?: () => void
 }
 
-const roles: { value: Role; label: string }[] = [
-  { value: 'owner', label: 'Owner' },
-  { value: 'house_manager', label: 'House Manager' },
-  { value: 'concierge', label: 'Concierge' },
-  { value: 'agency', label: 'Agency' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'guest', label: 'Guest' },
-]
+const ROLE_VALUES: Role[] = ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest']
 
 const typeIcons: Record<Notification['type'], string> = {
   reservation: 'R',
@@ -98,8 +91,8 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
             onChange={(e) => setRole(e.target.value as Role)}
             className="h-9 px-3 bg-muted border-0 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring hidden sm:block"
           >
-            {roles.map(r => (
-              <option key={r.value} value={r.value}>{r.label}</option>
+            {ROLE_VALUES.map(r => (
+              <option key={r} value={r}>{t(`roles.${r}`)}</option>
             ))}
           </select>
         )}

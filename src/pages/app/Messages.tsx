@@ -6,13 +6,7 @@ import { useConversations } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
 import { MessageSquare, Loader2, Image, Mic, ConciergeBell } from 'lucide-react'
-
-const roleLabels: Record<string, string> = {
-  owner: 'Owner',
-  house_manager: 'House Manager',
-  concierge: 'Concierge',
-  agency: 'Agency',
-}
+import { useTranslation } from '@/i18n/LanguageContext'
 
 const roleColors: Record<string, string> = {
   owner: 'bg-amber-500',
@@ -58,6 +52,7 @@ function LastMessagePreview({ text }: { text: string }) {
 export function Messages() {
   const { user } = useAuth()
   const { role } = useRole()
+  const { t } = useTranslation()
   const { conversations, loading } = useConversations(user?.id)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -67,7 +62,7 @@ export function Messages() {
     }
   }, [conversations, selectedId])
 
-  const senderName = roleLabels[role] ?? 'House Manager'
+  const senderName = t(`roles.${role}`)
   const selected = conversations.find(c => c.reservation_id === selectedId)
 
   const timeAgo = (dateStr: string) => {

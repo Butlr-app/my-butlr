@@ -7,27 +7,11 @@ import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, Briefcase
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
-const roleOptions: { value: Role; label: string }[] = [
-  { value: 'owner', label: 'Owner' },
-  { value: 'house_manager', label: 'House Manager' },
-  { value: 'concierge', label: 'Concierge' },
-  { value: 'agency', label: 'Agency' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'guest', label: 'Guest' },
-]
-
-const roleLabels: Record<string, string> = {
-  owner: 'Admin',
-  house_manager: 'House Manager',
-  concierge: 'Concierge',
-  agency: 'Agency',
-  partner: 'Partner',
-  guest: 'Guest',
-}
+const ROLE_VALUES: Role[] = ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest']
 
 
 const navItems = [
@@ -51,6 +35,7 @@ const navItems = [
   { to: '/app/invoices/generate', icon: FilePlus, labelKey: 'nav.invoiceGen', page: 'invoices' },
   { to: '/app/notifications', icon: Bell, labelKey: 'nav.notifications', page: 'notifications' },
   { to: '/app/guides', icon: BookOpen, labelKey: 'nav.guides', page: 'guides' },
+  { to: '/app/inspections', icon: ClipboardCheck, labelKey: 'nav.inspections', page: 'inspections' },
   { to: '/app/reports', icon: BarChart3, labelKey: 'nav.reports', page: 'reports' },
   { to: '/app/settings', icon: Settings, labelKey: 'nav.settings', page: 'settings' },
 ]
@@ -154,8 +139,8 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               onChange={e => setRole(e.target.value as Role)}
               className="h-9 w-full px-2 bg-muted border-0 rounded-md text-xs font-medium uppercase tracking-wide focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              {roleOptions.map(r => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+              {ROLE_VALUES.map(r => (
+                <option key={r} value={r}>{t(`roles.${r}`)}</option>
               ))}
             </select>
           )}
@@ -169,7 +154,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             {!collapsed && (
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate">{displayName}</p>
-                <p className="text-xs text-white/50 truncate">{roleLabels[role] ?? role}</p>
+                <p className="text-xs text-white/50 truncate">{t(`roles.${role}`)}</p>
               </div>
             )}
           </div>
