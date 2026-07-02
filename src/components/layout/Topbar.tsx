@@ -34,7 +34,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   const [dark, setDark] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
-  const { role, setRole } = useRole()
+  const { role, setRole, canPreviewRoles } = useRole()
   const { signOut, user } = useAuth()
   const { query, setQuery } = useSearch()
   const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications()
@@ -85,15 +85,17 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-3">
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as Role)}
-          className="h-9 px-3 bg-muted border-0 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring hidden sm:block"
-        >
-          {ROLE_VALUES.map(r => (
-            <option key={r} value={r}>{t(`roles.${r}`)}</option>
-          ))}
-        </select>
+        {canPreviewRoles && (
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+            className="h-9 px-3 bg-muted border-0 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring hidden sm:block"
+          >
+            {ROLE_VALUES.map(r => (
+              <option key={r} value={r}>{t(`roles.${r}`)}</option>
+            ))}
+          </select>
+        )}
 
         <div className="relative hidden sm:block">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

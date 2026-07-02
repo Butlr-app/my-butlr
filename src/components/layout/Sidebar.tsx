@@ -50,7 +50,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { isVisible } = useRoleFilter()
   const { t } = useTranslation()
-  const { role, setRole } = useRole()
+  const { role, setRole, canPreviewRoles } = useRole()
   const { query, setQuery } = useSearch()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -133,15 +133,17 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               className="h-9 w-full pl-9 pr-3 bg-muted border-0 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <select
-            value={role}
-            onChange={e => setRole(e.target.value as Role)}
-            className="h-9 w-full px-2 bg-muted border-0 rounded-md text-xs font-medium uppercase tracking-wide focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {ROLE_VALUES.map(r => (
-              <option key={r} value={r}>{t(`roles.${r}`)}</option>
-            ))}
-          </select>
+          {canPreviewRoles && (
+            <select
+              value={role}
+              onChange={e => setRole(e.target.value as Role)}
+              className="h-9 w-full px-2 bg-muted border-0 rounded-md text-xs font-medium uppercase tracking-wide focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {ROLE_VALUES.map(r => (
+                <option key={r} value={r}>{t(`roles.${r}`)}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="p-3 shrink-0 border-t border-white/10">
