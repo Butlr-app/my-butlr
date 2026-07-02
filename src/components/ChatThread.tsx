@@ -145,16 +145,24 @@ export function ChatThread({
 
   return (
     <Card className="flex flex-col" style={{ height }}>
-      <div className="px-5 py-3 border-b border-border">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <MessageSquare className="w-4 h-4" /> {title}
-        </h3>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+          <MessageSquare className="w-4 h-4 text-white" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold truncate">{title}</h3>
+          <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-slate-100/60 dark:from-slate-900 dark:to-slate-950">
         {messages.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-8">No messages yet. Start the conversation!</p>
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
+            <div className="w-14 h-14 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+              <MessageSquare className="w-6 h-6 text-blue-500" />
+            </div>
+            <p className="text-xs text-muted-foreground">No messages yet. Start the conversation!</p>
+          </div>
         )}
         {messages.map(msg => (
           <MessageBubble key={msg.id} msg={msg} isMe={msg.sender_id === userId} />
@@ -162,7 +170,7 @@ export function ChatThread({
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-border bg-card">
         <div className="flex items-center gap-1 relative">
           <ChatImageUpload onUploaded={handleImage} onError={m => toast(m, 'error')} disabled={sending} />
           <VoiceRecorder onRecorded={handleVoice} onError={m => toast(m, 'error')} disabled={sending} />
@@ -183,13 +191,13 @@ export function ChatThread({
             onChange={e => setMsgText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-1 h-9 px-3 bg-muted border-0 rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 h-10 px-4 bg-muted border-0 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
           <Button
             size="sm"
             onClick={handleSend}
             disabled={sending || !msgText.trim() || !userId}
-            className="rounded-full"
+            className="rounded-full h-10 w-10 p-0 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>

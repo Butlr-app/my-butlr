@@ -100,7 +100,7 @@ export function MessageBubble({ msg, isMe }: MessageBubbleProps) {
     <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
       <div className={`flex gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
         {/* Avatar */}
-        <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center shrink-0 mt-0.5`}>
+        <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center shrink-0 self-end mb-0.5 ring-2 ring-white dark:ring-slate-900 shadow-sm`}>
           <span className="text-[10px] font-bold text-white leading-none">
             {getInitials(msg.sender_name)}
           </span>
@@ -118,14 +118,16 @@ export function MessageBubble({ msg, isMe }: MessageBubbleProps) {
             )}
           </div>
 
-          <div className={`rounded-2xl px-3 py-2 shadow-sm border ${
+          <div className={`rounded-2xl shadow-sm border overflow-hidden ${
+            messageType === 'image' || messageType === 'service' ? 'p-1.5' : 'px-3.5 py-2.5'
+          } ${
             isMe
-              ? 'bg-blue-600 text-white border-blue-500/30 rounded-tr-sm'
-              : 'bg-white text-slate-900 border-slate-200 rounded-tl-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700'
+              ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-500/30 rounded-br-md'
+              : 'bg-white text-slate-900 border-slate-200 rounded-bl-md dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700'
           }`}>
             {/* Text */}
             {messageType === 'text' && (
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
             )}
 
             {/* Image */}
@@ -134,11 +136,11 @@ export function MessageBubble({ msg, isMe }: MessageBubbleProps) {
                 <img
                   src={msg.attachment_url}
                   alt="Shared image"
-                  className="max-w-full rounded-lg cursor-pointer"
-                  style={{ maxHeight: '240px' }}
+                  className="max-w-full min-w-[180px] rounded-xl cursor-pointer object-cover transition-opacity hover:opacity-90"
+                  style={{ maxHeight: '280px' }}
                   onClick={() => window.open(msg.attachment_url!, '_blank')}
                 />
-                {msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
+                {msg.content && <p className="text-sm whitespace-pre-wrap px-2 pb-1">{msg.content}</p>}
               </div>
             )}
 
@@ -151,12 +153,14 @@ export function MessageBubble({ msg, isMe }: MessageBubbleProps) {
             {messageType === 'service' && msg.metadata && 'service_name' in msg.metadata && (
               <div className="space-y-1">
                 <ServiceCard meta={msg.metadata as ServiceMessageMeta} isMe={isMe} />
-                {msg.content && <p className="text-sm whitespace-pre-wrap mt-1">{msg.content}</p>}
+                {msg.content && <p className="text-sm whitespace-pre-wrap px-2 pb-1">{msg.content}</p>}
               </div>
             )}
 
             {/* Timestamp */}
-            <p className={`text-[10px] mt-1 ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}>
+            <p className={`text-[10px] mt-1 text-right ${
+              messageType === 'image' || messageType === 'service' ? 'px-2 pb-1' : ''
+            } ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}>
               {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
