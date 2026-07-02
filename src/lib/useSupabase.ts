@@ -888,7 +888,17 @@ export function useMessages(reservationId: string | undefined) {
         table: 'messages',
         filter: `reservation_id=eq.${reservationId}`,
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new as Message])
+        const incoming = payload.new as Message
+        setMessages(prev => (prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]))
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `reservation_id=eq.${reservationId}`,
+      }, (payload) => {
+        const updated = payload.new as Message
+        setMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)))
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -906,7 +916,9 @@ export function useMessages(reservationId: string | undefined) {
       .select()
       .single()
     if (error) throw new Error(error.message)
-    return data as Message
+    const inserted = data as Message
+    setMessages(prev => (prev.some(m => m.id === inserted.id) ? prev : [...prev, inserted]))
+    return inserted
   }
 
   const markRead = useCallback(async (currentUserId: string | undefined) => {

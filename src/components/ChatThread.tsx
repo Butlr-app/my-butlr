@@ -41,17 +41,19 @@ export function ChatThread({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const hasUnread = messages.some(m => !m.read && m.sender_id !== userId)
+
   useEffect(() => {
-    markRead(userId)
-  }, [reservationId, messages.length, markRead, userId])
+    if (hasUnread) markRead(userId)
+  }, [reservationId, hasUnread, markRead, userId])
 
   const handleSend = async () => {
-    if (!msgText.trim()) return
+    if (!msgText.trim() || !userId) return
     setSending(true)
     try {
       await sendMessage({
         reservation_id: reservationId,
-        sender_id: userId ?? '',
+        sender_id: userId,
         sender_name: senderName,
         sender_role: senderRole,
         content: msgText.trim(),
@@ -74,10 +76,11 @@ export function ChatThread({
   }
 
   const handleVoice = async (url: string) => {
+    if (!userId) return
     try {
       await sendMessage({
         reservation_id: reservationId,
-        sender_id: userId ?? '',
+        sender_id: userId,
         sender_name: senderName,
         sender_role: senderRole,
         content: '',
@@ -91,10 +94,11 @@ export function ChatThread({
   }
 
   const handleImage = async (url: string) => {
+    if (!userId) return
     try {
       await sendMessage({
         reservation_id: reservationId,
-        sender_id: userId ?? '',
+        sender_id: userId,
         sender_name: senderName,
         sender_role: senderRole,
         content: '',
@@ -108,10 +112,11 @@ export function ChatThread({
   }
 
   const handleServiceSelect = async (svc: Service) => {
+    if (!userId) return
     try {
       await sendMessage({
         reservation_id: reservationId,
-        sender_id: userId ?? '',
+        sender_id: userId,
         sender_name: senderName,
         sender_role: senderRole,
         content: '',
@@ -159,8 +164,8 @@ export function ChatThread({
 
       <div className="p-3 border-t border-border">
         <div className="flex items-center gap-1 relative">
-          <ChatImageUpload onUploaded={handleImage} disabled={sending} />
-          <VoiceRecorder onRecorded={handleVoice} disabled={sending} />
+          <ChatImageUpload onUploaded={handleImage} onError={m => toast(m, 'error')} disabled={sending} />
+          <VoiceRecorder onRecorded={handleVoice} onError={m => toast(m, 'error')} disabled={sending} />
           {showServicePicker && (
             <button
               type="button"
@@ -183,7 +188,7 @@ export function ChatThread({
           <Button
             size="sm"
             onClick={handleSend}
-            disabled={sending || !msgText.trim()}
+            disabled={sending || !msgText.trim() || !userId}
             className="rounded-full"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
