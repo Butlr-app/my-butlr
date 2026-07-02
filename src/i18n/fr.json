@@ -426,6 +426,14 @@
       "create": "Créer le guide"
     }
   },
+  "roles": {
+    "owner": "Propriétaire",
+    "house_manager": "House Manager",
+    "concierge": "Concierge",
+    "agency": "Agence",
+    "partner": "Partenaire",
+    "guest": "Invité"
+  },
   "guestGuides": {
     "title": "Guides de la propriété",
     "subtitle": "Instructions et conseils pour votre séjour",
