@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, Briefcase
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -51,6 +51,7 @@ const navItems = [
   { to: '/app/invoices/generate', icon: FilePlus, labelKey: 'nav.invoiceGen', page: 'invoices' },
   { to: '/app/notifications', icon: Bell, labelKey: 'nav.notifications', page: 'notifications' },
   { to: '/app/guides', icon: BookOpen, labelKey: 'nav.guides', page: 'guides' },
+  { to: '/app/inspections', icon: ClipboardCheck, labelKey: 'nav.inspections', page: 'inspections' },
   { to: '/app/reports', icon: BarChart3, labelKey: 'nav.reports', page: 'reports' },
   { to: '/app/settings', icon: Settings, labelKey: 'nav.settings', page: 'settings' },
 ]
