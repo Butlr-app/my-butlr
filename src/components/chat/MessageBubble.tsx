@@ -97,69 +97,69 @@ export function MessageBubble({ msg, isMe }: MessageBubbleProps) {
   const messageType = msg.message_type ?? 'text'
 
   return (
-    <div className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-      {/* Avatar */}
-      <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center shrink-0 mt-0.5`}>
-        <span className="text-[10px] font-bold text-white leading-none">
-          {getInitials(msg.sender_name)}
-        </span>
-      </div>
+    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+        {/* Avatar */}
+        <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center shrink-0 mt-0.5`}>
+          <span className="text-[10px] font-bold text-white leading-none">
+            {getInitials(msg.sender_name)}
+          </span>
+        </div>
 
-      {/* Bubble */}
-      <div className={`max-w-[70%] space-y-0.5`}>
-        {/* Sender info */}
-        {!isMe && (
-          <div className="flex items-center gap-1.5 px-1">
-            <span className="text-[11px] font-medium">{msg.sender_name}</span>
+        {/* Bubble */}
+        <div className="space-y-0.5">
+          {/* Sender info */}
+          <div className={`flex items-center gap-1.5 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <span className="text-[11px] font-medium">{isMe ? 'You' : msg.sender_name}</span>
             {roleLabel && (
               <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium text-white ${avatarColor}`}>
                 {roleLabel}
               </span>
             )}
           </div>
-        )}
 
-        <div className={`rounded-2xl px-3 py-2 ${
-          isMe
-            ? 'bg-foreground text-background rounded-tr-sm'
-            : 'bg-muted rounded-tl-sm'
-        }`}>
-          {/* Text */}
-          {messageType === 'text' && (
-            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-          )}
+          <div className={`rounded-2xl px-3 py-2 shadow-sm border ${
+            isMe
+              ? 'bg-blue-600 text-white border-blue-500/30 rounded-tr-sm'
+              : 'bg-white text-slate-900 border-slate-200 rounded-tl-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700'
+          }`}>
+            {/* Text */}
+            {messageType === 'text' && (
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+            )}
 
-          {/* Image */}
-          {messageType === 'image' && msg.attachment_url && (
-            <div className="space-y-1">
-              <img
-                src={msg.attachment_url}
-                alt="Shared image"
-                className="max-w-full rounded-lg cursor-pointer"
-                style={{ maxHeight: '240px' }}
-                onClick={() => window.open(msg.attachment_url!, '_blank')}
-              />
-              {msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
-            </div>
-          )}
+            {/* Image */}
+            {messageType === 'image' && msg.attachment_url && (
+              <div className="space-y-1">
+                <img
+                  src={msg.attachment_url}
+                  alt="Shared image"
+                  className="max-w-full rounded-lg cursor-pointer"
+                  style={{ maxHeight: '240px' }}
+                  onClick={() => window.open(msg.attachment_url!, '_blank')}
+                />
+                {msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
+              </div>
+            )}
 
-          {/* Voice */}
-          {messageType === 'voice' && msg.attachment_url && (
-            <VoicePlayer url={msg.attachment_url} />
-          )}
+            {/* Voice */}
+            {messageType === 'voice' && msg.attachment_url && (
+              <VoicePlayer url={msg.attachment_url} />
+            )}
 
-          {/* Service card */}
-          {messageType === 'service' && msg.metadata && 'service_name' in msg.metadata && (
-            <div className="space-y-1">
-              <ServiceCard meta={msg.metadata as ServiceMessageMeta} isMe={isMe} />
-              {msg.content && <p className="text-sm whitespace-pre-wrap mt-1">{msg.content}</p>}
-            </div>
-          )}
+            {/* Service card */}
+            {messageType === 'service' && msg.metadata && 'service_name' in msg.metadata && (
+              <div className="space-y-1">
+                <ServiceCard meta={msg.metadata as ServiceMessageMeta} isMe={isMe} />
+                {msg.content && <p className="text-sm whitespace-pre-wrap mt-1">{msg.content}</p>}
+              </div>
+            )}
 
-          {/* Timestamp */}
-          <p className={`text-[10px] mt-1 ${isMe ? 'text-background/60' : 'text-muted-foreground'}`}>
-            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
+            {/* Timestamp */}
+            <p className={`text-[10px] mt-1 ${isMe ? 'text-white/70' : 'text-muted-foreground'}`}>
+              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
         </div>
       </div>
     </div>
