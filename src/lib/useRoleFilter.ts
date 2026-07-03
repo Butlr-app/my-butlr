@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -73,6 +73,19 @@ export function useRoleFilter() {
       case 'house_manager':
       case 'concierge':
         return incidents.filter(i => assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterWorkOrders(workOrders: WorkOrder[]): WorkOrder[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return workOrders
+      case 'house_manager':
+      case 'concierge':
+        return workOrders.filter(w => assignedSet.has(w.property_id))
       default:
         return []
     }
@@ -197,6 +210,7 @@ export function useRoleFilter() {
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
       'day-sheet': ['owner', 'house_manager', 'concierge', 'agency'],
       incidents: ['owner', 'house_manager', 'concierge', 'agency'],
+      'work-orders': ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
@@ -222,6 +236,7 @@ export function useRoleFilter() {
     filterReservations,
     filterTasks,
     filterIncidents,
+    filterWorkOrders,
     filterServices,
     filterPayments,
     filterPartners,
