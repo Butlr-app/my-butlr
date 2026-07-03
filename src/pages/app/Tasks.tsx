@@ -8,11 +8,11 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { ExportButton } from '@/components/ExportButton'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { useTasks, useProperties, useReservations, type Task } from '@/lib/useSupabase'
+import { useTasks, useProperties, useReservations, useTeamMembers, useTaskComments, type Task, type TeamMember } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
-import { Plus, Loader2, Pencil, Trash2, Filter } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Filter, MessageSquare, Send, UserRound } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { AiTaskSuggestions } from '@/components/ai/AiTaskSuggestions'
 
@@ -29,6 +29,67 @@ const emptyForm = {
   property_id: '',
   priority: 'medium' as Task['priority'],
   due_date: '',
+  assigned_to: '',
+}
+
+function memberLabel(m: TeamMember | undefined): string {
+  if (!m) return '—'
+  return m.full_name || m.email || '—'
+}
+
+function TaskComments({ task, members }: { task: Task; members: TeamMember[] }) {
+  const { comments, loading, addComment } = useTaskComments(task.id)
+  const { toast } = useToast()
+  const [body, setBody] = useState('')
+  const [sending, setSending] = useState(false)
+  const memberMap = Object.fromEntries(members.map(m => [m.id, m]))
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!body.trim()) return
+    setSending(true)
+    try {
+      await addComment(body.trim())
+      setBody('')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
+      <div className="space-y-3 max-h-64 overflow-y-auto">
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        ) : comments.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No comments yet</p>
+        ) : (
+          comments.map(c => (
+            <div key={c.id} className="border border-border rounded-md p-2">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium">{memberLabel(memberMap[c.author_id])}</p>
+                <p className="text-[10px] tabular-nums text-muted-foreground">{new Date(c.created_at).toLocaleString()}</p>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+            </div>
+          ))
+        )}
+      </div>
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          className="flex-1 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info"
+          placeholder="Write a comment…"
+          value={body}
+          onChange={e => setBody(e.target.value)}
+        />
+        <Button type="submit" size="sm" disabled={sending || !body.trim()}>
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </Button>
+      </form>
+    </div>
+  )
 }
 
 export function Tasks() {
@@ -39,7 +100,9 @@ export function Tasks() {
   const { query, filters } = useSearch()
   const { t } = useTranslation()
   const { filterTasks, filterReservations } = useRoleFilter()
+  const { members } = useTeamMembers()
   const tasks = filterTasks(rawTasks)
+  const [commentsTask, setCommentsTask] = useState<Task | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -90,6 +153,7 @@ export function Tasks() {
       property_id: t.property_id ?? '',
       priority: t.priority,
       due_date: t.due_date ?? '',
+      assigned_to: t.assigned_to ?? '',
     })
     setErrors({})
     setShowForm(true)
@@ -105,6 +169,7 @@ export function Tasks() {
           ...form,
           property_id: form.property_id || null,
           due_date: form.due_date || null,
+          assigned_to: form.assigned_to || null,
           status: editingStatus,
         })
         toast('Task updated')
@@ -113,6 +178,7 @@ export function Tasks() {
           ...form,
           property_id: form.property_id || null,
           due_date: form.due_date || null,
+          assigned_to: form.assigned_to || null,
           status: 'todo',
         })
         toast('Task created')
@@ -147,6 +213,7 @@ export function Tasks() {
   }
 
   const propertyMap = Object.fromEntries(properties.map(p => [p.id, p.name]))
+  const memberMap = Object.fromEntries(members.map(m => [m.id, m]))
 
   if (loading) {
     return (
@@ -207,6 +274,9 @@ export function Tasks() {
                     <div className="flex items-start justify-between mb-2">
                       <p className="text-sm font-medium flex-1">{task.title}</p>
                       <div className="flex items-center gap-1 ml-2 shrink-0">
+                        <button onClick={() => setCommentsTask(task)} className="text-muted-foreground hover:text-foreground transition-colors" title="Comments">
+                          <MessageSquare className="w-3 h-3" />
+                        </button>
                         <button onClick={() => openEdit(task)} className="text-muted-foreground hover:text-foreground transition-colors">
                           <Pencil className="w-3 h-3" />
                         </button>
@@ -229,6 +299,11 @@ export function Tasks() {
                         {task.priority}
                       </Badge>
                     </div>
+                    {task.assigned_to && (
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <UserRound className="w-3 h-3" /> {memberLabel(memberMap[task.assigned_to])}
+                      </p>
+                    )}
                     {task.due_date && (
                       <p className="text-[10px] tabular-nums text-muted-foreground mb-2">Due: {task.due_date}</p>
                     )}
@@ -279,6 +354,15 @@ export function Tasks() {
               ...properties.map(p => ({ value: p.id, label: p.name })),
             ]}
           />
+          <Select
+            label="Assigned to"
+            value={form.assigned_to}
+            onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...members.map(m => ({ value: m.id, label: `${memberLabel(m)} (${m.role.replace('_', ' ')})` })),
+            ]}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Priority"
@@ -308,6 +392,10 @@ export function Tasks() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!commentsTask} onClose={() => setCommentsTask(null)} title={commentsTask?.title ?? ''}>
+        {commentsTask && <TaskComments task={commentsTask} members={members} />}
       </Modal>
 
       <ConfirmModal
