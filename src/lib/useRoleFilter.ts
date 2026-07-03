@@ -185,7 +185,7 @@ export function useRoleFilter() {
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
       'concierge-portal': ['owner', 'agency'],
       payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
-      apa: ['owner', 'agency', 'house_manager'],
+      apa: ['owner', 'agency'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],
       invoices: ['owner', 'agency', 'house_manager', 'concierge'],
       guides: ['owner', 'house_manager', 'concierge', 'agency'],

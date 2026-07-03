@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { ExportButton } from '@/components/ExportButton'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { useTasks, useProperties, useNotifications, useReservations, type Task } from '@/lib/useSupabase'
+import { useTasks, useProperties, useReservations, type Task } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
@@ -35,7 +35,6 @@ export function Tasks() {
   const { data: rawTasks, loading, insert, update, remove } = useTasks()
   const { data: properties } = useProperties()
   const { data: reservations } = useReservations()
-  const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query, filters } = useSearch()
   const { t } = useTranslation()
@@ -116,14 +115,6 @@ export function Tasks() {
           due_date: form.due_date || null,
           status: 'todo',
         })
-        await insertNotification({
-          user_id: null,
-          type: 'task',
-          title: 'New task assigned',
-          message: `Task: ${form.title}${form.due_date ? ` (due ${form.due_date})` : ''}`,
-          data: { title: form.title },
-          related_id: null,
-        }).catch(() => {})
         toast('Task created')
       }
       setShowForm(false)

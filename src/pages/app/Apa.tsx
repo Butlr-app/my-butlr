@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { Badge } from '@/components/ui/Badge'
@@ -16,7 +17,7 @@ const euro = (n: number) => `€${Number(n).toLocaleString(undefined, { minimumF
 export function Apa() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { canEdit } = useRoleFilter()
+  const { canEdit, isVisible } = useRoleFilter()
   const editable = canEdit('apa')
   const { data: payments, loading: lPay, update: updatePayment } = usePayments()
   const { data: payouts, loading: lPayouts, insertMany, update: updatePayout, refetch } = usePayouts()
@@ -109,6 +110,10 @@ export function Apa() {
       toast((err as Error).message, 'error')
     }
     setGenerating(false)
+  }
+
+  if (!isVisible('apa')) {
+    return <Navigate to="/app" replace />
   }
 
   if (loading) {

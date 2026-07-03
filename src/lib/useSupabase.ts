@@ -582,8 +582,11 @@ export function useNotifications() {
     const channelName = `notifications-realtime-${crypto.randomUUID()}`
     const channel = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev])
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, async (payload) => {
+        const notif = payload.new as Notification
+        const { data: { user } } = await supabase.auth.getUser()
+        if (notif.user_id !== null && notif.user_id !== user?.id) return
+        setNotifications(prev => (prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]))
       })
       .subscribe()
 
