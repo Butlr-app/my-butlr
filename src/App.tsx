@@ -19,6 +19,7 @@ import { Messages } from './pages/app/Messages'
 import { Services } from './pages/app/Services'
 import { ServiceRequests } from './pages/app/ServiceRequests'
 import { Tasks } from './pages/app/Tasks'
+import { DaySheet } from './pages/app/DaySheet'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
 import { ServiceProviders } from './pages/app/ServiceProviders'
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="services" element={<Services />} />
           <Route path="service-requests" element={<ServiceRequests />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="day-sheet" element={<DaySheet />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="service-providers" element={<ServiceProviders />} />

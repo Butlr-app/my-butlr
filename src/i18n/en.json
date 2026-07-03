@@ -8,6 +8,7 @@
     "services": "Services",
     "serviceRequests": "Service Requests",
     "tasks": "Tasks",
+    "daySheet": "Day Sheet",
     "calendar": "Calendar",
     "partners": "Partners",
     "serviceProviders": "Directory",
@@ -197,6 +198,28 @@
     "low": "Low",
     "priority": "Priority",
     "dueDate": "Due Date"
+  },
+  "daySheet": {
+    "title": "Day Sheet",
+    "arrivals": "Arrivals",
+    "departures": "Departures",
+    "inHouse": "In-house",
+    "tasksDue": "Tasks of the day",
+    "noActivity": "No arrivals, departures or tasks for this day.",
+    "guests": "guests",
+    "until": "until",
+    "since": "since",
+    "assignedTo": "Assigned to",
+    "print": "Print",
+    "today": "Today",
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "status": {
+      "todo": "To do",
+      "in_progress": "In progress",
+      "waiting": "Waiting",
+      "done": "Done"
+    }
   },
   "partners": {
     "title": "Partners",

@@ -8,6 +8,7 @@
     "services": "Services",
     "serviceRequests": "Demandes de services",
     "tasks": "Tâches",
+    "daySheet": "Journée",
     "calendar": "Calendrier",
     "partners": "Partenaires",
     "serviceProviders": "Annuaire",
@@ -197,6 +198,28 @@
     "low": "Basse",
     "priority": "Priorité",
     "dueDate": "Date d'échéance"
+  },
+  "daySheet": {
+    "title": "Feuille de route du jour",
+    "arrivals": "Arrivées",
+    "departures": "Départs",
+    "inHouse": "Sur place",
+    "tasksDue": "Tâches du jour",
+    "noActivity": "Aucune arrivée, départ ou tâche pour cette journée.",
+    "guests": "voyageurs",
+    "until": "jusqu'au",
+    "since": "depuis le",
+    "assignedTo": "Assignée à",
+    "print": "Imprimer",
+    "today": "Aujourd'hui",
+    "previousDay": "Jour précédent",
+    "nextDay": "Jour suivant",
+    "status": {
+      "todo": "À faire",
+      "in_progress": "En cours",
+      "waiting": "En attente",
+      "done": "Terminé"
+    }
   },
   "partners": {
     "title": "Partenaires",

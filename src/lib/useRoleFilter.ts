@@ -182,6 +182,7 @@ export function useRoleFilter() {
       services: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       'service-requests': ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
+      'day-sheet': ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
