@@ -78,6 +78,8 @@ export interface Task {
   priority: 'low' | 'medium' | 'high'
   assigned_to: string | null
   due_date: string | null
+  template_id: string | null
+  reservation_id: string | null
   created_at: string
   updated_at: string
   property?: Property
@@ -371,6 +373,29 @@ export function useServices() {
 
 export function useTasks() {
   return useTable<Task>('tasks')
+}
+
+export interface TaskTemplate {
+  id: string
+  property_id: string | null
+  title: string
+  description: string | null
+  priority: 'low' | 'medium' | 'high'
+  trigger_type: 'checkout' | 'recurring'
+  recurrence: 'daily' | 'weekly' | 'monthly' | null
+  assigned_to: string | null
+  active: boolean
+  created_at: string
+}
+
+export function useTaskTemplates() {
+  return useTable<TaskTemplate>('task_templates')
+}
+
+export async function generateRecurringTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_recurring_tasks')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
 }
 
 export interface TeamMember {
