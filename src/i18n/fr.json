@@ -9,6 +9,7 @@
     "serviceRequests": "Demandes de services",
     "tasks": "Tâches",
     "daySheet": "Journée",
+    "incidents": "Incidents",
     "calendar": "Calendrier",
     "partners": "Partenaires",
     "serviceProviders": "Annuaire",
@@ -219,6 +220,52 @@
       "in_progress": "En cours",
       "waiting": "En attente",
       "done": "Terminé"
+    }
+  },
+  "incidents": {
+    "title": "Incidents",
+    "subtitle": "Problèmes de maintenance et dégâts par villa.",
+    "report": "Déclarer un incident",
+    "reported": "Incident déclaré",
+    "updated": "Incident mis à jour",
+    "deleted": "Incident supprimé",
+    "empty": "Aucun incident pour ce filtre.",
+    "property": "Propriété",
+    "incidentTitle": "Titre",
+    "titlePlaceholder": "ex. Pompe de piscine en panne",
+    "description": "Description",
+    "categoryLabel": "Catégorie",
+    "urgencyLabel": "Urgence",
+    "assignedTo": "Assigné à",
+    "unassigned": "Non assigné",
+    "reportedBy": "Déclaré par",
+    "resolutionNote": "Note de résolution",
+    "resolvedAt": "Résolu le",
+    "filterActive": "Actifs (ouverts + en cours)",
+    "filterAll": "Tous les statuts",
+    "allProperties": "Toutes les propriétés",
+    "formError": "Le titre et la propriété sont requis",
+    "deleteTitle": "Supprimer l'incident",
+    "deleteMessage": "Supprimer l'incident « {title} » ? Cette action est irréversible.",
+    "category": {
+      "equipment": "Équipement",
+      "plumbing": "Plomberie",
+      "electrical": "Électricité",
+      "damage": "Dégât",
+      "security": "Sécurité",
+      "other": "Autre"
+    },
+    "urgency": {
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Haute",
+      "critical": "Critique"
+    },
+    "status": {
+      "open": "Ouvert",
+      "in_progress": "En cours",
+      "resolved": "Résolu",
+      "closed": "Clôturé"
     }
   },
   "partners": {

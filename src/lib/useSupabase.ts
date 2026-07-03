@@ -438,6 +438,27 @@ export async function generateRecurringTasks(): Promise<number> {
   return (data ?? 0) as number
 }
 
+export interface Incident {
+  id: string
+  property_id: string
+  title: string
+  description: string | null
+  category: 'equipment' | 'plumbing' | 'electrical' | 'damage' | 'security' | 'other'
+  urgency: 'low' | 'medium' | 'high' | 'critical'
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  photo_url: string | null
+  reported_by: string | null
+  assigned_to: string | null
+  resolution_note: string | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useIncidents() {
+  return useTable<Incident>('incidents')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null
@@ -655,7 +676,7 @@ export function useProfile() {
 export interface Notification {
   id: string
   user_id: string | null
-  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request'
+  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident'
   title: string
   message: string | null
   read: boolean

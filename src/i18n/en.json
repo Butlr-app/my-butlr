@@ -9,6 +9,7 @@
     "serviceRequests": "Service Requests",
     "tasks": "Tasks",
     "daySheet": "Day Sheet",
+    "incidents": "Incidents",
     "calendar": "Calendar",
     "partners": "Partners",
     "serviceProviders": "Directory",
@@ -219,6 +220,52 @@
       "in_progress": "In progress",
       "waiting": "Waiting",
       "done": "Done"
+    }
+  },
+  "incidents": {
+    "title": "Incidents",
+    "subtitle": "Maintenance issues and damage reports per villa.",
+    "report": "Report incident",
+    "reported": "Incident reported",
+    "updated": "Incident updated",
+    "deleted": "Incident deleted",
+    "empty": "No incidents for this filter.",
+    "property": "Property",
+    "incidentTitle": "Title",
+    "titlePlaceholder": "e.g. Pool pump not working",
+    "description": "Description",
+    "categoryLabel": "Category",
+    "urgencyLabel": "Urgency",
+    "assignedTo": "Assigned to",
+    "unassigned": "Unassigned",
+    "reportedBy": "Reported by",
+    "resolutionNote": "Resolution note",
+    "resolvedAt": "Resolved at",
+    "filterActive": "Active (open + in progress)",
+    "filterAll": "All statuses",
+    "allProperties": "All properties",
+    "formError": "Title and property are required",
+    "deleteTitle": "Delete incident",
+    "deleteMessage": "Delete incident \"{title}\"? This cannot be undone.",
+    "category": {
+      "equipment": "Equipment",
+      "plumbing": "Plumbing",
+      "electrical": "Electrical",
+      "damage": "Damage",
+      "security": "Security",
+      "other": "Other"
+    },
+    "urgency": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "resolved": "Resolved",
+      "closed": "Closed"
     }
   },
   "partners": {
