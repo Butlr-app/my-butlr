@@ -150,6 +150,7 @@ export function useRoleFilter() {
 
   function canEdit(page: string): boolean {
     if (role === 'owner' || role === 'agency') return true
+    if (page === 'apa') return false
     const rolePerms = permissions[role]
     if (rolePerms && rolePerms[page]) {
       return rolePerms[page].edit
@@ -167,6 +168,7 @@ export function useRoleFilter() {
 
   function isVisible(page: string): boolean {
     if (role === 'owner' || role === 'agency') return true
+    if (page === 'apa') return false
     const rolePerms = permissions[role]
     if (rolePerms && rolePerms[page]) {
       return rolePerms[page].view
