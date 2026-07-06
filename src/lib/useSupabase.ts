@@ -1509,8 +1509,12 @@ export interface Inspection {
   id: string
   property_id: string | null
   inspector_name: string
+  inspection_type: 'check_in' | 'check_out' | 'routine'
   status: 'in_progress' | 'completed'
   notes: string | null
+  signature_data: string | null
+  completed_at: string | null
+  created_by: string | null
   created_at: string
   updated_at: string
   property?: Property

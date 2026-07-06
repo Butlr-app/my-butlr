@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -86,6 +86,19 @@ export function useRoleFilter() {
       case 'house_manager':
       case 'concierge':
         return workOrders.filter(w => assignedSet.has(w.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterInspections(inspections: Inspection[]): Inspection[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return inspections
+      case 'house_manager':
+      case 'concierge':
+        return inspections.filter(i => i.property_id !== null && assignedSet.has(i.property_id))
       default:
         return []
     }
@@ -237,6 +250,7 @@ export function useRoleFilter() {
     filterTasks,
     filterIncidents,
     filterWorkOrders,
+    filterInspections,
     filterServices,
     filterPayments,
     filterPartners,

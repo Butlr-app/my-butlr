@@ -792,6 +792,17 @@
     "subtitle": "Inspections entre chaque client",
     "newInspection": "Nouvel état des lieux",
     "inspector": "Inspecteur",
+    "type": "Type",
+    "types": {
+      "check_in": "Entrée",
+      "check_out": "Sortie",
+      "routine": "Routine"
+    },
+    "signature": "Signature",
+    "signatureHelp": "Signez ci-dessous pour terminer cet état des lieux. La signature est conservée avec le rapport.",
+    "signAndComplete": "Signer et terminer",
+    "completedToast": "État des lieux terminé",
+    "completedAt": "Terminé le",
     "property": "Propriété",
     "selectProperty": "Sélectionner une propriété",
     "date": "Date",

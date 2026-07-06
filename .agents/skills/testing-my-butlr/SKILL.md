@@ -283,6 +283,16 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
   `curl -s -X POST "https://api.supabase.com/v1/projects/kpcahtliadmsaoespwpv/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -d '{"query":"<SQL>"}'`
 - Always inject with a distinctive tag (e.g. guest_name "E2E ...") and **delete it in the same session** after the test; verify the row count returns to baseline (payments baseline = 10, all 2026).
 
+### 23. Work Orders — Ordres de mission prestataires (`/app/work-orders`)
+- Seed via Management API with a phase prefix (e.g. `PH32`): 1 active provider (service_providers), 1 open incident on the HM's assigned villa. Clean up all prefixed rows at the end.
+- HM flow: "New work order" form — Property select must list ONLY assigned villas; link provider + incident; submit → toast "Work order sent", card with "Sent" badge showing provider and incident.
+- HM restrictions in detail modal: status select must NOT contain "Validated" (owner-only) and no Delete button. Adversarial: PATCH `status=validated` via REST as HM → HTTP 400 "Only owners can validate a quote" (DB trigger, not just UI).
+- Owner flow: sees "Validated" option; "Completed" auto-sets `completed_at` (verify in DB: NULL while validated, set when completed); final cost shown on card instead of quote.
+- Notifications: owner gets "New work order" / "Work order quote received"; the actor is never notified for their own action (verify in DB).
+- Isolation: create an order on a non-assigned villa as owner → HM must not see it (UI + REST returns only assigned-villa rows); HM DELETE via REST removes 0 rows (RLS), owner delete works via ConfirmModal.
+- Gotcha — stale `useMemo` filtering: pages that filter lists through `useRoleFilter` helpers may render empty for HM if the filter is memoized with incomplete deps (role assignments load async). If an HM list is unexpectedly empty, check for `useMemo` around `filterX(...)` calls and prefer direct computation per render.
+- Gotcha — native `<select>` via computer tool: `key "Down Down Down"` is invalid (one key per call); either click the option in the opened dropdown or send separate Down presses.
+
 ## Troubleshooting
 
 - **Login fails**: Check test account exists in Supabase Auth. Email confirmation should be disabled.
