@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -99,6 +99,19 @@ export function useRoleFilter() {
       case 'house_manager':
       case 'concierge':
         return inspections.filter(i => i.property_id !== null && assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterInventoryItems(items: InventoryItem[]): InventoryItem[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return items
+      case 'house_manager':
+      case 'concierge':
+        return items.filter(i => assignedSet.has(i.property_id))
       default:
         return []
     }
@@ -224,6 +237,7 @@ export function useRoleFilter() {
       'day-sheet': ['owner', 'house_manager', 'concierge', 'agency'],
       incidents: ['owner', 'house_manager', 'concierge', 'agency'],
       'work-orders': ['owner', 'house_manager', 'concierge', 'agency'],
+      inventory: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
@@ -251,6 +265,7 @@ export function useRoleFilter() {
     filterIncidents,
     filterWorkOrders,
     filterInspections,
+    filterInventoryItems,
     filterServices,
     filterPayments,
     filterPartners,
