@@ -24,6 +24,7 @@ const typeIcons: Record<Notification['type'], string> = {
   work_order: 'W',
   inspection: 'IN',
   inventory: 'ST',
+  expense: 'E',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -36,6 +37,7 @@ const typeColors: Record<Notification['type'], string> = {
   work_order: 'bg-info/10 text-info',
   inspection: 'bg-info/10 text-info',
   inventory: 'bg-warning/10 text-warning',
+  expense: 'bg-success/10 text-success',
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {

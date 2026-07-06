@@ -23,6 +23,7 @@ import { DaySheet } from './pages/app/DaySheet'
 import { Incidents } from './pages/app/Incidents'
 import { WorkOrders } from './pages/app/WorkOrders'
 import { Inventory } from './pages/app/Inventory'
+import { Expenses } from './pages/app/Expenses'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
 import { ServiceProviders } from './pages/app/ServiceProviders'
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="incidents" element={<Incidents />} />
           <Route path="work-orders" element={<WorkOrders />} />
           <Route path="inventory" element={<Inventory />} />
+          <Route path="expenses" element={<Expenses />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="service-providers" element={<ServiceProviders />} />

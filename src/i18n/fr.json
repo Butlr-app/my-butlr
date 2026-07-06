@@ -12,6 +12,7 @@
     "incidents": "Incidents",
     "workOrders": "Ordres de mission",
     "inventory": "Inventaire",
+    "expenses": "Dépenses",
     "calendar": "Calendrier",
     "partners": "Partenaires",
     "serviceProviders": "Annuaire",
@@ -836,6 +837,50 @@
       "usage": "Consommation",
       "loss": "Perte / casse",
       "adjustment": "Ajustement"
+    }
+  },
+  "expenses": {
+    "title": "Dépenses",
+    "subtitle": "Dépenses opérationnelles par villa avec justificatifs.",
+    "addExpense": "Ajouter une dépense",
+    "created": "Dépense enregistrée",
+    "deleted": "Dépense supprimée",
+    "approved": "Dépense approuvée",
+    "rejected": "Dépense rejetée",
+    "empty": "Aucune dépense pour ce filtre.",
+    "property": "Propriété",
+    "labelLabel": "Libellé",
+    "labelPlaceholder": "ex. Produits d'entretien piscine",
+    "categoryLabel": "Catégorie",
+    "vendorLabel": "Fournisseur (optionnel)",
+    "amountLabel": "Montant (€)",
+    "dateLabel": "Date",
+    "noteLabel": "Note (optionnel)",
+    "formError": "Libellé, propriété et montant positif requis",
+    "attachReceipt": "Joindre un justificatif",
+    "receiptAttached": "Justificatif joint — remplacer",
+    "receipt": "Justificatif",
+    "noReceipt": "Aucun justificatif joint.",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "total": "Total",
+    "allProperties": "Toutes les propriétés",
+    "allCategories": "Toutes les catégories",
+    "allStatuses": "Tous les statuts",
+    "deleteTitle": "Supprimer la dépense",
+    "deleteMessage": "Supprimer la dépense \"{label}\" ? Cette action est irréversible.",
+    "category": {
+      "cleaning": "Ménage",
+      "maintenance": "Maintenance",
+      "supplies": "Fournitures",
+      "utilities": "Charges",
+      "staff": "Personnel",
+      "other": "Autre"
+    },
+    "status": {
+      "pending": "En attente",
+      "approved": "Approuvée",
+      "rejected": "Rejetée"
     }
   },
   "inspections": {
