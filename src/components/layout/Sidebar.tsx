@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, CalendarCheck2, AlertTriangle, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote, Smartphone
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -61,6 +61,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   const { user } = useAuth()
 
   const visibleItems = navItems.filter(item => isVisible(item.page))
+  const showMobileApp = role === 'house_manager' || role === 'concierge'
   const email = user?.email ?? 'user@mybutlr.com'
   const displayName = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   const initial = displayName.charAt(0).toUpperCase()
@@ -124,6 +125,19 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
             </NavLink>
           ))}
+          {showMobileApp && (
+            <NavLink
+              to="/hm"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'flex items-center gap-3 h-11 px-3 rounded-xl text-sm transition-colors',
+                'text-white/60 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              <Smartphone className="w-[18px] h-[18px] shrink-0" />
+              {!collapsed && <span className="truncate">{t('nav.mobileApp')}</span>}
+            </NavLink>
+          )}
         </nav>
 
         <div className="lg:hidden border-t border-white/10 p-3 space-y-2">

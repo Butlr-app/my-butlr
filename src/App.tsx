@@ -55,6 +55,11 @@ import { PartnerBookings } from './pages/mobile/partner/PartnerBookings'
 import { PartnerEarnings } from './pages/mobile/partner/PartnerEarnings'
 import { PartnerServices } from './pages/mobile/partner/PartnerServices'
 import { PartnerProfile } from './pages/mobile/partner/PartnerProfile'
+import { HmLayout } from './pages/mobile/hm/HmLayout'
+import { HmToday } from './pages/mobile/hm/HmToday'
+import { HmTasks } from './pages/mobile/hm/HmTasks'
+import { HmIncidents } from './pages/mobile/hm/HmIncidents'
+import { HmProfile } from './pages/mobile/hm/HmProfile'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
@@ -143,6 +148,14 @@ export default function App() {
           <Route path="earnings" element={<PartnerEarnings />} />
           <Route path="services" element={<PartnerServices />} />
           <Route path="profile" element={<PartnerProfile />} />
+        </Route>
+
+        {/* House Manager Mobile App */}
+        <Route path="/hm" element={<ProtectedRoute><HmLayout /></ProtectedRoute>}>
+          <Route index element={<HmToday />} />
+          <Route path="tasks" element={<HmTasks />} />
+          <Route path="incidents" element={<HmIncidents />} />
+          <Route path="profile" element={<HmProfile />} />
         </Route>
 
         {/* 404 */}
