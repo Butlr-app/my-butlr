@@ -376,7 +376,9 @@
     "statusConfirmed": "Confirmed",
     "statusInProgress": "In Progress",
     "statusCompleted": "Completed",
-    "statusCancelled": "Cancelled"
+    "statusCancelled": "Cancelled",
+    "tabFinancial": "Financial",
+    "tabOperations": "Operations"
   },
   "search": {
     "title": "Search Results",
@@ -970,5 +972,23 @@
     "confidence": "Confidence",
     "accept": "Add",
     "tasksCreated": "task(s) created"
+  },
+  "reportsOps": {
+    "title": "Operations Report",
+    "subtitle": "Operational performance per villa",
+    "summary": "Operations Summary",
+    "completionRate": "Task Completion",
+    "onTimeRate": "On-time completion",
+    "avgResolution": "Avg Incident Resolution",
+    "openIncidents": "Open Incidents",
+    "maintenanceCost": "Maintenance Cost",
+    "incidents": "Incidents",
+    "incidentsByMonth": "Incidents per Month",
+    "completionByMonth": "Task Completion per Month (%)",
+    "perVilla": "Performance per Villa",
+    "villa": "Villa",
+    "tasksDone": "Tasks done",
+    "hourShort": "h",
+    "dayShort": "d"
   }
 }

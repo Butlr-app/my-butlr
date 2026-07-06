@@ -376,7 +376,9 @@
     "statusConfirmed": "Confirmée",
     "statusInProgress": "En cours",
     "statusCompleted": "Terminée",
-    "statusCancelled": "Annulée"
+    "statusCancelled": "Annulée",
+    "tabFinancial": "Financier",
+    "tabOperations": "Opérations"
   },
   "search": {
     "title": "Résultats de recherche",
@@ -970,5 +972,23 @@
     "confidence": "Confiance",
     "accept": "Ajouter",
     "tasksCreated": "tâche(s) créée(s)"
+  },
+  "reportsOps": {
+    "title": "Rapport opérationnel",
+    "subtitle": "Performance opérationnelle par villa",
+    "summary": "Synthèse opérationnelle",
+    "completionRate": "Complétion des tâches",
+    "onTimeRate": "Complétion dans les délais",
+    "avgResolution": "Résolution moyenne incidents",
+    "openIncidents": "Incidents ouverts",
+    "maintenanceCost": "Coûts de maintenance",
+    "incidents": "Incidents",
+    "incidentsByMonth": "Incidents par mois",
+    "completionByMonth": "Complétion des tâches par mois (%)",
+    "perVilla": "Performance par villa",
+    "villa": "Villa",
+    "tasksDone": "Tâches terminées",
+    "hourShort": "h",
+    "dayShort": "j"
   }
 }
