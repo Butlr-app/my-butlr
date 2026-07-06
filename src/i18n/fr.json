@@ -243,6 +243,7 @@
     "assignedTo": "Assigné à",
     "unassigned": "Non assigné",
     "reportedBy": "Déclaré par",
+    "photo": "Photo de l'incident",
     "resolutionNote": "Note de résolution",
     "resolvedAt": "Résolu le",
     "filterActive": "Actifs (ouverts + en cours)",

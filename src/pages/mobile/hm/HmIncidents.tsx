@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { useIncidents, useProperties, type Incident } from '@/lib/useSupabase'
+import { useEffect, useRef, useState } from 'react'
+import { useIncidents, useProperties, type Incident, type Property } from '@/lib/useSupabase'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
-import { Loader2, AlertTriangle, Plus, X } from 'lucide-react'
+import { uploadFile } from '@/lib/storage'
+import { useCachedRows, useOnlineStatus, queueOp, getPendingIncidents, SYNC_EVENT } from '@/lib/offline'
+import { Loader2, AlertTriangle, Plus, X, Camera, CloudOff } from 'lucide-react'
 
 const CATEGORIES: Incident['category'][] = ['equipment', 'plumbing', 'electrical', 'damage', 'security', 'other']
 const URGENCIES: Incident['urgency'][] = ['low', 'medium', 'high', 'critical']
@@ -24,13 +26,19 @@ const STATUS_STYLE: Record<Incident['status'], string> = {
 
 export function HmIncidents() {
   const { user } = useAuth()
-  const { data: rawIncidents, loading: lInc, insert } = useIncidents()
-  const { data: rawProperties, loading: lProps } = useProperties()
+  const { data: rawIncidents, loading: lInc, error: eInc, insert, refetch } = useIncidents()
+  const { data: rawProperties, loading: lProps, error: eProps } = useProperties()
   const { filterIncidents, filterProperties, loading: lRole } = useRoleFilter()
   const { toast } = useToast()
+  const online = useOnlineStatus()
 
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [viewPhoto, setViewPhoto] = useState<string | null>(null)
+  const [pendingRows, setPendingRows] = useState(() => getPendingIncidents())
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     property_id: '',
     title: '',
@@ -38,6 +46,25 @@ export function HmIncidents() {
     category: 'equipment' as Incident['category'],
     urgency: 'medium' as Incident['urgency'],
   })
+
+  const incidentRows = useCachedRows<Incident>('incidents', rawIncidents, lInc, eInc)
+  const propertyRows = useCachedRows<Property>('properties', rawProperties, lProps, eProps)
+
+  useEffect(() => {
+    const onSynced = () => {
+      setPendingRows(getPendingIncidents())
+      refetch()
+    }
+    window.addEventListener(SYNC_EVENT, onSynced)
+    return () => window.removeEventListener(SYNC_EVENT, onSynced)
+  }, [refetch])
+
+  useEffect(() => {
+    if (!photo) { setPhotoPreview(null); return }
+    const url = URL.createObjectURL(photo)
+    setPhotoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [photo])
 
   const loading = lInc || lProps || lRole
 
@@ -49,31 +76,49 @@ export function HmIncidents() {
     )
   }
 
-  const properties = filterProperties(rawProperties)
+  const properties = filterProperties(propertyRows.rows)
   const propertyName = (id: string) => properties.find(p => p.id === id)?.name ?? 'Property'
-  const incidents = filterIncidents(rawIncidents)
+  const incidents = filterIncidents(incidentRows.rows)
     .slice()
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+  const resetForm = () => {
+    setFormOpen(false)
+    setPhoto(null)
+    setForm({ property_id: '', title: '', description: '', category: 'equipment', urgency: 'medium' })
+  }
 
   const submit = async () => {
     if (!form.property_id || !form.title.trim()) {
       toast('Property and title are required', 'error')
       return
     }
+    const row = {
+      property_id: form.property_id,
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      category: form.category,
+      urgency: form.urgency,
+      status: 'open' as const,
+      reported_by: user?.id ?? null,
+    }
+    if (!online) {
+      // Photos cannot be uploaded offline — queue the report without one.
+      queueOp({ kind: 'incident_insert', tempId: crypto.randomUUID(), row })
+      setPendingRows(getPendingIncidents())
+      toast(photo ? 'Saved offline without photo — will sync' : 'Saved offline — will sync when back online')
+      resetForm()
+      return
+    }
     setSaving(true)
     try {
-      await insert({
-        property_id: form.property_id,
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        category: form.category,
-        urgency: form.urgency,
-        status: 'open',
-        reported_by: user?.id ?? null,
-      })
+      let photo_url: string | null = null
+      if (photo) {
+        photo_url = await uploadFile(`incidents/${form.property_id}`, photo)
+      }
+      await insert({ ...row, photo_url })
       toast('Incident reported')
-      setFormOpen(false)
-      setForm({ property_id: '', title: '', description: '', category: 'equipment', urgency: 'medium' })
+      resetForm()
     } catch (err) {
       toast((err as Error).message, 'error')
     } finally {
@@ -95,7 +140,21 @@ export function HmIncidents() {
       </div>
 
       <div className="px-5 pb-8 space-y-3">
-        {incidents.length === 0 ? (
+        {pendingRows.map(p => (
+          <div key={p.tempId} className="p-4 rounded-2xl bg-white border border-dashed border-gray-300">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-gray-900">{String(p.row.title)}</p>
+              <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                <CloudOff className="w-3 h-3" />
+                Pending sync
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1">
+              {propertyName(String(p.row.property_id))} &middot; {String(p.row.category)}
+            </p>
+          </div>
+        ))}
+        {incidents.length === 0 && pendingRows.length === 0 ? (
           <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
             <AlertTriangle className="w-10 h-10 text-gray-200 mx-auto mb-3" />
             <p className="text-sm text-gray-400">No incidents</p>
@@ -113,9 +172,16 @@ export function HmIncidents() {
                 {propertyName(i.property_id)} &middot; {i.category} &middot; {new Date(i.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
               </p>
               {i.description && <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{i.description}</p>}
-              <span className={`inline-block mt-2 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${URGENCY_STYLE[i.urgency]}`}>
-                {i.urgency}
-              </span>
+              <div className="flex items-center justify-between mt-2">
+                <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${URGENCY_STYLE[i.urgency]}`}>
+                  {i.urgency}
+                </span>
+                {i.photo_url && (
+                  <button onClick={() => setViewPhoto(i.photo_url)} className="flex-shrink-0">
+                    <img src={i.photo_url} alt="Incident photo" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}
@@ -162,6 +228,35 @@ export function HmIncidents() {
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm mb-3"
             />
 
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Photo</label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={e => setPhoto(e.target.files?.[0] ?? null)}
+            />
+            {photoPreview ? (
+              <div className="relative mb-3">
+                <img src={photoPreview} alt="Photo preview" className="w-full h-36 rounded-xl object-cover border border-gray-200" />
+                <button
+                  onClick={() => { setPhoto(null); if (photoInputRef.current) photoInputRef.current.value = '' }}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-3 mb-3 rounded-xl border border-dashed border-gray-300 text-xs font-semibold text-gray-500 active:bg-gray-50"
+              >
+                <Camera className="w-4 h-4" />
+                Take a photo
+              </button>
+            )}
+
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Category</label>
@@ -193,6 +288,16 @@ export function HmIncidents() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit report'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Full-size photo viewer */}
+      {viewPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setViewPhoto(null)}>
+          <img src={viewPhoto} alt="Incident photo" className="max-w-full max-h-full rounded-2xl object-contain" />
+          <button className="absolute top-5 right-5 p-2 rounded-full bg-white/20 text-white">
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
     </div>

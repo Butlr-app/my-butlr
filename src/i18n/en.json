@@ -243,6 +243,7 @@
     "assignedTo": "Assigned to",
     "unassigned": "Unassigned",
     "reportedBy": "Reported by",
+    "photo": "Incident photo",
     "resolutionNote": "Resolution note",
     "resolvedAt": "Resolved at",
     "filterActive": "Active (open + in progress)",

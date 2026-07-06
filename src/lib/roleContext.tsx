@@ -38,13 +38,19 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         return
       }
       setRoleLoading(true)
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .maybeSingle()
       if (cancelled) return
-      const dbRole = data?.role as Role | undefined
+      const cacheKey = `cached-role:${user.id}`
+      let dbRole = data?.role as Role | undefined
+      if (error) {
+        dbRole = (localStorage.getItem(cacheKey) as Role | null) ?? undefined
+      } else if (dbRole) {
+        try { localStorage.setItem(cacheKey, dbRole) } catch { /* best-effort */ }
+      }
       setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : 'owner')
       setPreviewRole(null)
       setRoleLoading(false)

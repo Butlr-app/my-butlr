@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { useProperties, useTasks, type Task } from '@/lib/useSupabase'
+import { useEffect, useState } from 'react'
+import { useProperties, useTasks, type Task, type Property } from '@/lib/useSupabase'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useToast } from '@/components/ui/Toast'
-import { Loader2, CheckCircle2, Circle, Play, ChevronRight } from 'lucide-react'
+import { useCachedRows, useOnlineStatus, queueOp, getPendingTaskStatus, SYNC_EVENT } from '@/lib/offline'
+import { Loader2, CheckCircle2, Circle, Play, ChevronRight, CloudOff } from 'lucide-react'
 
 const NEXT_STATUS: Partial<Record<Task['status'], Task['status']>> = {
   todo: 'in_progress',
@@ -19,12 +20,26 @@ const NEXT_LABEL: Partial<Record<Task['status'], string>> = {
 type Filter = 'active' | 'done'
 
 export function HmTasks() {
-  const { data: rawProperties, loading: lProps } = useProperties()
-  const { data: rawTasks, loading: lTasks, update } = useTasks()
+  const { data: rawProperties, loading: lProps, error: eProps } = useProperties()
+  const { data: rawTasks, loading: lTasks, error: eTasks, update, refetch } = useTasks()
   const { filterProperties, filterTasks, loading: lRole } = useRoleFilter()
   const { toast } = useToast()
+  const online = useOnlineStatus()
   const [filter, setFilter] = useState<Filter>('active')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [pending, setPending] = useState<Record<string, string>>(() => getPendingTaskStatus())
+
+  const propertyRows = useCachedRows<Property>('properties', rawProperties, lProps, eProps)
+  const taskRows = useCachedRows<Task>('tasks', rawTasks, lTasks, eTasks)
+
+  useEffect(() => {
+    const onSynced = () => {
+      setPending(getPendingTaskStatus())
+      refetch()
+    }
+    window.addEventListener(SYNC_EVENT, onSynced)
+    return () => window.removeEventListener(SYNC_EVENT, onSynced)
+  }, [refetch])
 
   const loading = lProps || lTasks || lRole
 
@@ -36,17 +51,24 @@ export function HmTasks() {
     )
   }
 
-  const properties = filterProperties(rawProperties)
+  const properties = filterProperties(propertyRows.rows)
   const propertyName = (id: string | null) =>
     (id && properties.find(p => p.id === id)?.name) ?? 'Property'
 
-  const tasks = filterTasks(rawTasks)
+  const tasks = filterTasks(taskRows.rows)
+    .map(t => (pending[t.id] ? { ...t, status: pending[t.id] as Task['status'] } : t))
     .filter(t => (filter === 'done' ? t.status === 'done' : t.status !== 'done'))
     .sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999'))
 
   const advance = async (t: Task) => {
     const next = NEXT_STATUS[t.status]
     if (!next) return
+    if (!online) {
+      queueOp({ kind: 'task_update', id: t.id, changes: { status: next } })
+      setPending(getPendingTaskStatus())
+      toast('Saved offline — will sync when back online')
+      return
+    }
     setBusyId(t.id)
     try {
       await update(t.id, { status: next })
@@ -104,11 +126,14 @@ export function HmTasks() {
                   </p>
                   {t.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{t.description}</p>}
                 </div>
-                <span className={`text-[9px] font-bold uppercase tracking-wider mt-1 ${
-                  t.priority === 'high' ? 'text-red-500' : t.priority === 'medium' ? 'text-amber-500' : 'text-gray-400'
-                }`}>
-                  {t.priority}
-                </span>
+                <div className="flex flex-col items-end gap-1 mt-1">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                    t.priority === 'high' ? 'text-red-500' : t.priority === 'medium' ? 'text-amber-500' : 'text-gray-400'
+                  }`}>
+                    {t.priority}
+                  </span>
+                  {pending[t.id] && <CloudOff className="w-3.5 h-3.5 text-gray-400" />}
+                </div>
               </div>
               {NEXT_STATUS[t.status] && (
                 <button

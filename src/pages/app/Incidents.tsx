@@ -272,6 +272,11 @@ export function Incidents() {
               {propertyName(detail.property_id)} · {t('incidents.reportedBy')} {memberLabel(members.find(m => m.id === detail.reported_by))} · {new Date(detail.created_at).toLocaleString()}
             </p>
             {detail.description && <p className="text-sm whitespace-pre-wrap">{detail.description}</p>}
+            {detail.photo_url && (
+              <a href={detail.photo_url} target="_blank" rel="noreferrer">
+                <img src={detail.photo_url} alt={t('incidents.photo')} className="w-full max-h-64 rounded-lg object-cover border" />
+              </a>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Select
                 label={t('common.status')}
