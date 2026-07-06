@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -60,17 +60,14 @@ export function Incidents() {
   const [deleteTarget, setDeleteTarget] = useState<Incident | null>(null)
 
   const properties = filterProperties(rawProperties)
-  const incidents = useMemo(() => {
-    return filterIncidents(rawIncidents)
-      .filter(i => {
-        if (statusFilter === 'active') return i.status === 'open' || i.status === 'in_progress'
-        if (statusFilter && statusFilter !== 'all') return i.status === statusFilter
-        return true
-      })
-      .filter(i => !propertyFilter || i.property_id === propertyFilter)
-      .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency] || b.created_at.localeCompare(a.created_at))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawIncidents, statusFilter, propertyFilter])
+  const incidents = filterIncidents(rawIncidents)
+    .filter(i => {
+      if (statusFilter === 'active') return i.status === 'open' || i.status === 'in_progress'
+      if (statusFilter && statusFilter !== 'all') return i.status === statusFilter
+      return true
+    })
+    .filter(i => !propertyFilter || i.property_id === propertyFilter)
+    .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency] || b.created_at.localeCompare(a.created_at))
 
   const propertyName = (id: string) => rawProperties.find(p => p.id === id)?.name ?? '—'
 

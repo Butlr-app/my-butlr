@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -61,13 +61,10 @@ export function WorkOrders() {
   const providers = filterServiceProviders(rawProviders).filter(p => p.status === 'active')
   const incidents = filterIncidents(rawIncidents)
 
-  const workOrders = useMemo(() => {
-    return filterWorkOrders(rawWorkOrders)
-      .filter(w => statusFilter === 'all' || w.status === statusFilter)
-      .filter(w => !propertyFilter || w.property_id === propertyFilter)
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawWorkOrders, statusFilter, propertyFilter])
+  const workOrders = filterWorkOrders(rawWorkOrders)
+    .filter(w => statusFilter === 'all' || w.status === statusFilter)
+    .filter(w => !propertyFilter || w.property_id === propertyFilter)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
 
   const propertyName = (id: string) => rawProperties.find(p => p.id === id)?.name ?? '—'
   const providerName = (id: string) => rawProviders.find(p => p.id === id)?.name ?? '—'
