@@ -535,6 +535,24 @@ export function useExpenses() {
   return useTable<Expense>('expenses')
 }
 
+export interface Shift {
+  id: string
+  property_id: string
+  user_id: string
+  shift_date: string
+  start_time: string
+  end_time: string
+  type: 'general' | 'cleaning' | 'checkin' | 'checkout' | 'maintenance'
+  note: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useShifts() {
+  return useTable<Shift>('shifts')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -130,6 +130,19 @@ export function useRoleFilter() {
     }
   }
 
+  function filterShifts(shifts: Shift[]): Shift[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return shifts
+      case 'house_manager':
+      case 'concierge':
+        return shifts.filter(s => assignedSet.has(s.property_id) || s.user_id === user?.id)
+      default:
+        return []
+    }
+  }
+
   function filterServices(services: Service[]): Service[] {
     switch (role) {
       case 'owner':
@@ -248,6 +261,7 @@ export function useRoleFilter() {
       'service-requests': ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
       'day-sheet': ['owner', 'house_manager', 'concierge', 'agency'],
+      'team-planning': ['owner', 'house_manager', 'concierge', 'agency'],
       incidents: ['owner', 'house_manager', 'concierge', 'agency'],
       'work-orders': ['owner', 'house_manager', 'concierge', 'agency'],
       inventory: ['owner', 'house_manager', 'concierge', 'agency'],
@@ -281,6 +295,7 @@ export function useRoleFilter() {
     filterInspections,
     filterInventoryItems,
     filterExpenses,
+    filterShifts,
     filterServices,
     filterPayments,
     filterPartners,
