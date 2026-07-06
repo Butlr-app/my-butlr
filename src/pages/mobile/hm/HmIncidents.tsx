@@ -3,6 +3,7 @@ import { useIncidents, useProperties, type Incident, type Property } from '@/lib
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
+import { useTranslation } from '@/i18n/LanguageContext'
 import { uploadFile } from '@/lib/storage'
 import { useCachedRows, useOnlineStatus, queueOp, getPendingIncidents, SYNC_EVENT } from '@/lib/offline'
 import { Loader2, AlertTriangle, Plus, X, Camera, CloudOff } from 'lucide-react'
@@ -30,6 +31,7 @@ export function HmIncidents() {
   const { data: rawProperties, loading: lProps, error: eProps } = useProperties()
   const { filterIncidents, filterProperties, loading: lRole } = useRoleFilter()
   const { toast } = useToast()
+  const { t, language } = useTranslation()
   const online = useOnlineStatus()
 
   const [formOpen, setFormOpen] = useState(false)
@@ -90,7 +92,7 @@ export function HmIncidents() {
 
   const submit = async () => {
     if (!form.property_id || !form.title.trim()) {
-      toast('Property and title are required', 'error')
+      toast(t('hm.requiredError'), 'error')
       return
     }
     const row = {
@@ -106,7 +108,7 @@ export function HmIncidents() {
       // Photos cannot be uploaded offline — queue the report without one.
       queueOp({ kind: 'incident_insert', tempId: crypto.randomUUID(), row })
       setPendingRows(getPendingIncidents())
-      toast(photo ? 'Saved offline without photo — will sync' : 'Saved offline — will sync when back online')
+      toast(photo ? t('hm.savedOfflineNoPhoto') : t('hm.savedOffline'))
       resetForm()
       return
     }
@@ -117,7 +119,7 @@ export function HmIncidents() {
         photo_url = await uploadFile(`incidents/${form.property_id}`, photo)
       }
       await insert({ ...row, photo_url })
-      toast('Incident reported')
+      toast(t('hm.incidentReported'))
       resetForm()
     } catch (err) {
       toast((err as Error).message, 'error')
@@ -129,13 +131,13 @@ export function HmIncidents() {
   return (
     <div className="max-w-lg mx-auto">
       <div className="px-5 pt-14 pb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Incidents</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('hm.nav.incidents')}</h1>
         <button
           onClick={() => setFormOpen(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-900 text-white text-xs font-semibold active:bg-gray-800 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Report
+          {t('hm.report')}
         </button>
       </div>
 
@@ -146,18 +148,18 @@ export function HmIncidents() {
               <p className="text-sm font-semibold text-gray-900">{String(p.row.title)}</p>
               <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                 <CloudOff className="w-3 h-3" />
-                Pending sync
+                {t('hm.pendingSync')}
               </span>
             </div>
             <p className="text-[11px] text-gray-500 mt-1">
-              {propertyName(String(p.row.property_id))} &middot; {String(p.row.category)}
+              {propertyName(String(p.row.property_id))} &middot; {t(`hm.categories.${String(p.row.category)}`)}
             </p>
           </div>
         ))}
         {incidents.length === 0 && pendingRows.length === 0 ? (
           <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
             <AlertTriangle className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-sm text-gray-400">No incidents</p>
+            <p className="text-sm text-gray-400">{t('hm.noIncidents')}</p>
           </div>
         ) : (
           incidents.map(i => (
@@ -169,12 +171,12 @@ export function HmIncidents() {
                 </span>
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                {propertyName(i.property_id)} &middot; {i.category} &middot; {new Date(i.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                {propertyName(i.property_id)} &middot; {t(`hm.categories.${i.category}`)} &middot; {new Date(i.created_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' })}
               </p>
               {i.description && <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{i.description}</p>}
               <div className="flex items-center justify-between mt-2">
                 <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${URGENCY_STYLE[i.urgency]}`}>
-                  {i.urgency}
+                  {t(`hm.urgencies.${i.urgency}`)}
                 </span>
                 {i.photo_url && (
                   <button onClick={() => setViewPhoto(i.photo_url)} className="flex-shrink-0">
@@ -193,42 +195,42 @@ export function HmIncidents() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setFormOpen(false)} />
           <div className="relative w-full max-w-lg bg-white rounded-t-3xl p-5 pb-8 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Report incident</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('hm.reportIncident')}</h2>
               <button onClick={() => setFormOpen(false)} className="p-2 rounded-full bg-gray-100 active:bg-gray-200">
                 <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
 
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Property</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('hm.property')}</label>
             <select
               value={form.property_id}
               onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm mb-3 bg-white"
             >
-              <option value="">Select a property</option>
+              <option value="">{t('hm.selectProperty')}</option>
               {properties.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
 
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Title</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('hm.titleLabel')}</label>
             <input
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="What happened?"
+              placeholder={t('hm.titlePlaceholder')}
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm mb-3"
             />
 
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('hm.descriptionLabel')}</label>
             <textarea
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Details (optional)"
+              placeholder={t('hm.descriptionPlaceholder')}
               rows={3}
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm mb-3"
             />
 
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Photo</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('hm.photo')}</label>
             <input
               ref={photoInputRef}
               type="file"
@@ -253,29 +255,29 @@ export function HmIncidents() {
                 className="w-full flex items-center justify-center gap-2 py-3 mb-3 rounded-xl border border-dashed border-gray-300 text-xs font-semibold text-gray-500 active:bg-gray-50"
               >
                 <Camera className="w-4 h-4" />
-                Take a photo
+                {t('hm.takePhoto')}
               </button>
             )}
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Category</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{t('hm.category')}</label>
                 <select
                   value={form.category}
                   onChange={e => setForm(f => ({ ...f, category: e.target.value as Incident['category'] }))}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white"
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORIES.map(c => <option key={c} value={c}>{t(`hm.categories.${c}`)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Urgency</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{t('hm.urgency')}</label>
                 <select
                   value={form.urgency}
                   onChange={e => setForm(f => ({ ...f, urgency: e.target.value as Incident['urgency'] }))}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white"
                 >
-                  {URGENCIES.map(u => <option key={u} value={u}>{u}</option>)}
+                  {URGENCIES.map(u => <option key={u} value={u}>{t(`hm.urgencies.${u}`)}</option>)}
                 </select>
               </div>
             </div>
@@ -285,7 +287,7 @@ export function HmIncidents() {
               disabled={saving}
               className="w-full flex items-center justify-center py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-800 disabled:opacity-50 transition-colors"
             >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit report'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('hm.submitReport')}
             </button>
           </div>
         </div>
