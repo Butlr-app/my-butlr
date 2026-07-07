@@ -5,6 +5,7 @@ import { AuthProvider } from './lib/authContext'
 import { SearchProvider } from './lib/searchContext'
 import { LanguageProvider } from './i18n/LanguageContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { STAFF_ROLES } from './lib/roleContext'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
 import { Login } from './pages/Login'
@@ -92,13 +93,13 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
 
         {/* Onboarding wizard */}
-        <Route path="/app/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+        <Route path="/app/onboarding" element={<ProtectedRoute allow={STAFF_ROLES}><Onboarding /></ProtectedRoute>} />
 
         {/* Public signing page */}
         <Route path="/sign/:token" element={<ContractSigning />} />
 
         {/* Protected app pages */}
-        <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/app" element={<ProtectedRoute allow={STAFF_ROLES}><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="properties" element={<Properties />} />
           <Route path="properties/:id" element={<PropertyDetail />} />
@@ -134,7 +135,7 @@ export default function App() {
         </Route>
 
         {/* Guest Mobile App (Airbnb-style) */}
-        <Route path="/guest" element={<ProtectedRoute><GuestLayout /></ProtectedRoute>}>
+        <Route path="/guest" element={<ProtectedRoute allow={['guest', 'owner']}><GuestLayout /></ProtectedRoute>}>
           <Route index element={<GuestExplore />} />
           <Route path="stays" element={<GuestStays />} />
           <Route path="services" element={<GuestServices />} />
@@ -144,7 +145,7 @@ export default function App() {
         </Route>
 
         {/* Partner Mobile App (Airbnb-style) */}
-        <Route path="/partner" element={<ProtectedRoute><PartnerLayout /></ProtectedRoute>}>
+        <Route path="/partner" element={<ProtectedRoute allow={['partner', 'owner']}><PartnerLayout /></ProtectedRoute>}>
           <Route index element={<PartnerDashboard />} />
           <Route path="bookings" element={<PartnerBookings />} />
           <Route path="earnings" element={<PartnerEarnings />} />
