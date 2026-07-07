@@ -12,6 +12,7 @@ function makePayment(overrides: Partial<Payment> = {}): Payment {
     amount: 18500,
     status: 'paid',
     date: '2026-06-01',
+    partner_id: null,
     created_at: '2026-06-01T00:00:00Z',
     ...overrides,
   }
@@ -53,6 +54,17 @@ describe('computePayout', () => {
     expect(d!.payee_name).toBe('Spa Prestige')
     expect(d!.commission_rate).toBe(12)
     expect(d!.commission_amount).toBe(72)
+    expect(d!.net_amount).toBe(528)
+  })
+
+  it('matches the partner by partner_id even when the name differs', () => {
+    const d = computePayout(
+      makePayment({ type: 'service', guest_name: 'legacy label', partner_id: 'p1', amount: 600 }),
+      partners,
+      DEFAULT_PLATFORM_RATE,
+    )
+    expect(d!.payee_name).toBe('Spa Prestige')
+    expect(d!.commission_rate).toBe(12)
     expect(d!.net_amount).toBe(528)
   })
 

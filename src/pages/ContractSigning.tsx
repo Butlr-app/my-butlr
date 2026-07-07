@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { SignatureCanvas } from '@/components/SignatureCanvas'
-import { getContractByToken, signContract, type Contract } from '@/lib/useSupabase'
-import { supabase } from '@/lib/supabase'
+import { getContractByToken, signContractByToken, type Contract } from '@/lib/useSupabase'
 import { Loader2, CheckCircle, FileText, AlertTriangle } from 'lucide-react'
 
 export function ContractSigning() {
@@ -47,21 +46,11 @@ export function ContractSigning() {
   }
 
   const handleSign = async () => {
-    if (!contract || !signatureData) return
+    if (!contract || !token || !signatureData) return
     if (!validate()) return
     setSigning(true)
     try {
-      await signContract(contract.id, signerName, signerRole, signatureData)
-
-      await supabase.from('notifications').insert({
-        user_id: null,
-        type: 'system' as const,
-        title: 'Contract signed',
-        message: `${signerName} signed the contract for ${contract.guest_name}`,
-        read: false,
-        data: { contract_id: contract.id },
-      })
-
+      await signContractByToken(token, signerName, signerRole, signatureData)
       setSigned(true)
     } catch (err) {
       setErrors({ submit: (err as Error).message })

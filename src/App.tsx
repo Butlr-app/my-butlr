@@ -5,6 +5,7 @@ import { AuthProvider } from './lib/authContext'
 import { SearchProvider } from './lib/searchContext'
 import { LanguageProvider } from './i18n/LanguageContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { STAFF_ROLES } from './lib/roleContext'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
 import { Login } from './pages/Login'
@@ -60,12 +61,14 @@ import { HmLayout } from './pages/mobile/hm/HmLayout'
 import { HmToday } from './pages/mobile/hm/HmToday'
 import { HmTasks } from './pages/mobile/hm/HmTasks'
 import { HmIncidents } from './pages/mobile/hm/HmIncidents'
+import { HmNotifications } from './pages/mobile/hm/HmNotifications'
 import { HmProfile } from './pages/mobile/hm/HmProfile'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
+import { Maintenance } from './pages/app/Maintenance'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
 import { Activity } from './pages/app/Activity'
@@ -93,13 +96,13 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
 
         {/* Onboarding wizard */}
-        <Route path="/app/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+        <Route path="/app/onboarding" element={<ProtectedRoute allow={STAFF_ROLES}><Onboarding /></ProtectedRoute>} />
 
         {/* Public signing page */}
         <Route path="/sign/:token" element={<ContractSigning />} />
 
         {/* Protected app pages */}
-        <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/app" element={<ProtectedRoute allow={STAFF_ROLES}><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="properties" element={<Properties />} />
           <Route path="properties/:id" element={<PropertyDetail />} />
@@ -113,6 +116,7 @@ export default function App() {
           <Route path="team-planning" element={<TeamPlanning />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="work-orders" element={<WorkOrders />} />
+          <Route path="maintenance" element={<Maintenance />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="calendar" element={<CalendarPage />} />
@@ -136,7 +140,7 @@ export default function App() {
         </Route>
 
         {/* Guest Mobile App (Airbnb-style) */}
-        <Route path="/guest" element={<ProtectedRoute><GuestLayout /></ProtectedRoute>}>
+        <Route path="/guest" element={<ProtectedRoute allow={['guest', 'owner']}><GuestLayout /></ProtectedRoute>}>
           <Route index element={<GuestExplore />} />
           <Route path="stays" element={<GuestStays />} />
           <Route path="services" element={<GuestServices />} />
@@ -146,7 +150,7 @@ export default function App() {
         </Route>
 
         {/* Partner Mobile App (Airbnb-style) */}
-        <Route path="/partner" element={<ProtectedRoute><PartnerLayout /></ProtectedRoute>}>
+        <Route path="/partner" element={<ProtectedRoute allow={['partner', 'owner']}><PartnerLayout /></ProtectedRoute>}>
           <Route index element={<PartnerDashboard />} />
           <Route path="bookings" element={<PartnerBookings />} />
           <Route path="earnings" element={<PartnerEarnings />} />
@@ -159,6 +163,7 @@ export default function App() {
           <Route index element={<HmToday />} />
           <Route path="tasks" element={<HmTasks />} />
           <Route path="incidents" element={<HmIncidents />} />
+          <Route path="notifications" element={<HmNotifications />} />
           <Route path="profile" element={<HmProfile />} />
         </Route>
 
