@@ -6,6 +6,16 @@ export type Role = 'owner' | 'house_manager' | 'concierge' | 'agency' | 'partner
 
 const VALID_ROLES: Role[] = ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest']
 
+// Roles that operate the back-office dashboard under /app.
+export const STAFF_ROLES: Role[] = ['owner', 'house_manager', 'concierge', 'agency']
+
+// The root route a given role should land on after authentication.
+export function roleHome(role: Role | null | undefined): string {
+  if (role === 'partner') return '/partner'
+  if (role === 'guest') return '/guest'
+  return '/app'
+}
+
 interface RoleContextType {
   role: Role
   actualRole: Role
