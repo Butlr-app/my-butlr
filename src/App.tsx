@@ -20,6 +20,7 @@ import { Services } from './pages/app/Services'
 import { ServiceRequests } from './pages/app/ServiceRequests'
 import { Tasks } from './pages/app/Tasks'
 import { DaySheet } from './pages/app/DaySheet'
+import { TeamPlanning } from './pages/app/TeamPlanning'
 import { Incidents } from './pages/app/Incidents'
 import { WorkOrders } from './pages/app/WorkOrders'
 import { Inventory } from './pages/app/Inventory'
@@ -108,6 +109,7 @@ export default function App() {
           <Route path="service-requests" element={<ServiceRequests />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="day-sheet" element={<DaySheet />} />
+          <Route path="team-planning" element={<TeamPlanning />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="work-orders" element={<WorkOrders />} />
           <Route path="inventory" element={<Inventory />} />
