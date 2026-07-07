@@ -384,12 +384,52 @@ export interface TaskTemplate {
   trigger_type: 'checkout' | 'recurring'
   recurrence: 'daily' | 'weekly' | 'monthly' | null
   assigned_to: string | null
+  checklist_template_id: string | null
   active: boolean
   created_at: string
 }
 
 export function useTaskTemplates() {
   return useTable<TaskTemplate>('task_templates')
+}
+
+export interface ChecklistTemplate {
+  id: string
+  name: string
+  category: 'cleaning' | 'checkin' | 'checkout' | 'maintenance' | 'other'
+  items: string[]
+  created_at: string
+}
+
+export function useChecklistTemplates() {
+  return useTable<ChecklistTemplate>('checklist_templates')
+}
+
+export interface TaskChecklistItem {
+  id: string
+  task_id: string
+  label: string
+  done: boolean
+  position: number
+  created_at: string
+}
+
+export function useTaskChecklistItems() {
+  const base = useTable<TaskChecklistItem>('task_checklist_items')
+
+  const insertMany = async (rows: Partial<TaskChecklistItem>[]) => {
+    if (rows.length === 0) return []
+    const { data, error } = await supabase
+      .from('task_checklist_items')
+      .insert(rows as Record<string, unknown>[])
+      .select()
+    if (error) throw new Error(error.message)
+    const inserted = (data ?? []) as TaskChecklistItem[]
+    await base.refetch()
+    return inserted
+  }
+
+  return { ...base, insertMany }
 }
 
 export async function generateRecurringTasks(): Promise<number> {
