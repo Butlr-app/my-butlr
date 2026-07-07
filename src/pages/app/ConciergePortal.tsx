@@ -10,6 +10,7 @@ import {
 } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/lib/authContext'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useTranslation } from '@/i18n/LanguageContext'
 import {
   Calendar, ShoppingBag, HelpCircle, Loader2,
@@ -35,8 +36,11 @@ const SERVICE_IMAGES: Record<string, string> = {
 /* ─── Availability Tab ──────────────────────────────────────────────────────── */
 
 function AvailabilityTab() {
-  const { data: properties, loading: lProp } = useProperties()
-  const { data: reservations, loading: lRes } = useReservations()
+  const { data: rawProperties, loading: lProp } = useProperties()
+  const { data: rawReservations, loading: lRes } = useReservations()
+  const { filterProperties, filterReservations } = useRoleFilter()
+  const properties = filterProperties(rawProperties)
+  const reservations = filterReservations(rawReservations)
   const { t } = useTranslation()
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
@@ -229,7 +233,9 @@ function AvailabilityTab() {
 
 function ServicesTab() {
   const { data: services, loading } = useServices()
-  const { data: properties } = useProperties()
+  const { data: rawProperties } = useProperties()
+  const { filterProperties } = useRoleFilter()
+  const properties = filterProperties(rawProperties)
   const { requests, addRequest } = useServiceRequests()
   const { toast } = useToast()
   const { user } = useAuth()
@@ -443,7 +449,9 @@ function ServicesTab() {
 
 function InquiriesTab() {
   const { requests, addRequest, loading } = useServiceRequests()
-  const { data: properties } = useProperties()
+  const { data: rawProperties } = useProperties()
+  const { filterProperties } = useRoleFilter()
+  const properties = filterProperties(rawProperties)
   const { toast } = useToast()
   const { user } = useAuth()
   const { t } = useTranslation()
