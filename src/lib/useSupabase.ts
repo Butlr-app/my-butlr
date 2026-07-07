@@ -582,8 +582,11 @@ export function useNotifications() {
     const channelName = `notifications-realtime-${crypto.randomUUID()}`
     const channel = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev])
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, async (payload) => {
+        const notif = payload.new as Notification
+        const { data: { user } } = await supabase.auth.getUser()
+        if (notif.user_id !== null && notif.user_id !== user?.id) return
+        setNotifications(prev => (prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]))
       })
       .subscribe()
 
@@ -1159,7 +1162,7 @@ export interface PagePermission {
 
 export type RolePermissions = Record<string, Record<string, PagePermission>>
 
-const CONFIGURABLE_PAGES = ['payments', 'partners', 'contracts', 'invoices', 'apa', 'reports', 'notifications'] as const
+const CONFIGURABLE_PAGES = ['payments', 'partners', 'contracts', 'invoices', 'reports', 'notifications'] as const
 export type ConfigurablePage = typeof CONFIGURABLE_PAGES[number]
 export { CONFIGURABLE_PAGES }
 
@@ -1169,7 +1172,6 @@ export const DEFAULT_PERMISSIONS: RolePermissions = {
     partners: { view: true, edit: false },
     contracts: { view: true, edit: true },
     invoices: { view: true, edit: true },
-    apa: { view: true, edit: false },
     reports: { view: true, edit: false },
     notifications: { view: true, edit: true },
   },
@@ -1178,7 +1180,6 @@ export const DEFAULT_PERMISSIONS: RolePermissions = {
     partners: { view: true, edit: false },
     contracts: { view: true, edit: false },
     invoices: { view: true, edit: false },
-    apa: { view: false, edit: false },
     reports: { view: false, edit: false },
     notifications: { view: true, edit: false },
   },

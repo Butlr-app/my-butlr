@@ -150,6 +150,7 @@ export function useRoleFilter() {
 
   function canEdit(page: string): boolean {
     if (role === 'owner' || role === 'agency') return true
+    if (page === 'apa') return false
     const rolePerms = permissions[role]
     if (rolePerms && rolePerms[page]) {
       return rolePerms[page].edit
@@ -167,6 +168,7 @@ export function useRoleFilter() {
 
   function isVisible(page: string): boolean {
     if (role === 'owner' || role === 'agency') return true
+    if (page === 'apa') return false
     const rolePerms = permissions[role]
     if (rolePerms && rolePerms[page]) {
       return rolePerms[page].view
@@ -185,7 +187,7 @@ export function useRoleFilter() {
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
       'concierge-portal': ['owner', 'agency'],
       payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
-      apa: ['owner', 'agency', 'house_manager'],
+      apa: ['owner', 'agency'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],
       invoices: ['owner', 'agency', 'house_manager', 'concierge'],
       guides: ['owner', 'house_manager', 'concierge', 'agency'],

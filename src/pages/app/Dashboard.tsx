@@ -49,11 +49,18 @@ function OwnerDashboard() {
 
 function HouseManagerDashboard() {
   const { t } = useTranslation()
-  const { data: tasks } = useTasks()
-  const { data: reservations } = useReservations()
-  const { data: properties } = useProperties()
-  const { data: payments } = usePayments()
-  const { data: partners } = usePartners()
+  const { filterTasks, filterReservations, filterProperties, filterPayments, filterPartners } = useRoleFilter()
+  const { data: rawTasks } = useTasks()
+  const { data: rawReservations } = useReservations()
+  const { data: rawProperties } = useProperties()
+  const { data: rawPayments } = usePayments()
+  const { data: rawPartners } = usePartners()
+
+  const tasks = filterTasks(rawTasks)
+  const reservations = filterReservations(rawReservations)
+  const properties = filterProperties(rawProperties)
+  const payments = filterPayments(rawPayments)
+  const partners = filterPartners(rawPartners)
 
   const today = new Date().toISOString().split('T')[0]
   const tasksInProgress = tasks.filter(t => t.status === 'in_progress').length
