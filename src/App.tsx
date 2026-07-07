@@ -68,6 +68,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
+import { Maintenance } from './pages/app/Maintenance'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
 import { CookieConsent } from './components/CookieConsent'
@@ -114,6 +115,7 @@ export default function App() {
           <Route path="team-planning" element={<TeamPlanning />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="work-orders" element={<WorkOrders />} />
+          <Route path="maintenance" element={<Maintenance />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="calendar" element={<CalendarPage />} />
