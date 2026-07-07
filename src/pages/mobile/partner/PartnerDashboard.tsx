@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { usePartnerPortal } from '@/lib/useSupabase'
 import { Loader2, TrendingUp, Calendar, Star, ArrowUpRight, Clock, ChevronRight } from 'lucide-react'
 import { PartnerUnlinked } from './PartnerUnlinked'
@@ -6,6 +7,7 @@ const ACTIVE_STATUSES = ['approved', 'in_progress']
 
 export function PartnerDashboard() {
   const { partner, bookings, payments, loading } = usePartnerPortal()
+  const navigate = useNavigate()
 
   if (loading) {
     return (
@@ -138,7 +140,10 @@ export function PartnerDashboard() {
       {/* Pending Actions */}
       {pendingCount > 0 && (
         <div className="px-5 mt-5">
-          <button className="w-full flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 active:bg-amber-500/15 transition-colors">
+          <button
+            onClick={() => navigate('/partner/bookings')}
+            className="w-full flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 active:bg-amber-500/15 transition-colors"
+          >
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
               <Clock className="w-5 h-5 text-amber-500" />
             </div>
@@ -155,7 +160,7 @@ export function PartnerDashboard() {
       <div className="px-5 mt-5 pb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-white">Recent Activity</h2>
-          <button className="text-xs font-medium text-amber-500">View all</button>
+          <button onClick={() => navigate('/partner/bookings')} className="text-xs font-medium text-amber-500">View all</button>
         </div>
         <div className="space-y-3">
           {recentBookings.length === 0 ? (
