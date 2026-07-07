@@ -657,6 +657,57 @@ export function usePartners() {
   return useTable<Partner>('partners')
 }
 
+// Resolves the `partners` row linked to the signed-in account (partners.user_id).
+// RLS lets a partner read only their own row, so this returns null for accounts
+// that are not linked to a partner (e.g. an owner previewing the portal).
+export function useCurrentPartner() {
+  const [partner, setPartner] = useState<Partner | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setPartner(null)
+      setLoading(false)
+      return
+    }
+    const { data } = await supabase
+      .from('partners')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setPartner((data as Partner) ?? null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  return { partner, loading, refetch: fetch }
+}
+
+// Aggregates the data a signed-in partner needs for their portal, scoped to
+// their own `partners` row. `service_requests` and `payments` are already
+// restricted server-side by RLS, but we also filter by partner.id so an owner
+// previewing the portal (who can read everything) sees an empty, unlinked view.
+export function usePartnerPortal() {
+  const { partner, loading: partnerLoading, refetch } = useCurrentPartner()
+  const { requests, loading: requestsLoading, updateRequest } = useServiceRequests()
+  const { data: payments, loading: paymentsLoading } = usePayments()
+
+  const bookings = partner ? requests.filter(r => r.partner_id === partner.id) : []
+  const myPayments = partner ? payments.filter(p => p.partner_id === partner.id) : []
+
+  return {
+    partner,
+    bookings,
+    payments: myPayments,
+    loading: partnerLoading || requestsLoading || paymentsLoading,
+    updateRequest,
+    refetch,
+  }
+}
+
 export function useServiceProviders() {
   return useTable<ServiceProvider>('service_providers')
 }
