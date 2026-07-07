@@ -35,14 +35,17 @@ export function computePayout(p: Payment, partners: Partner[], platformRate: num
   const gross = Number(p.amount)
 
   if (p.type === 'service') {
-    const partner = partners.find(pt => pt.name.toLowerCase() === p.guest_name.toLowerCase())
+    // Prefer the explicit partner_id link; fall back to name match for legacy
+    // payments recorded before partner_id was introduced.
+    const partner = (p.partner_id && partners.find(pt => pt.id === p.partner_id))
+      || partners.find(pt => pt.name.toLowerCase() === p.guest_name.toLowerCase())
     const rate = partner ? Number(partner.commission) : platformRate
     const commission = round2((gross * rate) / 100)
     return {
       payment_id: p.id,
       reservation_id: p.reservation_id,
       payee_type: 'partner',
-      payee_name: p.guest_name,
+      payee_name: partner?.name ?? p.guest_name,
       gross_amount: gross,
       commission_rate: rate,
       commission_amount: commission,

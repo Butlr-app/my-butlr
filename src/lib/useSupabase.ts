@@ -98,7 +98,9 @@ export interface Partner {
   status: 'active' | 'inactive'
   rating: number
   bookings_count: number
+  user_id: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface ServiceProvider {
@@ -128,6 +130,7 @@ export interface Payment {
   amount: number
   status: 'pending' | 'paid' | 'failed' | 'refunded'
   date: string
+  partner_id: string | null
   created_at: string
 }
 
@@ -480,6 +483,31 @@ export interface WorkOrder {
 
 export function useWorkOrders() {
   return useTable<WorkOrder>('work_orders')
+}
+
+export interface MaintenancePlan {
+  id: string
+  property_id: string
+  title: string
+  category: 'hvac' | 'plumbing' | 'electrical' | 'pool' | 'garden' | 'safety' | 'appliance' | 'other'
+  notes: string | null
+  interval_months: number
+  lead_days: number
+  next_due: string
+  last_generated: string | null
+  assigned_to: string | null
+  active: boolean
+  created_at: string
+}
+
+export function useMaintenancePlans() {
+  return useTable<MaintenancePlan>('maintenance_plans')
+}
+
+export async function generateMaintenanceTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_maintenance_tasks')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
 }
 
 export interface InventoryItem {
@@ -853,6 +881,14 @@ export function useNotifications() {
         const { data: { user } } = await supabase.auth.getUser()
         if (notif.user_id !== null && notif.user_id !== user?.id) return
         setNotifications(prev => (prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
+        const notif = payload.new as Notification
+        setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, ...notif } : n)))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications' }, (payload) => {
+        const removed = payload.old as { id: string }
+        setNotifications(prev => prev.filter(n => n.id !== removed.id))
       })
       .subscribe()
 
