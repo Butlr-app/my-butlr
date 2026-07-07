@@ -373,6 +373,78 @@ export function useTasks() {
   return useTable<Task>('tasks')
 }
 
+export interface TeamMember {
+  id: string
+  full_name: string | null
+  email: string | null
+  role: string
+}
+
+export function useTeamMembers() {
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchMembers() {
+      const { data } = await supabase.rpc('get_team_members')
+      setMembers((data ?? []) as TeamMember[])
+      setLoading(false)
+    }
+    fetchMembers()
+  }, [])
+
+  return { members, loading }
+}
+
+export interface TaskComment {
+  id: string
+  task_id: string
+  author_id: string
+  body: string
+  created_at: string
+}
+
+export function useTaskComments(taskId: string | null) {
+  const [comments, setComments] = useState<TaskComment[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const fetchComments = useCallback(async () => {
+    if (!taskId) { setComments([]); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('task_comments')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: true })
+    setComments((data ?? []) as TaskComment[])
+    setLoading(false)
+  }, [taskId])
+
+  useEffect(() => { fetchComments() }, [fetchComments])
+
+  const addComment = async (body: string) => {
+    if (!taskId) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+    const { data, error } = await supabase
+      .from('task_comments')
+      .insert({ task_id: taskId, author_id: user.id, body })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setComments(prev => [...prev, data as TaskComment])
+    return data as TaskComment
+  }
+
+  const removeComment = async (id: string) => {
+    const { error } = await supabase.from('task_comments').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setComments(prev => prev.filter(c => c.id !== id))
+  }
+
+  return { comments, loading, addComment, removeComment, refetch: fetchComments }
+}
+
 export function usePartners() {
   return useTable<Partner>('partners')
 }
