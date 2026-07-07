@@ -53,9 +53,8 @@ export function useRoleFilter() {
       case 'agency':
         return tasks
       case 'house_manager':
-        return tasks.filter(t => t.property_id && assignedSet.has(t.property_id))
       case 'concierge':
-        return tasks
+        return tasks.filter(t => t.property_id && assignedSet.has(t.property_id))
       case 'partner':
         return []
       case 'guest':
@@ -339,7 +338,7 @@ export function useRoleFilter() {
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
-      'concierge-portal': ['owner', 'agency'],
+      'concierge-portal': ['owner', 'agency', 'concierge'],
       payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       apa: ['owner', 'agency'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],
