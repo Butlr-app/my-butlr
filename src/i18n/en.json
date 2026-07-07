@@ -1035,8 +1035,11 @@
       "today": "Today",
       "tasks": "Tasks",
       "incidents": "Incidents",
+      "alerts": "Alerts",
       "profile": "Profile"
     },
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications",
     "offlineBanner": "Offline — changes will sync when back online",
     "backOnline": "Back online",
     "changesSynced": "change(s) synced",
