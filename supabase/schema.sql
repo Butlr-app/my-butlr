@@ -326,9 +326,9 @@ CREATE TABLE IF NOT EXISTS contract_signatures (
 ALTER TABLE contract_signatures ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated read contract_signatures" ON contract_signatures FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated manage contract_signatures" ON contract_signatures FOR ALL TO authenticated USING (true);
-CREATE POLICY "Public sign contract_signatures" ON contract_signatures FOR UPDATE USING (true);
-CREATE POLICY "Public read contract_signatures by token" ON contract_signatures FOR SELECT USING (true);
-CREATE POLICY "Public insert contract_signatures" ON contract_signatures FOR INSERT WITH CHECK (true);
+-- Public (token-based) signing is handled by the SECURITY DEFINER RPC
+-- sign_contract_by_token (see migration_phase7_1_contract_token_security.sql),
+-- so no permissive public policies are exposed on this table.
 
 -- ─── Online check-ins table (guest check-in + electronic signature) ──────────────
 CREATE TABLE IF NOT EXISTS checkins (
