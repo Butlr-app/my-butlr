@@ -14,6 +14,7 @@
     "workOrders": "Work Orders",
     "inventory": "Inventory",
     "expenses": "Expenses",
+    "budgets": "Budgets",
     "mobileApp": "Mobile app",
     "calendar": "Calendar",
     "partners": "Partners",
@@ -339,6 +340,20 @@
       "completed": "Completed",
       "cancelled": "Cancelled"
     }
+  },
+  "budgets": {
+    "title": "Budgets",
+    "subtitle": "Set a monthly spending budget per villa and track it against approved expenses.",
+    "empty": "No villas to budget for.",
+    "totalBudget": "Total budget",
+    "totalSpent": "Total spent",
+    "totalRemaining": "Remaining",
+    "spent": "Spent",
+    "of": "of",
+    "overBudget": "Over budget",
+    "noBudget": "No budget set",
+    "saved": "Budget saved",
+    "invalidAmount": "Enter a valid amount"
   },
   "partners": {
     "title": "Partners",

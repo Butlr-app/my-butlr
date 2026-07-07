@@ -14,6 +14,7 @@
     "workOrders": "Ordres de mission",
     "inventory": "Inventaire",
     "expenses": "Dépenses",
+    "budgets": "Budgets",
     "mobileApp": "App mobile",
     "calendar": "Calendrier",
     "partners": "Partenaires",
@@ -339,6 +340,20 @@
       "completed": "Terminé",
       "cancelled": "Annulé"
     }
+  },
+  "budgets": {
+    "title": "Budgets",
+    "subtitle": "Définissez un budget mensuel par villa et suivez-le par rapport aux dépenses approuvées.",
+    "empty": "Aucune villa à budgéter.",
+    "totalBudget": "Budget total",
+    "totalSpent": "Total dépensé",
+    "totalRemaining": "Restant",
+    "spent": "Dépensé",
+    "of": "sur",
+    "overBudget": "Dépassement",
+    "noBudget": "Aucun budget défini",
+    "saved": "Budget enregistré",
+    "invalidAmount": "Saisissez un montant valide"
   },
   "partners": {
     "title": "Partenaires",

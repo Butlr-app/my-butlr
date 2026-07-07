@@ -535,6 +535,20 @@ export function useExpenses() {
   return useTable<Expense>('expenses')
 }
 
+export interface Budget {
+  id: string
+  property_id: string
+  period_month: string
+  amount: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useBudgets() {
+  return useTable<Budget>('budgets')
+}
+
 export interface Shift {
   id: string
   property_id: string
