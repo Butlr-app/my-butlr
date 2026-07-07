@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useAuth } from '@/lib/authContext'
+import { supabase } from '@/lib/supabase'
+import { roleHome, type Role } from '@/lib/roleContext'
 import { useState } from 'react'
 
 export function Login() {
@@ -20,13 +22,25 @@ export function Login() {
     const password = form.get('password') as string
 
     const { error } = await signIn(email, password)
-    setLoading(false)
 
     if (error) {
+      setLoading(false)
       setError(error.message)
-    } else {
-      navigate('/app')
+      return
     }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    let dest = '/app'
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      dest = roleHome(data?.role as Role | undefined)
+    }
+    setLoading(false)
+    navigate(dest)
   }
 
   return (
