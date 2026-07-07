@@ -92,7 +92,9 @@ CREATE TABLE IF NOT EXISTS partners (
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   rating DECIMAL(2,1) DEFAULT 0,
   bookings_count INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Service Providers Directory
@@ -151,6 +153,7 @@ CREATE TABLE IF NOT EXISTS payments (
   amount DECIMAL(10,2) NOT NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed', 'refunded')),
   date DATE DEFAULT CURRENT_DATE,
+  partner_id UUID REFERENCES partners(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
