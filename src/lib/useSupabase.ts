@@ -459,6 +459,28 @@ export function useIncidents() {
   return useTable<Incident>('incidents')
 }
 
+export interface WorkOrder {
+  id: string
+  property_id: string
+  provider_id: string
+  incident_id: string | null
+  task_id: string | null
+  title: string
+  description: string | null
+  status: 'sent' | 'quote_received' | 'validated' | 'completed' | 'cancelled'
+  quote_amount: number | null
+  final_cost: number | null
+  scheduled_date: string | null
+  created_by: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useWorkOrders() {
+  return useTable<WorkOrder>('work_orders')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null
@@ -676,7 +698,7 @@ export function useProfile() {
 export interface Notification {
   id: string
   user_id: string | null
-  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident'
+  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident' | 'work_order'
   title: string
   message: string | null
   read: boolean

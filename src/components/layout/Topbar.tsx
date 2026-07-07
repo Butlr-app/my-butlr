@@ -20,6 +20,8 @@ const typeIcons: Record<Notification['type'], string> = {
   payment: 'P',
   system: 'S',
   service_request: 'SR',
+  incident: 'I',
+  work_order: 'W',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -28,6 +30,8 @@ const typeColors: Record<Notification['type'], string> = {
   payment: 'bg-success/10 text-success',
   system: 'bg-muted text-muted-foreground',
   service_request: 'bg-info/10 text-info',
+  incident: 'bg-destructive/10 text-destructive',
+  work_order: 'bg-info/10 text-info',
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {
