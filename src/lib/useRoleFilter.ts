@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -112,6 +112,19 @@ export function useRoleFilter() {
       case 'house_manager':
       case 'concierge':
         return items.filter(i => assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterExpenses(expenses: Expense[]): Expense[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return expenses
+      case 'house_manager':
+      case 'concierge':
+        return expenses.filter(e => assignedSet.has(e.property_id))
       default:
         return []
     }
@@ -238,6 +251,7 @@ export function useRoleFilter() {
       incidents: ['owner', 'house_manager', 'concierge', 'agency'],
       'work-orders': ['owner', 'house_manager', 'concierge', 'agency'],
       inventory: ['owner', 'house_manager', 'concierge', 'agency'],
+      expenses: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
@@ -266,6 +280,7 @@ export function useRoleFilter() {
     filterWorkOrders,
     filterInspections,
     filterInventoryItems,
+    filterExpenses,
     filterServices,
     filterPayments,
     filterPartners,

@@ -512,6 +512,28 @@ export function useInventoryMovements() {
   return useTable<InventoryMovement>('inventory_movements')
 }
 
+export interface Expense {
+  id: string
+  property_id: string
+  label: string
+  category: 'cleaning' | 'maintenance' | 'supplies' | 'utilities' | 'staff' | 'other'
+  vendor: string | null
+  amount: number
+  expense_date: string
+  note: string | null
+  receipt_data: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_by: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useExpenses() {
+  return useTable<Expense>('expenses')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null
@@ -729,7 +751,7 @@ export function useProfile() {
 export interface Notification {
   id: string
   user_id: string | null
-  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident' | 'work_order' | 'inspection' | 'inventory'
+  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident' | 'work_order' | 'inspection' | 'inventory' | 'expense'
   title: string
   message: string | null
   read: boolean

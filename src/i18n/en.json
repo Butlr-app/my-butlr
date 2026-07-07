@@ -12,6 +12,7 @@
     "incidents": "Incidents",
     "workOrders": "Work Orders",
     "inventory": "Inventory",
+    "expenses": "Expenses",
     "calendar": "Calendar",
     "partners": "Partners",
     "serviceProviders": "Directory",
@@ -836,6 +837,50 @@
       "usage": "Usage",
       "loss": "Loss / damage",
       "adjustment": "Adjustment"
+    }
+  },
+  "expenses": {
+    "title": "Expenses",
+    "subtitle": "Operational expenses per villa with receipts.",
+    "addExpense": "Add expense",
+    "created": "Expense recorded",
+    "deleted": "Expense deleted",
+    "approved": "Expense approved",
+    "rejected": "Expense rejected",
+    "empty": "No expenses for this filter.",
+    "property": "Property",
+    "labelLabel": "Label",
+    "labelPlaceholder": "e.g. Pool cleaning supplies",
+    "categoryLabel": "Category",
+    "vendorLabel": "Vendor (optional)",
+    "amountLabel": "Amount (€)",
+    "dateLabel": "Date",
+    "noteLabel": "Note (optional)",
+    "formError": "Label, property and a positive amount are required",
+    "attachReceipt": "Attach receipt",
+    "receiptAttached": "Receipt attached — replace",
+    "receipt": "Receipt",
+    "noReceipt": "No receipt attached.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "total": "Total",
+    "allProperties": "All properties",
+    "allCategories": "All categories",
+    "allStatuses": "All statuses",
+    "deleteTitle": "Delete expense",
+    "deleteMessage": "Delete expense \"{label}\"? This cannot be undone.",
+    "category": {
+      "cleaning": "Cleaning",
+      "maintenance": "Maintenance",
+      "supplies": "Supplies",
+      "utilities": "Utilities",
+      "staff": "Staff",
+      "other": "Other"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
     }
   },
   "inspections": {
