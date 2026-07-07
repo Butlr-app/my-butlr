@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
+import { readCache, writeCache } from './offline'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1371,11 +1372,17 @@ export function useRoleAssignments(userId: string | undefined) {
   useEffect(() => {
     async function load() {
       if (!userId) { setAssignments([]); setLoading(false); return }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('role_assignments')
         .select('*')
         .eq('user_id', userId)
-      setAssignments((data ?? []) as RoleAssignment[])
+      if (error) {
+        setAssignments(readCache<RoleAssignment>(`role_assignments:${userId}`) ?? [])
+      } else {
+        const rows = (data ?? []) as RoleAssignment[]
+        setAssignments(rows)
+        writeCache(`role_assignments:${userId}`, rows)
+      }
       setLoading(false)
     }
     load()

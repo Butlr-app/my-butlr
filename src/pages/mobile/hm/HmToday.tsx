@@ -1,6 +1,7 @@
-import { useProperties, useReservations, useTasks } from '@/lib/useSupabase'
+import { useProperties, useReservations, useTasks, type Property, type Reservation, type Task } from '@/lib/useSupabase'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useAuth } from '@/lib/authContext'
+import { useCachedRows } from '@/lib/offline'
 import { Loader2, LogIn, LogOut, ClipboardList, CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -13,10 +14,14 @@ function toDateString(d: Date): string {
 
 export function HmToday() {
   const { user } = useAuth()
-  const { data: rawProperties, loading: lProps } = useProperties()
-  const { data: rawReservations, loading: lRes } = useReservations()
-  const { data: rawTasks, loading: lTasks } = useTasks()
+  const { data: rawProperties, loading: lProps, error: eProps } = useProperties()
+  const { data: rawReservations, loading: lRes, error: eRes } = useReservations()
+  const { data: rawTasks, loading: lTasks, error: eTasks } = useTasks()
   const { filterProperties, filterReservations, filterTasks, loading: lRole } = useRoleFilter()
+
+  const propertyRows = useCachedRows<Property>('properties', rawProperties, lProps, eProps)
+  const reservationRows = useCachedRows<Reservation>('reservations', rawReservations, lRes, eRes)
+  const taskRows = useCachedRows<Task>('tasks', rawTasks, lTasks, eTasks)
 
   const loading = lProps || lRes || lTasks || lRole
 
@@ -29,17 +34,17 @@ export function HmToday() {
   }
 
   const today = toDateString(new Date())
-  const properties = filterProperties(rawProperties)
+  const properties = filterProperties(propertyRows.rows)
   const propertyIds = new Set(properties.map(p => p.id))
   const propertyName = (id: string | null) =>
     (id && properties.find(p => p.id === id)?.name) ?? 'Property'
 
-  const reservations = filterReservations(rawReservations)
+  const reservations = filterReservations(reservationRows.rows)
     .filter(r => r.status !== 'cancelled' && r.property_id && propertyIds.has(r.property_id))
   const arrivals = reservations.filter(r => r.arrival === today)
   const departures = reservations.filter(r => r.departure === today)
 
-  const tasks = filterTasks(rawTasks).filter(t =>
+  const tasks = filterTasks(taskRows.rows).filter(t =>
     t.status !== 'done' && (t.due_date === today || (t.due_date !== null && t.due_date < today))
   )
 
