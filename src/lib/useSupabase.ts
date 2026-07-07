@@ -553,6 +553,24 @@ export function useShifts() {
   return useTable<Shift>('shifts')
 }
 
+export interface ActivityLogEntry {
+  id: string
+  property_id: string | null
+  actor_id: string | null
+  actor_name: string | null
+  action: 'created' | 'updated' | 'status_changed' | 'deleted'
+  entity_type: string
+  entity_id: string | null
+  entity_title: string | null
+  new_status: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+export function useActivityLog() {
+  return useTable<ActivityLogEntry>('activity_log')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null

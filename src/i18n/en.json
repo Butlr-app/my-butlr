@@ -31,7 +31,32 @@
     "search": "Search",
     "menu": "Menu",
     "inspections": "Inspections",
+    "activity": "Activity",
     "conciergePortal": "Concierge Portal"
+  },
+  "activity": {
+    "title": "Activity Log",
+    "subtitle": "Audit history of operational changes across your villas",
+    "allProperties": "All villas",
+    "allTypes": "All types",
+    "allActions": "All actions",
+    "empty": "No activity yet",
+    "system": "System",
+    "actions": {
+      "created": "Created",
+      "updated": "Updated",
+      "status_changed": "Status changed",
+      "deleted": "Deleted"
+    },
+    "entities": {
+      "tasks": "Task",
+      "incidents": "Incident",
+      "work_orders": "Work order",
+      "inspections": "Inspection",
+      "inventory_items": "Inventory item",
+      "expenses": "Expense",
+      "shifts": "Shift"
+    }
   },
   "apa": {
     "title": "APA — Collection & Payouts",

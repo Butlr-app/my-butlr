@@ -276,6 +276,7 @@ export function useRoleFilter() {
       invoices: ['owner', 'agency', 'house_manager', 'concierge'],
       guides: ['owner', 'house_manager', 'concierge', 'agency'],
       inspections: ['owner', 'house_manager', 'concierge', 'agency'],
+      activity: ['owner', 'house_manager', 'concierge', 'agency'],
       reports: ['owner', 'agency', 'house_manager'],
       notifications: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
       settings: ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'],
