@@ -952,26 +952,20 @@ export function useContractSignatures(contractId: string | undefined) {
 }
 
 export async function getContractByToken(token: string) {
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('signing_token', token)
-    .single()
+  const { data, error } = await supabase.rpc('get_contract_by_token', { p_token: token })
   if (error) return null
-  return data as Contract
+  const rows = (data ?? []) as Contract[]
+  return rows.length > 0 ? rows[0] : null
 }
 
-export async function signContract(contractId: string, signerName: string, signerRole: string, signatureData: string) {
-  const { error: sigError } = await supabase
-    .from('contract_signatures')
-    .insert({ contract_id: contractId, signer_name: signerName, signer_role: signerRole, signature_data: signatureData, signed_at: new Date().toISOString() })
-  if (sigError) throw new Error(sigError.message)
-
-  const { error: updateError } = await supabase
-    .from('contracts')
-    .update({ status: 'signed' })
-    .eq('id', contractId)
-  if (updateError) throw new Error(updateError.message)
+export async function signContractByToken(token: string, signerName: string, signerRole: string, signatureData: string) {
+  const { error } = await supabase.rpc('sign_contract_by_token', {
+    p_token: token,
+    p_signer_name: signerName,
+    p_signer_role: signerRole,
+    p_signature_data: signatureData,
+  })
+  if (error) throw new Error(error.message)
 }
 
 // ─── Property Images ─────────────────────────────────────────────────────────
