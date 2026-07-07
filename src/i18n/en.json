@@ -12,6 +12,7 @@
     "teamPlanning": "Team Planning",
     "incidents": "Incidents",
     "workOrders": "Work Orders",
+    "maintenance": "Maintenance",
     "inventory": "Inventory",
     "expenses": "Expenses",
     "mobileApp": "Mobile app",
@@ -32,6 +33,10 @@
     "menu": "Menu",
     "inspections": "Inspections",
     "conciergePortal": "Concierge Portal"
+  },
+  "push": {
+    "title": "Push notifications",
+    "subtitle": "Get alerts on this device"
   },
   "apa": {
     "title": "APA — Collection & Payouts",
@@ -338,6 +343,56 @@
       "validated": "Validated",
       "completed": "Completed",
       "cancelled": "Cancelled"
+    }
+  },
+  "maintenance": {
+    "title": "Preventive Maintenance",
+    "subtitle": "Schedule recurring maintenance per villa; tasks are created automatically as each plan falls due.",
+    "add": "New plan",
+    "editTitle": "Edit plan",
+    "created": "Maintenance plan created",
+    "updated": "Maintenance plan updated",
+    "deleted": "Maintenance plan deleted",
+    "empty": "No maintenance plans yet.",
+    "allProperties": "All villas",
+    "property": "Villa",
+    "planTitle": "Title",
+    "titlePlaceholder": "e.g. Boiler service",
+    "categoryLabel": "Category",
+    "frequency": "Frequency",
+    "nextDue": "Next due",
+    "leadDays": "Reminder lead (days)",
+    "assignedTo": "Assigned to",
+    "unassigned": "Unassigned",
+    "notes": "Notes",
+    "activePlan": "Active",
+    "inactive": "Inactive",
+    "every": "every",
+    "months": "months",
+    "formError": "Title, villa and next due date are required",
+    "deleteTitle": "Delete maintenance plan",
+    "deleteMessage": "Delete plan \"{title}\"? This cannot be undone.",
+    "category": {
+      "hvac": "HVAC / Heating",
+      "plumbing": "Plumbing",
+      "electrical": "Electrical",
+      "pool": "Pool / Spa",
+      "garden": "Garden",
+      "safety": "Safety",
+      "appliance": "Appliance",
+      "other": "Other"
+    },
+    "interval": {
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "semiannual": "Every 6 months",
+      "annual": "Yearly",
+      "biennial": "Every 2 years"
+    },
+    "due": {
+      "overdue": "Overdue",
+      "soon": "Due soon",
+      "scheduled": "Scheduled"
     }
   },
   "partners": {
@@ -1031,8 +1086,11 @@
       "today": "Today",
       "tasks": "Tasks",
       "incidents": "Incidents",
+      "alerts": "Alerts",
       "profile": "Profile"
     },
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications",
     "offlineBanner": "Offline — changes will sync when back online",
     "backOnline": "Back online",
     "changesSynced": "change(s) synced",
