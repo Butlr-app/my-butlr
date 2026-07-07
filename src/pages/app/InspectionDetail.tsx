@@ -287,7 +287,7 @@ export function InspectionDetail() {
             required
             value={roomName}
             onChange={e => setRoomName(e.target.value)}
-            placeholder="Salon, Chambre 1, Cuisine..."
+            placeholder={t('inspections.roomPlaceholder')}
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowAddRoom(false)}>
@@ -309,7 +309,7 @@ export function InspectionDetail() {
             required
             value={reportForm.title}
             onChange={e => setReportForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="Rayure sur le parquet..."
+            placeholder={t('inspections.reportPlaceholder')}
           />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium">{t('inspections.reportDescription')}</label>

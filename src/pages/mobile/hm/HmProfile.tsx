@@ -3,16 +3,8 @@ import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
 import { useProperties } from '@/lib/useSupabase'
 import { useRoleFilter } from '@/lib/useRoleFilter'
-import { Loader2, Building2, Monitor, LogOut, ChevronRight } from 'lucide-react'
-
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'Owner',
-  agency: 'Agency',
-  house_manager: 'House Manager',
-  concierge: 'Concierge',
-  partner: 'Partner',
-  guest: 'Guest',
-}
+import { useTranslation, type Language } from '@/i18n/LanguageContext'
+import { Loader2, Building2, Monitor, LogOut, ChevronRight, Globe } from 'lucide-react'
 
 export function HmProfile() {
   const { user, signOut } = useAuth()
@@ -20,6 +12,7 @@ export function HmProfile() {
   const navigate = useNavigate()
   const { data: rawProperties, loading: lProps } = useProperties()
   const { filterProperties, loading: lRole } = useRoleFilter()
+  const { t, language, setLanguage } = useTranslation()
 
   if (lProps || lRole) {
     return (
@@ -50,16 +43,16 @@ export function HmProfile() {
           </h1>
           <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-            {ROLE_LABEL[role] ?? role}
+            {t(`roles.${role}`)}
           </span>
         </div>
       </div>
 
       {/* Assigned properties */}
       <div className="px-5">
-        <h2 className="text-sm font-bold text-gray-900 mb-3">My properties</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-3">{t('hm.myProperties')}</h2>
         {properties.length === 0 ? (
-          <p className="text-sm text-gray-400 bg-white rounded-2xl border border-gray-100 p-4">No assigned properties</p>
+          <p className="text-sm text-gray-400 bg-white rounded-2xl border border-gray-100 p-4">{t('hm.noProperties')}</p>
         ) : (
           <div className="space-y-3">
             {properties.map(p => (
@@ -83,6 +76,25 @@ export function HmProfile() {
 
       {/* Actions */}
       <div className="px-5 mt-6 pb-8 space-y-3">
+        <div className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+            <Globe className="w-5 h-5 text-amber-500" />
+          </div>
+          <span className="flex-1 text-left text-sm font-semibold text-gray-900">{t('hm.language')}</span>
+          <div className="flex gap-1.5">
+            {(['fr', 'en'] as Language[]).map(lang => (
+              <button
+                key={lang}
+                onClick={() => setLanguage(lang)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase transition-colors ${
+                  language === lang ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+        </div>
         <Link
           to="/app"
           className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:bg-gray-50 transition-colors"
@@ -90,7 +102,7 @@ export function HmProfile() {
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
             <Monitor className="w-5 h-5 text-blue-500" />
           </div>
-          <span className="flex-1 text-left text-sm font-semibold text-gray-900">Open desktop dashboard</span>
+          <span className="flex-1 text-left text-sm font-semibold text-gray-900">{t('hm.openDesktop')}</span>
           <ChevronRight className="w-4 h-4 text-gray-300" />
         </Link>
         <button
@@ -100,7 +112,7 @@ export function HmProfile() {
           <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
             <LogOut className="w-5 h-5 text-red-500" />
           </div>
-          <span className="flex-1 text-left text-sm font-semibold text-red-600">Sign out</span>
+          <span className="flex-1 text-left text-sm font-semibold text-red-600">{t('hm.signOut')}</span>
           <ChevronRight className="w-4 h-4 text-gray-300" />
         </button>
       </div>

@@ -159,7 +159,7 @@ export function Inspections() {
             required
             value={form.inspector_name}
             onChange={e => setForm(f => ({ ...f, inspector_name: e.target.value }))}
-            placeholder="Jean Dupont"
+            placeholder={t('inspections.inspectorPlaceholder')}
           />
           <Select
             label={t('inspections.property')}
