@@ -439,6 +439,12 @@ export async function generateRecurringTasks(): Promise<number> {
   return (data ?? 0) as number
 }
 
+export async function escalateIncidents(): Promise<number> {
+  const { data, error } = await supabase.rpc('escalate_incidents')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
+}
+
 export interface Incident {
   id: string
   property_id: string
@@ -452,6 +458,7 @@ export interface Incident {
   assigned_to: string | null
   resolution_note: string | null
   resolved_at: string | null
+  escalated_at: string | null
   created_at: string
   updated_at: string
 }

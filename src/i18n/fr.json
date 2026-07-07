@@ -278,6 +278,8 @@
     "photo": "Photo de l'incident",
     "resolutionNote": "Note de résolution",
     "resolvedAt": "Résolu le",
+    "escalated": "Escaladé",
+    "escalatedAt": "Escaladé le",
     "filterActive": "Actifs (ouverts + en cours)",
     "filterAll": "Tous les statuts",
     "allProperties": "Toutes les propriétés",
