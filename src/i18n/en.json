@@ -287,6 +287,8 @@
     "photo": "Incident photo",
     "resolutionNote": "Resolution note",
     "resolvedAt": "Resolved at",
+    "escalated": "Escalated",
+    "escalatedAt": "Escalated at",
     "filterActive": "Active (open + in progress)",
     "filterAll": "All statuses",
     "allProperties": "All properties",
