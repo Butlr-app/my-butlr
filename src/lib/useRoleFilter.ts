@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift, type Document } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift, type Document, type MaintenancePlan } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -73,6 +73,19 @@ export function useRoleFilter() {
       case 'house_manager':
       case 'concierge':
         return incidents.filter(i => assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterMaintenancePlans(plans: MaintenancePlan[]): MaintenancePlan[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return plans
+      case 'house_manager':
+      case 'concierge':
+        return plans.filter(p => assignedSet.has(p.property_id))
       default:
         return []
     }
@@ -277,6 +290,7 @@ export function useRoleFilter() {
       'team-planning': ['owner', 'house_manager', 'concierge', 'agency'],
       incidents: ['owner', 'house_manager', 'concierge', 'agency'],
       'work-orders': ['owner', 'house_manager', 'concierge', 'agency'],
+      maintenance: ['owner', 'house_manager', 'concierge', 'agency'],
       inventory: ['owner', 'house_manager', 'concierge', 'agency'],
       expenses: ['owner', 'house_manager', 'concierge', 'agency'],
       documents: ['owner', 'house_manager', 'concierge', 'agency'],
@@ -306,6 +320,7 @@ export function useRoleFilter() {
     filterTasks,
     filterIncidents,
     filterWorkOrders,
+    filterMaintenancePlans,
     filterInspections,
     filterInventoryItems,
     filterExpenses,

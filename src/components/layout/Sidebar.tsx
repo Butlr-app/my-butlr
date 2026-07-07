@@ -4,10 +4,11 @@ import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useRole, type Role } from '@/lib/roleContext'
 import { useSearch } from '@/lib/searchContext'
 import { useAuth } from '@/lib/authContext'
+import { useNotifications } from '@/lib/useSupabase'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, CalendarCheck2, CalendarRange, AlertTriangle, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote, Smartphone, FolderOpen
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote, Smartphone, FolderOpen, CalendarClock
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -27,6 +28,7 @@ const navItems = [
   { to: '/app/team-planning', icon: CalendarRange, labelKey: 'nav.teamPlanning', page: 'team-planning' },
   { to: '/app/incidents', icon: AlertTriangle, labelKey: 'nav.incidents', page: 'incidents' },
   { to: '/app/work-orders', icon: Wrench, labelKey: 'nav.workOrders', page: 'work-orders' },
+  { to: '/app/maintenance', icon: CalendarClock, labelKey: 'nav.maintenance', page: 'maintenance' },
   { to: '/app/inventory', icon: Package, labelKey: 'nav.inventory', page: 'inventory' },
   { to: '/app/expenses', icon: Banknote, labelKey: 'nav.expenses', page: 'expenses' },
   { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },
@@ -61,6 +63,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   const { query, setQuery } = useSearch()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { unreadCount } = useNotifications()
 
   const visibleItems = navItems.filter(item => isVisible(item.page))
   const showMobileApp = role === 'house_manager' || role === 'concierge'
@@ -117,7 +120,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               end={item.to === '/app'}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) => cn(
-                'flex items-center gap-3 h-11 px-3 rounded-xl text-sm transition-colors',
+                'relative flex items-center gap-3 h-11 px-3 rounded-xl text-sm transition-colors',
                 isActive
                   ? 'bg-primary text-white font-semibold shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.7)]'
                   : 'text-white/60 hover:bg-white/10 hover:text-white'
@@ -125,6 +128,14 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             >
               <item.icon className="w-[18px] h-[18px] shrink-0" />
               {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
+              {item.page === 'notifications' && unreadCount > 0 && (
+                <span className={cn(
+                  'min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-destructive text-white rounded-full flex items-center justify-center',
+                  collapsed ? 'absolute left-8 top-1.5' : 'ml-auto'
+                )}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </NavLink>
           ))}
           {showMobileApp && (
