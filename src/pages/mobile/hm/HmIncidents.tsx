@@ -5,8 +5,17 @@ import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { uploadFile } from '@/lib/storage'
-import { useCachedRows, useOnlineStatus, queueOp, getPendingIncidents, SYNC_EVENT } from '@/lib/offline'
-import { Loader2, AlertTriangle, Plus, X, Camera, CloudOff } from 'lucide-react'
+import { useCachedRows, useOnlineStatus, queueOp, getPendingIncidents, getPendingIncidentStatus, SYNC_EVENT } from '@/lib/offline'
+import { Loader2, AlertTriangle, Plus, X, Camera, CloudOff, ChevronRight } from 'lucide-react'
+
+const NEXT_INCIDENT_STATUS: Partial<Record<Incident['status'], Incident['status']>> = {
+  open: 'in_progress',
+  in_progress: 'resolved',
+}
+const NEXT_INCIDENT_LABEL_KEY: Partial<Record<Incident['status'], string>> = {
+  open: 'hm.markInProgress',
+  in_progress: 'hm.markResolved',
+}
 
 const CATEGORIES: Incident['category'][] = ['equipment', 'plumbing', 'electrical', 'damage', 'security', 'other']
 const URGENCIES: Incident['urgency'][] = ['low', 'medium', 'high', 'critical']
@@ -27,7 +36,7 @@ const STATUS_STYLE: Record<Incident['status'], string> = {
 
 export function HmIncidents() {
   const { user } = useAuth()
-  const { data: rawIncidents, loading: lInc, error: eInc, insert, refetch } = useIncidents()
+  const { data: rawIncidents, loading: lInc, error: eInc, insert, update, refetch } = useIncidents()
   const { data: rawProperties, loading: lProps, error: eProps } = useProperties()
   const { filterIncidents, filterProperties, loading: lRole } = useRoleFilter()
   const { toast } = useToast()
@@ -40,6 +49,8 @@ export function HmIncidents() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [viewPhoto, setViewPhoto] = useState<string | null>(null)
   const [pendingRows, setPendingRows] = useState(() => getPendingIncidents())
+  const [pendingStatus, setPendingStatus] = useState<Record<string, string>>(() => getPendingIncidentStatus())
+  const [busyId, setBusyId] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     property_id: '',
@@ -55,6 +66,7 @@ export function HmIncidents() {
   useEffect(() => {
     const onSynced = () => {
       setPendingRows(getPendingIncidents())
+      setPendingStatus(getPendingIncidentStatus())
       refetch()
     }
     window.addEventListener(SYNC_EVENT, onSynced)
@@ -81,8 +93,28 @@ export function HmIncidents() {
   const properties = filterProperties(propertyRows.rows)
   const propertyName = (id: string) => properties.find(p => p.id === id)?.name ?? 'Property'
   const incidents = filterIncidents(incidentRows.rows)
-    .slice()
+    .map(i => (pendingStatus[i.id] ? { ...i, status: pendingStatus[i.id] as Incident['status'] } : i))
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+  const advance = async (incident: Incident) => {
+    const next = NEXT_INCIDENT_STATUS[incident.status]
+    if (!next) return
+    if (!online) {
+      queueOp({ kind: 'incident_update', id: incident.id, changes: { status: next } })
+      setPendingStatus(getPendingIncidentStatus())
+      toast(t('hm.savedOffline'))
+      return
+    }
+    setBusyId(incident.id)
+    try {
+      await update(incident.id, { status: next })
+      toast(t('hm.updated'))
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const resetForm = () => {
     setFormOpen(false)
@@ -184,6 +216,22 @@ export function HmIncidents() {
                   </button>
                 )}
               </div>
+              {NEXT_INCIDENT_STATUS[i.status] && (
+                <button
+                  onClick={() => advance(i)}
+                  disabled={busyId === i.id}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-semibold active:bg-gray-800 disabled:opacity-50 transition-colors"
+                >
+                  {busyId === i.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      {t(NEXT_INCIDENT_LABEL_KEY[i.status] ?? '')}
+                      {pendingStatus[i.id] ? <CloudOff className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           ))
         )}
