@@ -482,6 +482,31 @@ export function useWorkOrders() {
   return useTable<WorkOrder>('work_orders')
 }
 
+export interface MaintenancePlan {
+  id: string
+  property_id: string
+  title: string
+  category: 'hvac' | 'plumbing' | 'electrical' | 'pool' | 'garden' | 'safety' | 'appliance' | 'other'
+  notes: string | null
+  interval_months: number
+  lead_days: number
+  next_due: string
+  last_generated: string | null
+  assigned_to: string | null
+  active: boolean
+  created_at: string
+}
+
+export function useMaintenancePlans() {
+  return useTable<MaintenancePlan>('maintenance_plans')
+}
+
+export async function generateMaintenanceTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_maintenance_tasks')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
+}
+
 export interface InventoryItem {
   id: string
   property_id: string
