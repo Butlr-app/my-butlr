@@ -69,6 +69,11 @@ CREATE POLICY "Owner or agency deletes partners"
 
 DROP POLICY IF EXISTS "Authenticated read service_providers" ON service_providers;
 DROP POLICY IF EXISTS "Authenticated manage service_providers" ON service_providers;
+-- Legacy per-action policy names created outside schema.sql:
+DROP POLICY IF EXISTS "Authenticated users can view service providers" ON service_providers;
+DROP POLICY IF EXISTS "Authenticated users can insert service providers" ON service_providers;
+DROP POLICY IF EXISTS "Authenticated users can update service providers" ON service_providers;
+DROP POLICY IF EXISTS "Authenticated users can delete service providers" ON service_providers;
 
 CREATE POLICY "Staff read service_providers"
   ON service_providers FOR SELECT TO authenticated
