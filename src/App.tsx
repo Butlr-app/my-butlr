@@ -70,6 +70,7 @@ import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
 import { Budgets } from './pages/app/Budgets'
 import { TimeClock } from './pages/app/TimeClock'
+import { ProviderRatings } from './pages/app/ProviderRatings'
 import { Maintenance } from './pages/app/Maintenance'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
@@ -125,6 +126,7 @@ export default function App() {
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="service-providers" element={<ServiceProviders />} />
+          <Route path="provider-ratings" element={<ProviderRatings />} />
           <Route path="concierge-portal" element={<ConciergePortal />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />

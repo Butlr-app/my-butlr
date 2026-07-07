@@ -21,6 +21,7 @@
     "calendar": "Calendrier",
     "partners": "Partenaires",
     "serviceProviders": "Annuaire",
+    "providerRatings": "Notation prestataires",
     "payments": "Paiements",
     "apa": "APA",
     "contracts": "Contrats",
@@ -377,6 +378,25 @@
     "ongoing": "en cours",
     "active": "En cours",
     "empty": "Aucun pointage cette semaine."
+  },
+  "providerRatings": {
+    "title": "Notation & SLA prestataires",
+    "subtitle": "Notez les prestataires après chaque mission terminée et suivez leur note moyenne et leur délai d'intervention.",
+    "performance": "Performance des prestataires",
+    "noData": "Aucun prestataire avec des ordres de mission.",
+    "unrated": "Pas encore noté",
+    "completedJobs": "Terminées",
+    "avgTime": "Délai moyen",
+    "days": "{n} j",
+    "rateJobs": "Noter les missions terminées",
+    "nothingToRate": "Aucune mission terminée en attente de note.",
+    "rate": "Noter",
+    "rateProvider": "Noter le prestataire",
+    "rating": "Note",
+    "comment": "Commentaire",
+    "commentPlaceholder": "Comment s'est passée la mission ?",
+    "submit": "Envoyer la note",
+    "rated": "Note enregistrée"
   },
   "maintenance": {
     "title": "Maintenance préventive",

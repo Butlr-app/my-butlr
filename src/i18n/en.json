@@ -21,6 +21,7 @@
     "calendar": "Calendar",
     "partners": "Partners",
     "serviceProviders": "Directory",
+    "providerRatings": "Provider Ratings",
     "payments": "Payments",
     "apa": "APA",
     "contracts": "Contracts",
@@ -377,6 +378,25 @@
     "ongoing": "ongoing",
     "active": "Active",
     "empty": "No time entries this week."
+  },
+  "providerRatings": {
+    "title": "Provider Ratings & SLA",
+    "subtitle": "Rate providers after completed jobs and track their average rating and turnaround time.",
+    "performance": "Provider performance",
+    "noData": "No providers with work orders yet.",
+    "unrated": "Not yet rated",
+    "completedJobs": "Completed",
+    "avgTime": "Avg time",
+    "days": "{n} d",
+    "rateJobs": "Rate completed jobs",
+    "nothingToRate": "No completed jobs awaiting a rating.",
+    "rate": "Rate",
+    "rateProvider": "Rate provider",
+    "rating": "Rating",
+    "comment": "Comment",
+    "commentPlaceholder": "How did the job go?",
+    "submit": "Submit rating",
+    "rated": "Rating submitted"
   },
   "maintenance": {
     "title": "Preventive Maintenance",

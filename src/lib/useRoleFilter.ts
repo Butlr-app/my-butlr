@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift, type Budget, type TimeEntry, type MaintenancePlan } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift, type Budget, type TimeEntry, type ProviderRating, type MaintenancePlan } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -153,6 +153,19 @@ export function useRoleFilter() {
         return entries.filter(e => e.user_id === user?.id || assignedSet.has(e.property_id))
       default:
         return entries.filter(e => e.user_id === user?.id)
+    }
+  }
+
+  function filterProviderRatings(ratings: ProviderRating[]): ProviderRating[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return ratings
+      case 'house_manager':
+      case 'concierge':
+        return ratings.filter(r => assignedSet.has(r.property_id))
+      default:
+        return []
     }
   }
 
@@ -308,6 +321,7 @@ export function useRoleFilter() {
       expenses: ['owner', 'house_manager', 'concierge', 'agency'],
       budgets: ['owner', 'house_manager', 'concierge', 'agency'],
       'time-clock': ['owner', 'house_manager', 'concierge', 'agency'],
+      'provider-ratings': ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
@@ -340,6 +354,7 @@ export function useRoleFilter() {
     filterExpenses,
     filterBudgets,
     filterTimeEntries,
+    filterProviderRatings,
     filterShifts,
     filterServices,
     filterPayments,
