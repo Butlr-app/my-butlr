@@ -98,7 +98,9 @@ export interface Partner {
   status: 'active' | 'inactive'
   rating: number
   bookings_count: number
+  user_id: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface ServiceProvider {
@@ -128,6 +130,7 @@ export interface Payment {
   amount: number
   status: 'pending' | 'paid' | 'failed' | 'refunded'
   date: string
+  partner_id: string | null
   created_at: string
 }
 
@@ -482,6 +485,31 @@ export function useWorkOrders() {
   return useTable<WorkOrder>('work_orders')
 }
 
+export interface MaintenancePlan {
+  id: string
+  property_id: string
+  title: string
+  category: 'hvac' | 'plumbing' | 'electrical' | 'pool' | 'garden' | 'safety' | 'appliance' | 'other'
+  notes: string | null
+  interval_months: number
+  lead_days: number
+  next_due: string
+  last_generated: string | null
+  assigned_to: string | null
+  active: boolean
+  created_at: string
+}
+
+export function useMaintenancePlans() {
+  return useTable<MaintenancePlan>('maintenance_plans')
+}
+
+export async function generateMaintenanceTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_maintenance_tasks')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
+}
+
 export interface InventoryItem {
   id: string
   property_id: string
@@ -642,6 +670,57 @@ export function useTaskComments(taskId: string | null) {
 
 export function usePartners() {
   return useTable<Partner>('partners')
+}
+
+// Resolves the `partners` row linked to the signed-in account (partners.user_id).
+// RLS lets a partner read only their own row, so this returns null for accounts
+// that are not linked to a partner (e.g. an owner previewing the portal).
+export function useCurrentPartner() {
+  const [partner, setPartner] = useState<Partner | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setPartner(null)
+      setLoading(false)
+      return
+    }
+    const { data } = await supabase
+      .from('partners')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setPartner((data as Partner) ?? null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  return { partner, loading, refetch: fetch }
+}
+
+// Aggregates the data a signed-in partner needs for their portal, scoped to
+// their own `partners` row. `service_requests` and `payments` are already
+// restricted server-side by RLS, but we also filter by partner.id so an owner
+// previewing the portal (who can read everything) sees an empty, unlinked view.
+export function usePartnerPortal() {
+  const { partner, loading: partnerLoading, refetch } = useCurrentPartner()
+  const { requests, loading: requestsLoading, updateRequest } = useServiceRequests()
+  const { data: payments, loading: paymentsLoading } = usePayments()
+
+  const bookings = partner ? requests.filter(r => r.partner_id === partner.id) : []
+  const myPayments = partner ? payments.filter(p => p.partner_id === partner.id) : []
+
+  return {
+    partner,
+    bookings,
+    payments: myPayments,
+    loading: partnerLoading || requestsLoading || paymentsLoading,
+    updateRequest,
+    refetch,
+  }
 }
 
 export function useServiceProviders() {
@@ -855,6 +934,14 @@ export function useNotifications() {
         if (notif.user_id !== null && notif.user_id !== user?.id) return
         setNotifications(prev => (prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]))
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
+        const notif = payload.new as Notification
+        setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, ...notif } : n)))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications' }, (payload) => {
+        const removed = payload.old as { id: string }
+        setNotifications(prev => prev.filter(n => n.id !== removed.id))
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -931,26 +1018,20 @@ export function useContractSignatures(contractId: string | undefined) {
 }
 
 export async function getContractByToken(token: string) {
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('signing_token', token)
-    .single()
+  const { data, error } = await supabase.rpc('get_contract_by_token', { p_token: token })
   if (error) return null
-  return data as Contract
+  const rows = (data ?? []) as Contract[]
+  return rows.length > 0 ? rows[0] : null
 }
 
-export async function signContract(contractId: string, signerName: string, signerRole: string, signatureData: string) {
-  const { error: sigError } = await supabase
-    .from('contract_signatures')
-    .insert({ contract_id: contractId, signer_name: signerName, signer_role: signerRole, signature_data: signatureData, signed_at: new Date().toISOString() })
-  if (sigError) throw new Error(sigError.message)
-
-  const { error: updateError } = await supabase
-    .from('contracts')
-    .update({ status: 'signed' })
-    .eq('id', contractId)
-  if (updateError) throw new Error(updateError.message)
+export async function signContractByToken(token: string, signerName: string, signerRole: string, signatureData: string) {
+  const { error } = await supabase.rpc('sign_contract_by_token', {
+    p_token: token,
+    p_signer_name: signerName,
+    p_signer_role: signerRole,
+    p_signature_data: signatureData,
+  })
+  if (error) throw new Error(error.message)
 }
 
 // ─── Property Images ─────────────────────────────────────────────────────────

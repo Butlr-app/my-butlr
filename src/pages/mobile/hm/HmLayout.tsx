@@ -4,8 +4,9 @@ import { MobileLayout } from '@/components/mobile/MobileLayout'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { useRole } from '@/lib/roleContext'
 import { useOnlineStatus, flushQueue, getQueue } from '@/lib/offline'
+import { useNotifications } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
-import { Loader2, CalendarCheck, ClipboardList, AlertTriangle, User, WifiOff } from 'lucide-react'
+import { Loader2, CalendarCheck, ClipboardList, AlertTriangle, Bell, User, WifiOff } from 'lucide-react'
 import type { NavItem } from '@/components/mobile/BottomNav'
 
 const ALLOWED_ROLES = ['owner', 'agency', 'house_manager', 'concierge']
@@ -15,13 +16,15 @@ export function HmLayout() {
   const online = useOnlineStatus()
   const { toast } = useToast()
   const { t } = useTranslation()
+  const { unreadCount } = useNotifications()
 
   const hmNavItems: NavItem[] = useMemo(() => [
     { path: '/hm', label: t('hm.nav.today'), icon: CalendarCheck },
     { path: '/hm/tasks', label: t('hm.nav.tasks'), icon: ClipboardList },
     { path: '/hm/incidents', label: t('hm.nav.incidents'), icon: AlertTriangle },
+    { path: '/hm/notifications', label: t('hm.nav.alerts'), icon: Bell, badge: unreadCount },
     { path: '/hm/profile', label: t('hm.nav.profile'), icon: User },
-  ], [t])
+  ], [t, unreadCount])
 
   useEffect(() => {
     if (!online || getQueue().length === 0) return
