@@ -481,6 +481,37 @@ export function useWorkOrders() {
   return useTable<WorkOrder>('work_orders')
 }
 
+export interface InventoryItem {
+  id: string
+  property_id: string
+  name: string
+  category: 'welcome_products' | 'linen' | 'cleaning' | 'maintenance' | 'food_beverage' | 'other'
+  unit: string
+  quantity: number
+  threshold: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryMovement {
+  id: string
+  item_id: string
+  delta: number
+  reason: 'restock' | 'usage' | 'loss' | 'adjustment'
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export function useInventoryItems() {
+  return useTable<InventoryItem>('inventory_items')
+}
+
+export function useInventoryMovements() {
+  return useTable<InventoryMovement>('inventory_movements')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null
@@ -698,7 +729,7 @@ export function useProfile() {
 export interface Notification {
   id: string
   user_id: string | null
-  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident' | 'work_order'
+  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident' | 'work_order' | 'inspection' | 'inventory'
   title: string
   message: string | null
   read: boolean

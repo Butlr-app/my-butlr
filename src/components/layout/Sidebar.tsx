@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, CalendarCheck2, AlertTriangle, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -26,6 +26,7 @@ const navItems = [
   { to: '/app/day-sheet', icon: CalendarCheck2, labelKey: 'nav.daySheet', page: 'day-sheet' },
   { to: '/app/incidents', icon: AlertTriangle, labelKey: 'nav.incidents', page: 'incidents' },
   { to: '/app/work-orders', icon: Wrench, labelKey: 'nav.workOrders', page: 'work-orders' },
+  { to: '/app/inventory', icon: Package, labelKey: 'nav.inventory', page: 'inventory' },
   { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },
   { to: '/app/partners', icon: Handshake, labelKey: 'nav.partners', page: 'partners' },
   { to: '/app/service-providers', icon: BookUser, labelKey: 'nav.serviceProviders', page: 'service-providers' },

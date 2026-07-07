@@ -12,6 +12,8 @@ const typeIcons: Record<Notification['type'], string> = {
   service_request: 'SR',
   incident: 'I',
   work_order: 'W',
+  inspection: 'IN',
+  inventory: 'ST',
 }
 
 const typeColors: Record<Notification['type'], string> = {
@@ -22,6 +24,8 @@ const typeColors: Record<Notification['type'], string> = {
   service_request: 'bg-info/10 text-info',
   incident: 'bg-destructive/10 text-destructive',
   work_order: 'bg-info/10 text-info',
+  inspection: 'bg-info/10 text-info',
+  inventory: 'bg-warning/10 text-warning',
 }
 
 const typeBadgeVariant: Record<Notification['type'], 'info' | 'warning' | 'success' | 'muted'> = {
@@ -32,6 +36,8 @@ const typeBadgeVariant: Record<Notification['type'], 'info' | 'warning' | 'succe
   service_request: 'info',
   incident: 'warning',
   work_order: 'info',
+  inspection: 'info',
+  inventory: 'warning',
 }
 
 function timeAgo(dateStr: string) {
