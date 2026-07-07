@@ -10,6 +10,7 @@
     "tasks": "Tâches",
     "daySheet": "Journée",
     "teamPlanning": "Planning équipe",
+    "timeClock": "Pointage",
     "incidents": "Incidents",
     "workOrders": "Ordres de mission",
     "inventory": "Inventaire",
@@ -339,6 +340,23 @@
       "completed": "Terminé",
       "cancelled": "Annulé"
     }
+  },
+  "timeclock": {
+    "title": "Pointage",
+    "subtitle": "Pointez l'arrivée et le départ sur la villa où vous travaillez ; les heures alimentent la feuille de temps hebdomadaire.",
+    "onTheClock": "En service",
+    "since": "depuis",
+    "linkedShift": "Lié à un créneau planifié",
+    "villa": "Villa",
+    "clockIn": "Pointer l'arrivée",
+    "clockOut": "Pointer le départ",
+    "clockedIn": "Arrivée pointée",
+    "clockedOut": "Départ pointé",
+    "weekTimesheet": "Heures de la semaine",
+    "thisWeek": "Cette semaine",
+    "ongoing": "en cours",
+    "active": "En cours",
+    "empty": "Aucun pointage cette semaine."
   },
   "partners": {
     "title": "Partenaires",

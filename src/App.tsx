@@ -66,6 +66,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
+import { TimeClock } from './pages/app/TimeClock'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
 import { CookieConsent } from './components/CookieConsent'
@@ -110,6 +111,7 @@ export default function App() {
           <Route path="tasks" element={<Tasks />} />
           <Route path="day-sheet" element={<DaySheet />} />
           <Route path="team-planning" element={<TeamPlanning />} />
+          <Route path="time-clock" element={<TimeClock />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="work-orders" element={<WorkOrders />} />
           <Route path="inventory" element={<Inventory />} />

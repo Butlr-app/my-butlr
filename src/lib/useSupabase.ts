@@ -553,6 +553,21 @@ export function useShifts() {
   return useTable<Shift>('shifts')
 }
 
+export interface TimeEntry {
+  id: string
+  property_id: string
+  user_id: string
+  shift_id: string | null
+  clock_in: string
+  clock_out: string | null
+  note: string | null
+  created_at: string
+}
+
+export function useTimeEntries() {
+  return useTable<TimeEntry>('time_entries')
+}
+
 export interface TeamMember {
   id: string
   full_name: string | null

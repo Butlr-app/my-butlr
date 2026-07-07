@@ -10,6 +10,7 @@
     "tasks": "Tasks",
     "daySheet": "Day Sheet",
     "teamPlanning": "Team Planning",
+    "timeClock": "Time Clock",
     "incidents": "Incidents",
     "workOrders": "Work Orders",
     "inventory": "Inventory",
@@ -339,6 +340,23 @@
       "completed": "Completed",
       "cancelled": "Cancelled"
     }
+  },
+  "timeclock": {
+    "title": "Time Clock",
+    "subtitle": "Clock in and out against the villa you are working on; hours feed the weekly timesheet.",
+    "onTheClock": "On the clock",
+    "since": "since",
+    "linkedShift": "Linked to a planned shift",
+    "villa": "Villa",
+    "clockIn": "Clock in",
+    "clockOut": "Clock out",
+    "clockedIn": "Clocked in",
+    "clockedOut": "Clocked out",
+    "weekTimesheet": "This week's hours",
+    "thisWeek": "This week",
+    "ongoing": "ongoing",
+    "active": "Active",
+    "empty": "No time entries this week."
   },
   "partners": {
     "title": "Partners",
