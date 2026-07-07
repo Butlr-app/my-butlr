@@ -1,10 +1,12 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
 import { useProperties } from '@/lib/useSupabase'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useTranslation, type Language } from '@/i18n/LanguageContext'
-import { Loader2, Building2, Monitor, LogOut, ChevronRight, Globe } from 'lucide-react'
+import { isPushSupported, isPushEnabled, enablePush, disablePush } from '@/lib/push'
+import { Loader2, Building2, Monitor, LogOut, ChevronRight, Globe, Bell } from 'lucide-react'
 
 export function HmProfile() {
   const { user, signOut } = useAuth()
@@ -13,6 +15,32 @@ export function HmProfile() {
   const { data: rawProperties, loading: lProps } = useProperties()
   const { filterProperties, loading: lRole } = useRoleFilter()
   const { t, language, setLanguage } = useTranslation()
+
+  const [pushOn, setPushOn] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushError, setPushError] = useState('')
+  const pushSupported = isPushSupported()
+
+  useEffect(() => {
+    if (pushSupported) isPushEnabled().then(setPushOn)
+  }, [pushSupported])
+
+  const togglePush = async () => {
+    setPushBusy(true)
+    setPushError('')
+    try {
+      if (pushOn) {
+        await disablePush()
+        setPushOn(false)
+      } else {
+        await enablePush()
+        setPushOn(true)
+      }
+    } catch (err) {
+      setPushError((err as Error).message)
+    }
+    setPushBusy(false)
+  }
 
   if (lProps || lRole) {
     return (
@@ -76,6 +104,26 @@ export function HmProfile() {
 
       {/* Actions */}
       <div className="px-5 mt-6 pb-8 space-y-3">
+        {pushSupported && (
+          <div className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+              <Bell className="w-5 h-5 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-left text-sm font-semibold text-gray-900">{t('push.title')}</p>
+              <p className="text-[11px] text-gray-500">{pushError || t('push.subtitle')}</p>
+            </div>
+            <button
+              onClick={togglePush}
+              disabled={pushBusy}
+              className={`relative w-11 h-6 rounded-full transition-colors ${pushOn ? 'bg-amber-500' : 'bg-gray-200'} disabled:opacity-50`}
+              aria-pressed={pushOn}
+              aria-label={t('push.title')}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${pushOn ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+        )}
         <div className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Globe className="w-5 h-5 text-amber-500" />
