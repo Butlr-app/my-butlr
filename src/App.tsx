@@ -71,6 +71,7 @@ import { Guides } from './pages/app/Guides'
 import { Budgets } from './pages/app/Budgets'
 import { TimeClock } from './pages/app/TimeClock'
 import { ProviderRatings } from './pages/app/ProviderRatings'
+import { Documents } from './pages/app/Documents'
 import { Maintenance } from './pages/app/Maintenance'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
@@ -136,6 +137,7 @@ export default function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reports" element={<Reports />} />
           <Route path="guides" element={<Guides />} />
+          <Route path="documents" element={<Documents />} />
           <Route path="apa" element={<Apa />} />
           <Route path="inspections" element={<Inspections />} />
           <Route path="inspections/:id" element={<InspectionDetail />} />
