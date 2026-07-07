@@ -33,6 +33,10 @@
     "inspections": "Inspections",
     "conciergePortal": "Concierge Portal"
   },
+  "push": {
+    "title": "Push notifications",
+    "subtitle": "Get alerts on this device"
+  },
   "apa": {
     "title": "APA — Collection & Payouts",
     "subtitle": "Collect 100% of guest payments, then reverse each villa and partner their net share.",

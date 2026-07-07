@@ -33,6 +33,10 @@
     "inspections": "États des lieux",
     "conciergePortal": "Portail Conciergerie"
   },
+  "push": {
+    "title": "Notifications push",
+    "subtitle": "Recevoir les alertes sur cet appareil"
+  },
   "apa": {
     "title": "APA — Encaissement & Reversements",
     "subtitle": "Encaisser 100% des paiements puis reverser à chaque villa et prestataire sa part nette.",
