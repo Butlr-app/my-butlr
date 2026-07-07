@@ -60,6 +60,7 @@ import { HmLayout } from './pages/mobile/hm/HmLayout'
 import { HmToday } from './pages/mobile/hm/HmToday'
 import { HmTasks } from './pages/mobile/hm/HmTasks'
 import { HmIncidents } from './pages/mobile/hm/HmIncidents'
+import { HmNotifications } from './pages/mobile/hm/HmNotifications'
 import { HmProfile } from './pages/mobile/hm/HmProfile'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
@@ -157,6 +158,7 @@ export default function App() {
           <Route index element={<HmToday />} />
           <Route path="tasks" element={<HmTasks />} />
           <Route path="incidents" element={<HmIncidents />} />
+          <Route path="notifications" element={<HmNotifications />} />
           <Route path="profile" element={<HmProfile />} />
         </Route>
 

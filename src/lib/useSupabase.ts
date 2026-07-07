@@ -840,6 +840,14 @@ export function useNotifications() {
         if (notif.user_id !== null && notif.user_id !== user?.id) return
         setNotifications(prev => (prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]))
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
+        const notif = payload.new as Notification
+        setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, ...notif } : n)))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notifications' }, (payload) => {
+        const removed = payload.old as { id: string }
+        setNotifications(prev => prev.filter(n => n.id !== removed.id))
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
