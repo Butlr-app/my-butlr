@@ -633,6 +633,21 @@ export function useServiceProviders() {
   return useTable<ServiceProvider>('service_providers')
 }
 
+export interface ProviderRating {
+  id: string
+  provider_id: string
+  work_order_id: string | null
+  property_id: string
+  rating: number
+  comment: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export function useProviderRatings() {
+  return useTable<ProviderRating>('provider_ratings')
+}
+
 export function usePayments() {
   return useTable<Payment>('payments')
 }

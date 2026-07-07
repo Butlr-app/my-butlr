@@ -66,6 +66,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
+import { ProviderRatings } from './pages/app/ProviderRatings'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
 import { CookieConsent } from './components/CookieConsent'
@@ -117,6 +118,7 @@ export default function App() {
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="service-providers" element={<ServiceProviders />} />
+          <Route path="provider-ratings" element={<ProviderRatings />} />
           <Route path="concierge-portal" element={<ConciergePortal />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
