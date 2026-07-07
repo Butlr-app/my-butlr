@@ -19,6 +19,12 @@ import { Messages } from './pages/app/Messages'
 import { Services } from './pages/app/Services'
 import { ServiceRequests } from './pages/app/ServiceRequests'
 import { Tasks } from './pages/app/Tasks'
+import { DaySheet } from './pages/app/DaySheet'
+import { TeamPlanning } from './pages/app/TeamPlanning'
+import { Incidents } from './pages/app/Incidents'
+import { WorkOrders } from './pages/app/WorkOrders'
+import { Inventory } from './pages/app/Inventory'
+import { Expenses } from './pages/app/Expenses'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
 import { ServiceProviders } from './pages/app/ServiceProviders'
@@ -50,6 +56,11 @@ import { PartnerBookings } from './pages/mobile/partner/PartnerBookings'
 import { PartnerEarnings } from './pages/mobile/partner/PartnerEarnings'
 import { PartnerServices } from './pages/mobile/partner/PartnerServices'
 import { PartnerProfile } from './pages/mobile/partner/PartnerProfile'
+import { HmLayout } from './pages/mobile/hm/HmLayout'
+import { HmToday } from './pages/mobile/hm/HmToday'
+import { HmTasks } from './pages/mobile/hm/HmTasks'
+import { HmIncidents } from './pages/mobile/hm/HmIncidents'
+import { HmProfile } from './pages/mobile/hm/HmProfile'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
@@ -97,6 +108,12 @@ export default function App() {
           <Route path="services" element={<Services />} />
           <Route path="service-requests" element={<ServiceRequests />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="day-sheet" element={<DaySheet />} />
+          <Route path="team-planning" element={<TeamPlanning />} />
+          <Route path="incidents" element={<Incidents />} />
+          <Route path="work-orders" element={<WorkOrders />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="expenses" element={<Expenses />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="service-providers" element={<ServiceProviders />} />
@@ -133,6 +150,14 @@ export default function App() {
           <Route path="earnings" element={<PartnerEarnings />} />
           <Route path="services" element={<PartnerServices />} />
           <Route path="profile" element={<PartnerProfile />} />
+        </Route>
+
+        {/* House Manager Mobile App */}
+        <Route path="/hm" element={<ProtectedRoute><HmLayout /></ProtectedRoute>}>
+          <Route index element={<HmToday />} />
+          <Route path="tasks" element={<HmTasks />} />
+          <Route path="incidents" element={<HmIncidents />} />
+          <Route path="profile" element={<HmProfile />} />
         </Route>
 
         {/* 404 */}

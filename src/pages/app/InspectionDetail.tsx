@@ -15,6 +15,8 @@ import {
   type InspectionReport,
 } from '@/lib/useSupabase'
 import { uploadFile } from '@/lib/storage'
+import { SignatureCanvas } from '@/components/SignatureCanvas'
+import { useRole } from '@/lib/roleContext'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslation } from '@/i18n/LanguageContext'
 import {
@@ -27,6 +29,7 @@ export function InspectionDetail() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { actualRole } = useRole()
   const { inspections, loading: loadingInspection, update: updateInspection, remove: removeInspection } = useInspections()
   const { rooms, loading: loadingRooms, addRoom, updateRoom, removeRoom } = useInspectionRooms(id)
   const { reports, loading: loadingReports, addReport, updateReport, removeReport } = useInspectionReports(id)
@@ -46,6 +49,10 @@ export function InspectionDetail() {
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expandedRoom, setExpandedRoom] = useState<string | null>(null)
+
+  const [showComplete, setShowComplete] = useState(false)
+  const [signature, setSignature] = useState<string | null>(null)
+  const [completing, setCompleting] = useState(false)
 
   if (loadingInspection) {
     return (
@@ -106,12 +113,16 @@ export function InspectionDetail() {
   }
 
   const handleComplete = async () => {
+    if (!signature) return
+    setCompleting(true)
     try {
-      await updateInspection(inspection.id, { status: 'completed' })
-      toast(t('toast.saved'))
+      await updateInspection(inspection.id, { status: 'completed', signature_data: signature })
+      toast(t('inspections.completedToast'))
+      setShowComplete(false)
     } catch (err) {
       toast((err as Error).message, 'error')
     }
+    setCompleting(false)
   }
 
   const handleDelete = async () => {
@@ -147,16 +158,19 @@ export function InspectionDetail() {
           <Badge variant={inspection.status === 'completed' ? 'success' : 'warning'}>
             {inspection.status === 'completed' ? t('inspections.completed') : t('inspections.inProgress')}
           </Badge>
+          <Badge variant="muted">{t(`inspections.types.${inspection.inspection_type}`)}</Badge>
         </div>
         <div className="flex items-center gap-2">
           {inspection.status !== 'completed' && (
-            <Button variant="gold" size="sm" onClick={handleComplete}>
+            <Button variant="gold" size="sm" onClick={() => { setSignature(null); setShowComplete(true) }}>
               <CheckCircle2 className="w-4 h-4 mr-1" /> {t('inspections.completeInspection')}
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(true)}>
-            <Trash2 className="w-4 h-4 text-destructive" />
-          </Button>
+          {(actualRole === 'owner' || actualRole === 'agency') && (
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -179,6 +193,18 @@ export function InspectionDetail() {
           <p className="text-xs text-muted-foreground">{t('inspections.knownIssues')}</p>
         </Card>
       </div>
+
+      {inspection.status === 'completed' && inspection.signature_data && (
+        <Card className="p-5">
+          <h3 className="text-sm font-semibold mb-3">{t('inspections.signature')}</h3>
+          <img src={inspection.signature_data} alt={t('inspections.signature')} className="h-24 border border-input rounded-sm bg-white" />
+          {inspection.completed_at && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {t('inspections.completedAt')} {new Date(inspection.completed_at).toLocaleString()} · {inspection.inspector_name}
+            </p>
+          )}
+        </Card>
+      )}
 
       {/* Rooms section */}
       <Card className="p-5">
@@ -236,6 +262,23 @@ export function InspectionDetail() {
         )}
       </Card>
 
+      {/* Sign & Complete Modal */}
+      <Modal open={showComplete} onClose={() => setShowComplete(false)} title={t('inspections.completeInspection')}>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">{t('inspections.signatureHelp')}</p>
+          <SignatureCanvas onSignatureChange={setSignature} />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setShowComplete(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="gold" disabled={!signature || completing} onClick={handleComplete}>
+              {completing ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+              {t('inspections.signAndComplete')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Add Room Modal */}
       <Modal open={showAddRoom} onClose={() => setShowAddRoom(false)} title={t('inspections.addRoom')}>
         <form onSubmit={handleAddRoom} className="space-y-4">
@@ -244,7 +287,7 @@ export function InspectionDetail() {
             required
             value={roomName}
             onChange={e => setRoomName(e.target.value)}
-            placeholder="Salon, Chambre 1, Cuisine..."
+            placeholder={t('inspections.roomPlaceholder')}
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowAddRoom(false)}>
@@ -266,7 +309,7 @@ export function InspectionDetail() {
             required
             value={reportForm.title}
             onChange={e => setReportForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="Rayure sur le parquet..."
+            placeholder={t('inspections.reportPlaceholder')}
           />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium">{t('inspections.reportDescription')}</label>

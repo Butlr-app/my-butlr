@@ -7,6 +7,9 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useInspections, useProperties, type Inspection } from '@/lib/useSupabase'
+import { useRoleFilter } from '@/lib/useRoleFilter'
+import { useRole } from '@/lib/roleContext'
+import { useAuth } from '@/lib/authContext'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { Link } from 'react-router-dom'
@@ -15,16 +18,22 @@ import { Plus, Loader2, Trash2, ClipboardCheck, Building2, User, CalendarDays, A
 const PAGE_SIZE = 9
 
 export function Inspections() {
-  const { inspections, loading, insert, remove } = useInspections()
-  const { data: properties } = useProperties()
+  const { inspections: rawInspections, loading, insert, remove } = useInspections()
+  const { data: rawProperties } = useProperties()
+  const { filterInspections, filterProperties } = useRoleFilter()
+  const { actualRole } = useRole()
+  const { user } = useAuth()
   const { toast } = useToast()
   const { t } = useTranslation()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ inspector_name: '', property_id: '', notes: '' })
+  const [form, setForm] = useState({ inspector_name: '', property_id: '', inspection_type: 'check_in' as Inspection['inspection_type'], notes: '' })
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [page, setPage] = useState(0)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  const properties = filterProperties(rawProperties)
+  const inspections = filterInspections(rawInspections)
 
   const filtered = inspections.filter(i => {
     if (statusFilter !== 'all' && i.status !== statusFilter) return false
@@ -36,7 +45,7 @@ export function Inspections() {
   const paginated = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
 
   const openCreate = () => {
-    setForm({ inspector_name: '', property_id: '', notes: '' })
+    setForm({ inspector_name: '', property_id: properties[0]?.id ?? '', inspection_type: 'check_in', notes: '' })
     setShowForm(true)
   }
 
@@ -48,7 +57,9 @@ export function Inspections() {
       await insert({
         inspector_name: form.inspector_name,
         property_id: form.property_id || null,
+        inspection_type: form.inspection_type,
         notes: form.notes || null,
+        created_by: user?.id ?? null,
         status: 'in_progress',
       })
       toast(t('toast.saved'))
@@ -121,6 +132,7 @@ export function Inspections() {
               <InspectionCard
                 key={inspection.id}
                 inspection={inspection}
+                canDelete={actualRole === 'owner' || actualRole === 'agency'}
                 onDelete={() => setDeleteTarget({ id: inspection.id, name: inspection.property?.name ?? inspection.inspector_name })}
               />
             ))}
@@ -147,7 +159,7 @@ export function Inspections() {
             required
             value={form.inspector_name}
             onChange={e => setForm(f => ({ ...f, inspector_name: e.target.value }))}
-            placeholder="Jean Dupont"
+            placeholder={t('inspections.inspectorPlaceholder')}
           />
           <Select
             label={t('inspections.property')}
@@ -156,6 +168,16 @@ export function Inspections() {
             options={[
               { value: '', label: t('inspections.selectProperty') },
               ...properties.map(p => ({ value: p.id, label: p.name })),
+            ]}
+          />
+          <Select
+            label={t('inspections.type')}
+            value={form.inspection_type}
+            onChange={e => setForm(f => ({ ...f, inspection_type: e.target.value as Inspection['inspection_type'] }))}
+            options={[
+              { value: 'check_in', label: t('inspections.types.check_in') },
+              { value: 'check_out', label: t('inspections.types.check_out') },
+              { value: 'routine', label: t('inspections.types.routine') },
             ]}
           />
           <div className="space-y-1.5">
@@ -190,7 +212,7 @@ export function Inspections() {
   )
 }
 
-function InspectionCard({ inspection, onDelete }: { inspection: Inspection; onDelete: () => void }) {
+function InspectionCard({ inspection, canDelete, onDelete }: { inspection: Inspection; canDelete: boolean; onDelete: () => void }) {
   const { t } = useTranslation()
   const date = new Date(inspection.created_at).toLocaleDateString()
 
@@ -211,9 +233,12 @@ function InspectionCard({ inspection, onDelete }: { inspection: Inspection; onDe
             <span>{date}</span>
           </div>
         </div>
-        <Badge variant={inspection.status === 'completed' ? 'success' : 'warning'}>
-          {inspection.status === 'completed' ? t('inspections.completed') : t('inspections.inProgress')}
-        </Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={inspection.status === 'completed' ? 'success' : 'warning'}>
+            {inspection.status === 'completed' ? t('inspections.completed') : t('inspections.inProgress')}
+          </Badge>
+          <Badge variant="muted">{t(`inspections.types.${inspection.inspection_type}`)}</Badge>
+        </div>
       </div>
 
       {inspection.notes && (
@@ -226,9 +251,11 @@ function InspectionCard({ inspection, onDelete }: { inspection: Inspection; onDe
             {t('common.viewAll')} <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </Link>
-        <Button variant="secondary" size="sm" onClick={onDelete}>
-          <Trash2 className="w-4 h-4 text-destructive" />
-        </Button>
+        {canDelete && (
+          <Button variant="secondary" size="sm" onClick={onDelete}>
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        )}
       </div>
     </Card>
   )

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabase'
+import { readCache, writeCache } from './offline'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,8 @@ export interface Task {
   priority: 'low' | 'medium' | 'high'
   assigned_to: string | null
   due_date: string | null
+  template_id: string | null
+  reservation_id: string | null
   created_at: string
   updated_at: string
   property?: Property
@@ -373,6 +376,255 @@ export function useTasks() {
   return useTable<Task>('tasks')
 }
 
+export interface TaskTemplate {
+  id: string
+  property_id: string | null
+  title: string
+  description: string | null
+  priority: 'low' | 'medium' | 'high'
+  trigger_type: 'checkout' | 'recurring'
+  recurrence: 'daily' | 'weekly' | 'monthly' | null
+  assigned_to: string | null
+  checklist_template_id: string | null
+  active: boolean
+  created_at: string
+}
+
+export function useTaskTemplates() {
+  return useTable<TaskTemplate>('task_templates')
+}
+
+export interface ChecklistTemplate {
+  id: string
+  name: string
+  category: 'cleaning' | 'checkin' | 'checkout' | 'maintenance' | 'other'
+  items: string[]
+  created_at: string
+}
+
+export function useChecklistTemplates() {
+  return useTable<ChecklistTemplate>('checklist_templates')
+}
+
+export interface TaskChecklistItem {
+  id: string
+  task_id: string
+  label: string
+  done: boolean
+  position: number
+  created_at: string
+}
+
+export function useTaskChecklistItems() {
+  const base = useTable<TaskChecklistItem>('task_checklist_items')
+
+  const insertMany = async (rows: Partial<TaskChecklistItem>[]) => {
+    if (rows.length === 0) return []
+    const { data, error } = await supabase
+      .from('task_checklist_items')
+      .insert(rows as Record<string, unknown>[])
+      .select()
+    if (error) throw new Error(error.message)
+    const inserted = (data ?? []) as TaskChecklistItem[]
+    await base.refetch()
+    return inserted
+  }
+
+  return { ...base, insertMany }
+}
+
+export async function generateRecurringTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('generate_recurring_tasks')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
+}
+
+export interface Incident {
+  id: string
+  property_id: string
+  title: string
+  description: string | null
+  category: 'equipment' | 'plumbing' | 'electrical' | 'damage' | 'security' | 'other'
+  urgency: 'low' | 'medium' | 'high' | 'critical'
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  photo_url: string | null
+  reported_by: string | null
+  assigned_to: string | null
+  resolution_note: string | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useIncidents() {
+  return useTable<Incident>('incidents')
+}
+
+export interface WorkOrder {
+  id: string
+  property_id: string
+  provider_id: string
+  incident_id: string | null
+  task_id: string | null
+  title: string
+  description: string | null
+  status: 'sent' | 'quote_received' | 'validated' | 'completed' | 'cancelled'
+  quote_amount: number | null
+  final_cost: number | null
+  scheduled_date: string | null
+  created_by: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useWorkOrders() {
+  return useTable<WorkOrder>('work_orders')
+}
+
+export interface InventoryItem {
+  id: string
+  property_id: string
+  name: string
+  category: 'welcome_products' | 'linen' | 'cleaning' | 'maintenance' | 'food_beverage' | 'other'
+  unit: string
+  quantity: number
+  threshold: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryMovement {
+  id: string
+  item_id: string
+  delta: number
+  reason: 'restock' | 'usage' | 'loss' | 'adjustment'
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export function useInventoryItems() {
+  return useTable<InventoryItem>('inventory_items')
+}
+
+export function useInventoryMovements() {
+  return useTable<InventoryMovement>('inventory_movements')
+}
+
+export interface Expense {
+  id: string
+  property_id: string
+  label: string
+  category: 'cleaning' | 'maintenance' | 'supplies' | 'utilities' | 'staff' | 'other'
+  vendor: string | null
+  amount: number
+  expense_date: string
+  note: string | null
+  receipt_data: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_by: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useExpenses() {
+  return useTable<Expense>('expenses')
+}
+
+export interface Shift {
+  id: string
+  property_id: string
+  user_id: string
+  shift_date: string
+  start_time: string
+  end_time: string
+  type: 'general' | 'cleaning' | 'checkin' | 'checkout' | 'maintenance'
+  note: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useShifts() {
+  return useTable<Shift>('shifts')
+}
+
+export interface TeamMember {
+  id: string
+  full_name: string | null
+  email: string | null
+  role: string
+}
+
+export function useTeamMembers() {
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchMembers() {
+      const { data } = await supabase.rpc('get_team_members')
+      setMembers((data ?? []) as TeamMember[])
+      setLoading(false)
+    }
+    fetchMembers()
+  }, [])
+
+  return { members, loading }
+}
+
+export interface TaskComment {
+  id: string
+  task_id: string
+  author_id: string
+  body: string
+  created_at: string
+}
+
+export function useTaskComments(taskId: string | null) {
+  const [comments, setComments] = useState<TaskComment[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const fetchComments = useCallback(async () => {
+    if (!taskId) { setComments([]); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('task_comments')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: true })
+    setComments((data ?? []) as TaskComment[])
+    setLoading(false)
+  }, [taskId])
+
+  useEffect(() => { fetchComments() }, [fetchComments])
+
+  const addComment = async (body: string) => {
+    if (!taskId) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+    const { data, error } = await supabase
+      .from('task_comments')
+      .insert({ task_id: taskId, author_id: user.id, body })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setComments(prev => [...prev, data as TaskComment])
+    return data as TaskComment
+  }
+
+  const removeComment = async (id: string) => {
+    const { error } = await supabase.from('task_comments').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setComments(prev => prev.filter(c => c.id !== id))
+  }
+
+  return { comments, loading, addComment, removeComment, refetch: fetchComments }
+}
+
 export function usePartners() {
   return useTable<Partner>('partners')
 }
@@ -518,7 +770,7 @@ export function useProfile() {
 export interface Notification {
   id: string
   user_id: string | null
-  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request'
+  type: 'reservation' | 'task' | 'payment' | 'system' | 'service_request' | 'incident' | 'work_order' | 'inspection' | 'inventory' | 'expense'
   title: string
   message: string | null
   read: boolean
@@ -1138,11 +1390,17 @@ export function useRoleAssignments(userId: string | undefined) {
   useEffect(() => {
     async function load() {
       if (!userId) { setAssignments([]); setLoading(false); return }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('role_assignments')
         .select('*')
         .eq('user_id', userId)
-      setAssignments((data ?? []) as RoleAssignment[])
+      if (error) {
+        setAssignments(readCache<RoleAssignment>(`role_assignments:${userId}`) ?? [])
+      } else {
+        const rows = (data ?? []) as RoleAssignment[]
+        setAssignments(rows)
+        writeCache(`role_assignments:${userId}`, rows)
+      }
       setLoading(false)
     }
     load()
@@ -1329,8 +1587,12 @@ export interface Inspection {
   id: string
   property_id: string | null
   inspector_name: string
+  inspection_type: 'check_in' | 'check_out' | 'routine'
   status: 'in_progress' | 'completed'
   notes: string | null
+  signature_data: string | null
+  completed_at: string | null
+  created_by: string | null
   created_at: string
   updated_at: string
   property?: Property

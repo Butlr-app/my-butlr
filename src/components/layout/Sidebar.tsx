@@ -6,8 +6,8 @@ import { useSearch } from '@/lib/searchContext'
 import { useAuth } from '@/lib/authContext'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
-  Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase
+  Calendar, CalendarCheck2, CalendarRange, AlertTriangle, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote, Smartphone
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -23,6 +23,12 @@ const navItems = [
   { to: '/app/services', icon: ConciergeBell, labelKey: 'nav.services', page: 'services' },
   { to: '/app/service-requests', icon: Inbox, labelKey: 'nav.serviceRequests', page: 'service-requests' },
   { to: '/app/tasks', icon: ClipboardList, labelKey: 'nav.tasks', page: 'tasks' },
+  { to: '/app/day-sheet', icon: CalendarCheck2, labelKey: 'nav.daySheet', page: 'day-sheet' },
+  { to: '/app/team-planning', icon: CalendarRange, labelKey: 'nav.teamPlanning', page: 'team-planning' },
+  { to: '/app/incidents', icon: AlertTriangle, labelKey: 'nav.incidents', page: 'incidents' },
+  { to: '/app/work-orders', icon: Wrench, labelKey: 'nav.workOrders', page: 'work-orders' },
+  { to: '/app/inventory', icon: Package, labelKey: 'nav.inventory', page: 'inventory' },
+  { to: '/app/expenses', icon: Banknote, labelKey: 'nav.expenses', page: 'expenses' },
   { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },
   { to: '/app/partners', icon: Handshake, labelKey: 'nav.partners', page: 'partners' },
   { to: '/app/service-providers', icon: BookUser, labelKey: 'nav.serviceProviders', page: 'service-providers' },
@@ -56,6 +62,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   const { user } = useAuth()
 
   const visibleItems = navItems.filter(item => isVisible(item.page))
+  const showMobileApp = role === 'house_manager' || role === 'concierge'
   const email = user?.email ?? 'user@mybutlr.com'
   const displayName = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   const initial = displayName.charAt(0).toUpperCase()
@@ -119,6 +126,19 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
             </NavLink>
           ))}
+          {showMobileApp && (
+            <NavLink
+              to="/hm"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'flex items-center gap-3 h-11 px-3 rounded-xl text-sm transition-colors',
+                'text-white/60 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              <Smartphone className="w-[18px] h-[18px] shrink-0" />
+              {!collapsed && <span className="truncate">{t('nav.mobileApp')}</span>}
+            </NavLink>
+          )}
         </nav>
 
         <div className="lg:hidden border-t border-white/10 p-3 space-y-2">

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -62,6 +62,84 @@ export function useRoleFilter() {
         return []
       default:
         return tasks
+    }
+  }
+
+  function filterIncidents(incidents: Incident[]): Incident[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return incidents
+      case 'house_manager':
+      case 'concierge':
+        return incidents.filter(i => assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterWorkOrders(workOrders: WorkOrder[]): WorkOrder[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return workOrders
+      case 'house_manager':
+      case 'concierge':
+        return workOrders.filter(w => assignedSet.has(w.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterInspections(inspections: Inspection[]): Inspection[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return inspections
+      case 'house_manager':
+      case 'concierge':
+        return inspections.filter(i => i.property_id !== null && assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterInventoryItems(items: InventoryItem[]): InventoryItem[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return items
+      case 'house_manager':
+      case 'concierge':
+        return items.filter(i => assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterExpenses(expenses: Expense[]): Expense[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return expenses
+      case 'house_manager':
+      case 'concierge':
+        return expenses.filter(e => assignedSet.has(e.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterShifts(shifts: Shift[]): Shift[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return shifts
+      case 'house_manager':
+      case 'concierge':
+        return shifts.filter(s => assignedSet.has(s.property_id) || s.user_id === user?.id)
+      default:
+        return []
     }
   }
 
@@ -182,6 +260,12 @@ export function useRoleFilter() {
       services: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       'service-requests': ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       tasks: ['owner', 'house_manager', 'concierge', 'agency'],
+      'day-sheet': ['owner', 'house_manager', 'concierge', 'agency'],
+      'team-planning': ['owner', 'house_manager', 'concierge', 'agency'],
+      incidents: ['owner', 'house_manager', 'concierge', 'agency'],
+      'work-orders': ['owner', 'house_manager', 'concierge', 'agency'],
+      inventory: ['owner', 'house_manager', 'concierge', 'agency'],
+      expenses: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
@@ -206,6 +290,12 @@ export function useRoleFilter() {
     filterProperties,
     filterReservations,
     filterTasks,
+    filterIncidents,
+    filterWorkOrders,
+    filterInspections,
+    filterInventoryItems,
+    filterExpenses,
+    filterShifts,
     filterServices,
     filterPayments,
     filterPartners,

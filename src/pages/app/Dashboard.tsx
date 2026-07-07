@@ -2,7 +2,7 @@ import { MetricCard } from '@/components/ui/MetricCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useDashboardKPIs, useReservations, useTasks, usePayments, useProperties, usePartners, useServices, useServiceRequests } from '@/lib/useSupabase'
-import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles, CreditCard, Handshake, Inbox, Briefcase, ShoppingBag, HelpCircle } from 'lucide-react'
+import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles, CreditCard, Handshake, Inbox, Briefcase, ShoppingBag, HelpCircle, CalendarDays, CalendarRange, AlertTriangle, Smartphone, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
 import { useRoleFilter } from '@/lib/useRoleFilter'
@@ -47,6 +47,54 @@ function OwnerDashboard() {
   )
 }
 
+const HM_ONBOARDING_KEY = 'butlr-hm-onboarding-dismissed'
+
+function HmOnboardingCard() {
+  const { t } = useTranslation()
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(HM_ONBOARDING_KEY) === 'true')
+
+  if (dismissed) return null
+
+  const dismiss = () => {
+    localStorage.setItem(HM_ONBOARDING_KEY, 'true')
+    setDismissed(true)
+  }
+
+  const items = [
+    { to: '/app/day-sheet', icon: CalendarDays, label: t('hmOnboarding.daySheet') },
+    { to: '/app/tasks', icon: ClipboardList, label: t('hmOnboarding.tasks') },
+    { to: '/app/team-planning', icon: CalendarRange, label: t('hmOnboarding.teamPlanning') },
+    { to: '/app/incidents', icon: AlertTriangle, label: t('hmOnboarding.incidents') },
+    { to: '/hm', icon: Smartphone, label: t('hmOnboarding.mobile') },
+  ]
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">{t('hmOnboarding.title')}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('hmOnboarding.subtitle')}</p>
+        </div>
+        <button onClick={dismiss} aria-label={t('hmOnboarding.dismiss')} className="p-1.5 rounded-full hover:bg-muted transition-colors">
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+      <div className="mt-4 space-y-2">
+        {items.map(item => (
+          <Link key={item.to} to={item.to} className="flex items-center gap-3 p-2.5 rounded-md border border-border hover:bg-muted/50 transition-colors">
+            <item.icon className="w-4 h-4 text-info flex-shrink-0" />
+            <span className="flex-1 text-sm">{item.label}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+          </Link>
+        ))}
+      </div>
+      <button onClick={dismiss} className="mt-4 text-xs font-medium text-info hover:underline">
+        {t('hmOnboarding.dismiss')}
+      </button>
+    </Card>
+  )
+}
+
 function HouseManagerDashboard() {
   const { t } = useTranslation()
   const { filterTasks, filterReservations, filterProperties, filterPayments, filterPartners } = useRoleFilter()
@@ -79,6 +127,7 @@ function HouseManagerDashboard() {
 
   return (
     <>
+      <HmOnboardingCard />
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard label={t('dashboard.tasksInProgress')} value={tasksInProgress} icon={ClipboardList} tone="primary" />
         <MetricCard label={t('dashboard.arrivalsToday')} value={arrivalsToday} icon={Plane} tone="success" />

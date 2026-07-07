@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { BarChart, LineChart, DonutChart } from '@/components/charts/Charts'
 import { usePayments, useReservations, useProperties, usePartners } from '@/lib/useSupabase'
+import { ReportsOperations } from './ReportsOperations'
+import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { exportReportPdf, generateCsv, downloadCsv } from '@/lib/importExport'
@@ -15,6 +17,7 @@ const RES_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cance
 
 export function Reports() {
   const { t } = useTranslation()
+  const [tab, setTab] = useState<'financial' | 'operations'>('financial')
   const { toast } = useToast()
   const { data: payments, loading: lPay } = usePayments()
   const { data: reservations, loading: lRes } = useReservations()
@@ -180,16 +183,46 @@ export function Reports() {
     toast(t('reports.exported'))
   }
 
+  const tabs = (
+    <div className="flex items-center gap-1 rounded-lg bg-muted p-1 w-fit">
+      {(['financial', 'operations'] as const).map(k => (
+        <button
+          key={k}
+          onClick={() => setTab(k)}
+          className={cn(
+            'px-3 py-1.5 text-xs font-semibold rounded-md transition-colors',
+            tab === k ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {t(`reports.tab${k[0].toUpperCase() + k.slice(1)}`)}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (tab === 'operations') {
+    return (
+      <div className="space-y-6">
+        {tabs}
+        <ReportsOperations />
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        {tabs}
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      {tabs}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('reports.title')}</p>
         <div className="flex items-center gap-2">

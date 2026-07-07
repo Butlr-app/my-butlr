@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -8,12 +8,13 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { ExportButton } from '@/components/ExportButton'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { useTasks, useProperties, useReservations, type Task } from '@/lib/useSupabase'
+import { useTasks, useProperties, useReservations, useTeamMembers, useTaskComments, useTaskTemplates, useChecklistTemplates, useTaskChecklistItems, generateRecurringTasks, type Task, type TeamMember, type TaskTemplate, type Property, type ChecklistTemplate, type TaskChecklistItem } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
-import { Plus, Loader2, Pencil, Trash2, Filter } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Filter, MessageSquare, Send, UserRound, Zap, ListChecks, X } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
+import { useRole } from '@/lib/roleContext'
 import { AiTaskSuggestions } from '@/components/ai/AiTaskSuggestions'
 
 const columns = [
@@ -29,17 +30,547 @@ const emptyForm = {
   property_id: '',
   priority: 'medium' as Task['priority'],
   due_date: '',
+  assigned_to: '',
+  checklist_template_id: '',
+}
+
+const checklistCategories = [
+  { value: 'cleaning', label: 'Cleaning' },
+  { value: 'checkin', label: 'Check-in' },
+  { value: 'checkout', label: 'Check-out' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'other', label: 'Other' },
+]
+
+function memberLabel(m: TeamMember | undefined): string {
+  if (!m) return '—'
+  return m.full_name || m.email || '—'
+}
+
+interface ChecklistState {
+  items: TaskChecklistItem[]
+  addItem: (taskId: string, label: string) => Promise<void>
+  toggleItem: (item: TaskChecklistItem) => Promise<void>
+  removeItem: (id: string) => Promise<void>
+}
+
+function TaskChecklist({ task, checklist }: { task: Task; checklist: ChecklistState }) {
+  const { toast } = useToast()
+  const [newLabel, setNewLabel] = useState('')
+  const [adding, setAdding] = useState(false)
+  const items = checklist.items
+    .filter(i => i.task_id === task.id)
+    .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at))
+  const doneCount = items.filter(i => i.done).length
+
+  const addItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newLabel.trim()) return
+    setAdding(true)
+    try {
+      await checklist.addItem(task.id, newLabel.trim())
+      setNewLabel('')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setAdding(false)
+  }
+
+  const toggle = async (item: TaskChecklistItem) => {
+    try {
+      await checklist.toggleItem(item)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const remove = async (id: string) => {
+    try {
+      await checklist.removeItem(id)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold tracking-tight text-muted-foreground flex items-center gap-1">
+          <ListChecks className="w-3.5 h-3.5" /> Checklist
+        </p>
+        {items.length > 0 && (
+          <span className="text-xs tabular-nums text-muted-foreground">{doneCount}/{items.length}</span>
+        )}
+      </div>
+      {items.length > 0 && (
+        <div className="h-1 rounded-full bg-muted overflow-hidden">
+          <div className="h-full bg-success transition-all" style={{ width: `${(doneCount / items.length) * 100}%` }} />
+        </div>
+      )}
+      <div className="space-y-1 max-h-40 overflow-y-auto">
+        {items.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No checklist items</p>
+        ) : (
+          items.map(item => (
+            <div key={item.id} className="flex items-center gap-2 group">
+              <input
+                type="checkbox"
+                checked={item.done}
+                onChange={() => toggle(item)}
+                className="accent-current shrink-0"
+              />
+              <span className={`text-sm flex-1 ${item.done ? 'line-through text-muted-foreground' : ''}`}>{item.label}</span>
+              <button onClick={() => remove(item.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity" title="Remove item">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+      <form onSubmit={addItem} className="flex gap-2">
+        <input
+          className="flex-1 px-3 py-1.5 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info"
+          placeholder="Add checklist item…"
+          value={newLabel}
+          onChange={e => setNewLabel(e.target.value)}
+        />
+        <Button type="submit" size="sm" variant="secondary" disabled={adding || !newLabel.trim()}>
+          {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+        </Button>
+      </form>
+    </div>
+  )
+}
+
+function TaskComments({ task, members }: { task: Task; members: TeamMember[] }) {
+  const { comments, loading, addComment } = useTaskComments(task.id)
+  const { toast } = useToast()
+  const [body, setBody] = useState('')
+  const [sending, setSending] = useState(false)
+  const memberMap = Object.fromEntries(members.map(m => [m.id, m]))
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!body.trim()) return
+    setSending(true)
+    try {
+      await addComment(body.trim())
+      setBody('')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
+      <div className="space-y-3 max-h-64 overflow-y-auto">
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        ) : comments.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No comments yet</p>
+        ) : (
+          comments.map(c => (
+            <div key={c.id} className="border border-border rounded-md p-2">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium">{memberLabel(memberMap[c.author_id])}</p>
+                <p className="text-[10px] tabular-nums text-muted-foreground">{new Date(c.created_at).toLocaleString()}</p>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+            </div>
+          ))
+        )}
+      </div>
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          className="flex-1 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info"
+          placeholder="Write a comment…"
+          value={body}
+          onChange={e => setBody(e.target.value)}
+        />
+        <Button type="submit" size="sm" disabled={sending || !body.trim()}>
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </Button>
+      </form>
+    </div>
+  )
+}
+
+const emptyTemplateForm = {
+  title: '',
+  description: '',
+  property_id: '',
+  priority: 'medium' as TaskTemplate['priority'],
+  trigger_type: 'checkout' as TaskTemplate['trigger_type'],
+  recurrence: 'weekly' as NonNullable<TaskTemplate['recurrence']>,
+  assigned_to: '',
+  checklist_template_id: '',
+}
+
+const emptyChecklistForm = {
+  name: '',
+  category: 'cleaning' as ChecklistTemplate['category'],
+  itemsText: '',
+}
+
+function ChecklistTemplates({ checklistTemplates }: { checklistTemplates: ReturnType<typeof useChecklistTemplates> }) {
+  const { data: templates, loading, insert, update, remove } = checklistTemplates
+  const { toast } = useToast()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(emptyChecklistForm)
+  const [saving, setSaving] = useState(false)
+
+  const openCreate = () => {
+    setEditingId(null)
+    setForm(emptyChecklistForm)
+    setShowForm(true)
+  }
+
+  const openEdit = (tpl: ChecklistTemplate) => {
+    setEditingId(tpl.id)
+    setForm({ name: tpl.name, category: tpl.category, itemsText: tpl.items.join('\n') })
+    setShowForm(true)
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.name.trim()) { toast('Name is required', 'error'); return }
+    const items = form.itemsText.split('\n').map(l => l.trim()).filter(Boolean)
+    if (items.length === 0) { toast('Add at least one item', 'error'); return }
+    setSaving(true)
+    const payload = { name: form.name.trim(), category: form.category, items }
+    try {
+      if (editingId) {
+        await update(editingId, payload)
+        toast('Checklist updated')
+      } else {
+        await insert(payload)
+        toast('Checklist created')
+      }
+      setShowForm(false)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
+  }
+
+  const deleteTemplate = async (tpl: ChecklistTemplate) => {
+    try {
+      await remove(tpl.id)
+      toast('Checklist deleted')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const categoryLabel = (c: string) => checklistCategories.find(x => x.value === c)?.label ?? c
+
+  if (showForm) {
+    return (
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Standard cleaning" />
+        <Select
+          label="Category"
+          value={form.category}
+          onChange={e => setForm(f => ({ ...f, category: e.target.value as ChecklistTemplate['category'] }))}
+          options={checklistCategories}
+        />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Items (one per line)</label>
+          <textarea
+            className="w-full h-32 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info"
+            value={form.itemsText}
+            onChange={e => setForm(f => ({ ...f, itemsText: e.target.value }))}
+            placeholder={'Change bed linen\nClean bathrooms\nRestock amenities'}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>Back</Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+            {editingId ? 'Save changes' : 'Create checklist'}
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Reusable checklists can be applied to tasks manually or attached to automation templates.
+      </p>
+      <div className="space-y-2 max-h-72 overflow-y-auto">
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        ) : templates.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No checklists yet</p>
+        ) : (
+          templates.map(tpl => (
+            <div key={tpl.id} className="border border-border rounded-md p-2 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{tpl.name}</p>
+                  <Badge variant="muted">{categoryLabel(tpl.category)}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {tpl.items.length} item{tpl.items.length === 1 ? '' : 's'} · {tpl.items.slice(0, 3).join(', ')}{tpl.items.length > 3 ? '…' : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => openEdit(tpl)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button onClick={() => deleteTemplate(tpl)} className="text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="w-4 h-4 mr-1" /> New checklist
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function TaskAutomations({ properties, members, checklistTemplates }: { properties: Property[]; members: TeamMember[]; checklistTemplates: ChecklistTemplate[] }) {
+  const { data: templates, loading, insert, update, remove } = useTaskTemplates()
+  const { toast } = useToast()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(emptyTemplateForm)
+  const [saving, setSaving] = useState(false)
+  const propertyMap = Object.fromEntries(properties.map(p => [p.id, p.name]))
+  const memberMap = Object.fromEntries(members.map(m => [m.id, m]))
+
+  const openCreate = () => {
+    setEditingId(null)
+    setForm(emptyTemplateForm)
+    setShowForm(true)
+  }
+
+  const openEdit = (tpl: TaskTemplate) => {
+    setEditingId(tpl.id)
+    setForm({
+      title: tpl.title,
+      description: tpl.description ?? '',
+      property_id: tpl.property_id ?? '',
+      priority: tpl.priority,
+      trigger_type: tpl.trigger_type,
+      recurrence: tpl.recurrence ?? 'weekly',
+      assigned_to: tpl.assigned_to ?? '',
+      checklist_template_id: tpl.checklist_template_id ?? '',
+    })
+    setShowForm(true)
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.title.trim()) { toast('Title is required', 'error'); return }
+    setSaving(true)
+    const payload = {
+      title: form.title.trim(),
+      description: form.description || null,
+      property_id: form.property_id || null,
+      priority: form.priority,
+      trigger_type: form.trigger_type,
+      recurrence: form.trigger_type === 'recurring' ? form.recurrence : null,
+      assigned_to: form.assigned_to || null,
+      checklist_template_id: form.checklist_template_id || null,
+    }
+    try {
+      if (editingId) {
+        await update(editingId, payload)
+        toast('Template updated')
+      } else {
+        await insert({ ...payload, active: true })
+        toast('Template created')
+      }
+      setShowForm(false)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
+  }
+
+  const toggleActive = async (tpl: TaskTemplate) => {
+    try {
+      await update(tpl.id, { active: !tpl.active })
+      toast(tpl.active ? 'Template paused' : 'Template activated')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const deleteTemplate = async (tpl: TaskTemplate) => {
+    try {
+      await remove(tpl.id)
+      toast('Template deleted')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const triggerLabel = (tpl: TaskTemplate) =>
+    tpl.trigger_type === 'checkout' ? 'On check-out' : `Recurring (${tpl.recurrence})`
+
+  if (showForm) {
+    return (
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Title" required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Cleaning after check-out" />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Description</label>
+          <textarea
+            className="w-full h-16 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info"
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Trigger"
+            value={form.trigger_type}
+            onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value as TaskTemplate['trigger_type'] }))}
+            options={[
+              { value: 'checkout', label: 'On check-out' },
+              { value: 'recurring', label: 'Recurring' },
+            ]}
+          />
+          {form.trigger_type === 'recurring' ? (
+            <Select
+              label="Frequency"
+              value={form.recurrence}
+              onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as NonNullable<TaskTemplate['recurrence']> }))}
+              options={[
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'monthly', label: 'Monthly' },
+              ]}
+            />
+          ) : (
+            <div />
+          )}
+        </div>
+        <Select
+          label="Property"
+          value={form.property_id}
+          onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}
+          options={[
+            { value: '', label: 'All properties' },
+            ...properties.map(p => ({ value: p.id, label: p.name })),
+          ]}
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Priority"
+            value={form.priority}
+            onChange={e => setForm(f => ({ ...f, priority: e.target.value as TaskTemplate['priority'] }))}
+            options={[
+              { value: 'low', label: 'Low' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'high', label: 'High' },
+            ]}
+          />
+          <Select
+            label="Assigned to"
+            value={form.assigned_to}
+            onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...members.map(m => ({ value: m.id, label: `${memberLabel(m)} (${m.role.replace('_', ' ')})` })),
+            ]}
+          />
+        </div>
+        <Select
+          label="Checklist"
+          value={form.checklist_template_id}
+          onChange={e => setForm(f => ({ ...f, checklist_template_id: e.target.value }))}
+          options={[
+            { value: '', label: 'No checklist' },
+            ...checklistTemplates.map(ct => ({ value: ct.id, label: `${ct.name} (${ct.items.length} items)` })),
+          ]}
+        />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>Back</Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+            {editingId ? 'Save changes' : 'Create template'}
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Check-out templates create a task at each reservation departure. Recurring templates create one task per period.
+      </p>
+      <div className="space-y-2 max-h-72 overflow-y-auto">
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        ) : templates.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No templates yet</p>
+        ) : (
+          templates.map(tpl => (
+            <div key={tpl.id} className="border border-border rounded-md p-2 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{tpl.title}</p>
+                  <Badge variant={tpl.active ? 'success' : 'muted'}>{tpl.active ? 'Active' : 'Paused'}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {triggerLabel(tpl)} · {tpl.property_id ? propertyMap[tpl.property_id] ?? '—' : 'All properties'}
+                  {tpl.assigned_to ? ` · ${memberLabel(memberMap[tpl.assigned_to])}` : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => toggleActive(tpl)} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">
+                  {tpl.active ? 'Pause' : 'Activate'}
+                </button>
+                <button onClick={() => openEdit(tpl)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button onClick={() => deleteTemplate(tpl)} className="text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="w-4 h-4 mr-1" /> New template
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export function Tasks() {
-  const { data: rawTasks, loading, insert, update, remove } = useTasks()
+  const { data: rawTasks, loading, insert, update, remove, refetch } = useTasks()
   const { data: properties } = useProperties()
   const { data: reservations } = useReservations()
   const { toast } = useToast()
   const { query, filters } = useSearch()
   const { t } = useTranslation()
   const { filterTasks, filterReservations } = useRoleFilter()
+  const { members } = useTeamMembers()
+  const { actualRole } = useRole()
+  const checklistTemplates = useChecklistTemplates()
+  const { data: checklistItems, insert: insertChecklistItem, insertMany: insertChecklistItems, update: updateChecklistItem, remove: removeChecklistItem, refetch: refetchChecklistItems } = useTaskChecklistItems()
   const tasks = filterTasks(rawTasks)
+  const [commentsTask, setCommentsTask] = useState<Task | null>(null)
+  const [showAutomations, setShowAutomations] = useState(false)
+  const [showChecklists, setShowChecklists] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -48,6 +579,40 @@ export function Tasks() {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+
+  useEffect(() => {
+    generateRecurringTasks()
+      .then(count => {
+        if (count > 0) {
+          refetch()
+          refetchChecklistItems()
+        }
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const checklistState: ChecklistState = {
+    items: checklistItems,
+    addItem: async (taskId, label) => {
+      const position = checklistItems.filter(i => i.task_id === taskId).length
+      await insertChecklistItem({ task_id: taskId, label, position })
+    },
+    toggleItem: async item => {
+      await updateChecklistItem(item.id, { done: !item.done })
+    },
+    removeItem: async id => {
+      await removeChecklistItem(id)
+    },
+  }
+
+  const checklistCounts = checklistItems.reduce<Record<string, { done: number; total: number }>>((acc, item) => {
+    const entry = acc[item.task_id] ?? { done: 0, total: 0 }
+    entry.total += 1
+    if (item.done) entry.done += 1
+    acc[item.task_id] = entry
+    return acc
+  }, {})
 
   const filtered = tasks.filter(tk => {
     if (query) {
@@ -90,6 +655,8 @@ export function Tasks() {
       property_id: t.property_id ?? '',
       priority: t.priority,
       due_date: t.due_date ?? '',
+      assigned_to: t.assigned_to ?? '',
+      checklist_template_id: '',
     })
     setErrors({})
     setShowForm(true)
@@ -100,21 +667,28 @@ export function Tasks() {
     if (!validate()) return
     setSaving(true)
     try {
+      const { checklist_template_id, ...taskFields } = form
       if (editingId) {
         await update(editingId, {
-          ...form,
+          ...taskFields,
           property_id: form.property_id || null,
           due_date: form.due_date || null,
+          assigned_to: form.assigned_to || null,
           status: editingStatus,
         })
         toast('Task updated')
       } else {
-        await insert({
-          ...form,
+        const created = await insert({
+          ...taskFields,
           property_id: form.property_id || null,
           due_date: form.due_date || null,
+          assigned_to: form.assigned_to || null,
           status: 'todo',
         })
+        const checklistTpl = checklistTemplates.data.find(ct => ct.id === checklist_template_id)
+        if (created && checklistTpl) {
+          await insertChecklistItems(checklistTpl.items.map((label, idx) => ({ task_id: created.id, label, position: idx })))
+        }
         toast('Task created')
       }
       setShowForm(false)
@@ -147,6 +721,7 @@ export function Tasks() {
   }
 
   const propertyMap = Object.fromEntries(properties.map(p => [p.id, p.name]))
+  const memberMap = Object.fromEntries(members.map(m => [m.id, m]))
 
   if (loading) {
     return (
@@ -166,6 +741,16 @@ export function Tasks() {
             <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
           </Button>
           <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} filename={`tasks-${new Date().toISOString().split('T')[0]}`} />
+          {actualRole === 'owner' && (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setShowChecklists(true)}>
+                <ListChecks className="w-4 h-4 mr-1" /> Checklists
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowAutomations(true)}>
+                <Zap className="w-4 h-4 mr-1" /> Automation
+              </Button>
+            </>
+          )}
           <Button size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> {t('tasks.addTask')}
           </Button>
@@ -207,6 +792,9 @@ export function Tasks() {
                     <div className="flex items-start justify-between mb-2">
                       <p className="text-sm font-medium flex-1">{task.title}</p>
                       <div className="flex items-center gap-1 ml-2 shrink-0">
+                        <button onClick={() => setCommentsTask(task)} className="text-muted-foreground hover:text-foreground transition-colors" title="Comments">
+                          <MessageSquare className="w-3 h-3" />
+                        </button>
                         <button onClick={() => openEdit(task)} className="text-muted-foreground hover:text-foreground transition-colors">
                           <Pencil className="w-3 h-3" />
                         </button>
@@ -222,13 +810,35 @@ export function Tasks() {
                       <p className="text-xs text-muted-foreground">
                         {task.property_id ? propertyMap[task.property_id] ?? '—' : '—'}
                       </p>
-                      <Badge variant={
-                        task.priority === 'high' ? 'destructive' :
-                        task.priority === 'medium' ? 'warning' : 'muted'
-                      }>
-                        {task.priority}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        {task.template_id && (
+                          <Badge variant="muted">
+                            <Zap className="w-2.5 h-2.5 mr-0.5" /> Auto
+                          </Badge>
+                        )}
+                        <Badge variant={
+                          task.priority === 'high' ? 'destructive' :
+                          task.priority === 'medium' ? 'warning' : 'muted'
+                        }>
+                          {task.priority}
+                        </Badge>
+                      </div>
                     </div>
+                    {task.assigned_to && (
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <UserRound className="w-3 h-3" /> {memberLabel(memberMap[task.assigned_to])}
+                      </p>
+                    )}
+                    {checklistCounts[task.id] && (
+                      <div className="mb-2">
+                        <p className="text-[10px] tabular-nums text-muted-foreground flex items-center gap-1 mb-1">
+                          <ListChecks className="w-3 h-3" /> {checklistCounts[task.id].done}/{checklistCounts[task.id].total}
+                        </p>
+                        <div className="h-1 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-success transition-all" style={{ width: `${(checklistCounts[task.id].done / checklistCounts[task.id].total) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
                     {task.due_date && (
                       <p className="text-[10px] tabular-nums text-muted-foreground mb-2">Due: {task.due_date}</p>
                     )}
@@ -279,6 +889,15 @@ export function Tasks() {
               ...properties.map(p => ({ value: p.id, label: p.name })),
             ]}
           />
+          <Select
+            label="Assigned to"
+            value={form.assigned_to}
+            onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...members.map(m => ({ value: m.id, label: `${memberLabel(m)} (${m.role.replace('_', ' ')})` })),
+            ]}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Priority"
@@ -292,6 +911,17 @@ export function Tasks() {
             />
             <Input label="Due Date" type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
           </div>
+          {!editingId && (
+            <Select
+              label="Checklist"
+              value={form.checklist_template_id}
+              onChange={e => setForm(f => ({ ...f, checklist_template_id: e.target.value }))}
+              options={[
+                { value: '', label: 'No checklist' },
+                ...checklistTemplates.data.map(ct => ({ value: ct.id, label: `${ct.name} (${ct.items.length} items)` })),
+              ]}
+            />
+          )}
           {editingId && (
             <Select
               label="Status"
@@ -308,6 +938,23 @@ export function Tasks() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!commentsTask} onClose={() => setCommentsTask(null)} title={commentsTask?.title ?? ''}>
+        {commentsTask && (
+          <div className="space-y-5">
+            <TaskChecklist task={commentsTask} checklist={checklistState} />
+            <TaskComments task={commentsTask} members={members} />
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={showAutomations} onClose={() => setShowAutomations(false)} title="Task automation">
+        <TaskAutomations properties={properties} members={members} checklistTemplates={checklistTemplates.data} />
+      </Modal>
+
+      <Modal open={showChecklists} onClose={() => setShowChecklists(false)} title="Checklists">
+        <ChecklistTemplates checklistTemplates={checklistTemplates} />
       </Modal>
 
       <ConfirmModal
