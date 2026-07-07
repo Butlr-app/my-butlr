@@ -32,7 +32,32 @@
     "search": "Recherche",
     "menu": "Menu",
     "inspections": "États des lieux",
+    "activity": "Activité",
     "conciergePortal": "Portail Conciergerie"
+  },
+  "activity": {
+    "title": "Journal d'activité",
+    "subtitle": "Historique d'audit des changements opérationnels sur vos villas",
+    "allProperties": "Toutes les villas",
+    "allTypes": "Tous les types",
+    "allActions": "Toutes les actions",
+    "empty": "Aucune activité pour le moment",
+    "system": "Système",
+    "actions": {
+      "created": "Créé",
+      "updated": "Modifié",
+      "status_changed": "Statut changé",
+      "deleted": "Supprimé"
+    },
+    "entities": {
+      "tasks": "Tâche",
+      "incidents": "Incident",
+      "work_orders": "Ordre de mission",
+      "inspections": "État des lieux",
+      "inventory_items": "Article d'inventaire",
+      "expenses": "Dépense",
+      "shifts": "Shift"
+    }
   },
   "push": {
     "title": "Notifications push",
