@@ -633,6 +633,22 @@ export function useServiceProviders() {
   return useTable<ServiceProvider>('service_providers')
 }
 
+export interface Document {
+  id: string
+  property_id: string
+  title: string
+  category: 'manual' | 'warranty' | 'contract' | 'insurance' | 'certificate' | 'floorplan' | 'other'
+  file_url: string
+  file_name: string | null
+  notes: string | null
+  uploaded_by: string | null
+  created_at: string
+}
+
+export function useDocuments() {
+  return useTable<Document>('documents')
+}
+
 export function usePayments() {
   return useTable<Payment>('payments')
 }

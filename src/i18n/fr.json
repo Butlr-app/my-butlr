@@ -18,6 +18,7 @@
     "calendar": "Calendrier",
     "partners": "Partenaires",
     "serviceProviders": "Annuaire",
+    "documents": "Documents",
     "payments": "Paiements",
     "apa": "APA",
     "contracts": "Contrats",
@@ -338,6 +339,35 @@
       "validated": "Validé",
       "completed": "Terminé",
       "cancelled": "Annulé"
+    }
+  },
+  "documents": {
+    "title": "Coffre à documents",
+    "subtitle": "Rassemblez les manuels, garanties, assurances et contrats d'entretien de chaque villa au même endroit.",
+    "upload": "Téléverser un document",
+    "uploaded": "Document téléversé",
+    "deleted": "Document supprimé",
+    "empty": "Aucun document pour ce filtre.",
+    "allProperties": "Toutes les villas",
+    "allCategories": "Toutes les catégories",
+    "property": "Villa",
+    "docTitle": "Titre",
+    "titlePlaceholder": "ex. Manuel chaudière",
+    "categoryLabel": "Catégorie",
+    "file": "Fichier",
+    "chooseFile": "Choisir un fichier (PDF, image, doc)",
+    "notes": "Notes",
+    "formError": "Le titre, la villa et un fichier sont requis",
+    "deleteTitle": "Supprimer le document",
+    "deleteMessage": "Supprimer « {title} » ? Cette action est irréversible.",
+    "category": {
+      "manual": "Manuel",
+      "warranty": "Garantie",
+      "contract": "Contrat",
+      "insurance": "Assurance",
+      "certificate": "Certificat",
+      "floorplan": "Plan",
+      "other": "Autre"
     }
   },
   "partners": {
