@@ -1,12 +1,11 @@
-import { useReservations } from '@/lib/useSupabase'
-import { useAuth } from '@/lib/authContext'
+import { usePartnerPortal } from '@/lib/useSupabase'
 import { Loader2, TrendingUp, Calendar, Star, ArrowUpRight, Clock, ChevronRight } from 'lucide-react'
+import { PartnerUnlinked } from './PartnerUnlinked'
+
+const ACTIVE_STATUSES = ['approved', 'in_progress']
 
 export function PartnerDashboard() {
-  const { data: reservations, loading: lRes } = useReservations()
-  const { user } = useAuth()
-
-  const loading = lRes
+  const { partner, bookings, payments, loading } = usePartnerPortal()
 
   if (loading) {
     return (
@@ -16,22 +15,27 @@ export function PartnerDashboard() {
     )
   }
 
-  const totalBookings = reservations.length
-  const confirmedBookings = reservations.filter(r => r.status === 'confirmed' || r.status === 'in_progress').length
-  const totalRevenue = reservations.reduce((sum, r) => sum + Number(r.total_amount), 0)
-  const paidRevenue = reservations.filter(r => r.payment_status === 'paid').reduce((sum, r) => sum + Number(r.total_amount), 0)
-  const pendingCount = reservations.filter(r => r.status === 'pending').length
+  if (!partner) {
+    return <PartnerUnlinked title="Dashboard" />
+  }
 
-  const recentBookings = reservations
-    .filter(r => r.status === 'confirmed' || r.status === 'pending')
+  const totalBookings = bookings.length
+  const activeBookings = bookings.filter(b => ACTIVE_STATUSES.includes(b.status)).length
+  const pendingCount = bookings.filter(b => b.status === 'pending').length
+
+  const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0)
+  const paidRevenue = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
+
+  const recentBookings = [...bookings]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5)
 
   const months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
   const monthlyRevenue = months.map((_, idx) => {
-    return reservations.filter(r => { const d = new Date(r.arrival); return d.getFullYear() === currentYear && d.getMonth() === idx })
-      .reduce((sum, r) => sum + Number(r.total_amount), 0)
+    return payments.filter(p => { const d = new Date(p.date); return d.getFullYear() === currentYear && d.getMonth() === idx })
+      .reduce((sum, p) => sum + Number(p.amount), 0)
   })
   const maxMonthly = Math.max(...monthlyRevenue, 1)
 
@@ -43,12 +47,12 @@ export function PartnerDashboard() {
           <div>
             <p className="text-sm text-gray-500">Welcome back,</p>
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              {user?.email?.split('@')[0] ?? 'Partner'}
+              {partner.name}
             </h1>
           </div>
           <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
             <span className="text-white font-bold text-sm">
-              {(user?.email?.[0] ?? 'P').toUpperCase()}
+              {partner.name.charAt(0).toUpperCase()}
             </span>
           </div>
         </div>
@@ -64,7 +68,7 @@ export function PartnerDashboard() {
               <span className="text-sm text-amber-900/80 font-medium">Total Revenue</span>
               <div className="flex items-center gap-1 bg-white/20 rounded-full px-2 py-0.5">
                 <ArrowUpRight className="w-3 h-3 text-white" />
-                <span className="text-xs font-bold text-white">+12%</span>
+                <span className="text-xs font-bold text-white">{partner.commission}% comm.</span>
               </div>
             </div>
             <p className="text-4xl font-bold text-white tracking-tight">&euro;{totalRevenue.toLocaleString()}</p>
@@ -92,12 +96,12 @@ export function PartnerDashboard() {
           </div>
           <div className="bg-gray-900 rounded-2xl p-4 text-center border border-gray-800">
             <TrendingUp className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
-            <p className="text-xl font-bold text-white">{confirmedBookings}</p>
+            <p className="text-xl font-bold text-white">{activeBookings}</p>
             <p className="text-[10px] text-gray-500 font-medium mt-0.5">Active</p>
           </div>
           <div className="bg-gray-900 rounded-2xl p-4 text-center border border-gray-800">
             <Star className="w-5 h-5 text-amber-400 mx-auto mb-2" />
-            <p className="text-xl font-bold text-white">4.9</p>
+            <p className="text-xl font-bold text-white">{Number(partner.rating).toFixed(1)}</p>
             <p className="text-[10px] text-gray-500 font-medium mt-0.5">Rating</p>
           </div>
         </div>
@@ -160,21 +164,28 @@ export function PartnerDashboard() {
               <p className="text-sm text-gray-500">No recent activity</p>
             </div>
           ) : (
-            recentBookings.map(r => (
-              <div key={r.id} className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-900 border border-gray-800 active:bg-gray-800 transition-colors">
-                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                  <img src={r.property?.image_url ?? '/images/villa-hero.jpg'} alt="" className="w-full h-full object-cover" />
+            recentBookings.map(b => (
+              <div key={b.id} className="flex items-center gap-3.5 p-4 rounded-2xl bg-gray-900 border border-gray-800 active:bg-gray-800 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-5 h-5 text-amber-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{r.guest_name}</p>
-                  <p className="text-[11px] text-gray-500">{r.property?.name ?? 'Property'} &middot; {new Date(r.arrival).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                  <p className="text-sm font-semibold text-white truncate">{b.service_name}</p>
+                  <p className="text-[11px] text-gray-500">
+                    {b.preferred_date
+                      ? new Date(b.preferred_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                      : new Date(b.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-white">&euro;{Number(r.total_amount).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-white">
+                    {b.quoted_price != null ? `\u20ac${Number(b.quoted_price).toLocaleString()}` : '—'}
+                  </p>
                   <span className={`text-[9px] font-bold uppercase tracking-wider ${
-                    r.status === 'confirmed' ? 'text-emerald-500' : 'text-amber-500'
+                    b.status === 'approved' || b.status === 'completed' ? 'text-emerald-500' :
+                    b.status === 'cancelled' ? 'text-red-500' : 'text-amber-500'
                   }`}>
-                    {r.status}
+                    {b.status.replace('_', ' ')}
                   </span>
                 </div>
               </div>

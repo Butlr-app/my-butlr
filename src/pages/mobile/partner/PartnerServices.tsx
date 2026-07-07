@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useServices } from '@/lib/useSupabase'
+import { useServices, useCurrentPartner } from '@/lib/useSupabase'
 import { Loader2, Star, Eye, EyeOff, Edit3, Plus, Sparkles } from 'lucide-react'
+import { PartnerUnlinked } from './PartnerUnlinked'
 
 const SERVICE_IMAGES: Record<string, string> = {
   'Private Chef': '/images/chef.jpg',
@@ -16,16 +17,26 @@ const SERVICE_IMAGES: Record<string, string> = {
 }
 
 export function PartnerServices() {
-  const { data: services, loading } = useServices()
+  const { data: allServices, loading: servicesLoading } = useServices()
+  const { partner, loading: partnerLoading } = useCurrentPartner()
   const [showHidden, setShowHidden] = useState(false)
 
-  if (loading) {
+  if (servicesLoading || partnerLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950">
         <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
       </div>
     )
   }
+
+  if (!partner) {
+    return <PartnerUnlinked title="Services" />
+  }
+
+  // Scope the catalog to the partner's own category when one is set.
+  const services = partner.category
+    ? allServices.filter(s => (s.category ?? '').toLowerCase() === partner.category!.toLowerCase())
+    : allServices
 
   const activeServices = services.filter(s => s.available)
   const hiddenServices = services.filter(s => !s.available)
@@ -38,7 +49,9 @@ export function PartnerServices() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Services</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage your service catalog</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {partner.category ? `Your ${partner.category} catalog` : 'Your service catalog'}
+            </p>
           </div>
           <button className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20 active:scale-95 transition-transform">
             <Plus className="w-5 h-5 text-white" />
@@ -95,7 +108,7 @@ export function PartnerServices() {
                       </div>
                       <div className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full">
                         <Star className="w-3 h-3 fill-current text-amber-400" />
-                        <span className="text-xs font-bold text-white">4.9</span>
+                        <span className="text-xs font-bold text-white">{Number(partner.rating).toFixed(1)}</span>
                       </div>
                     </div>
                   </div>

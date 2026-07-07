@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { useReservations } from '@/lib/useSupabase'
-import { Loader2, Calendar, MapPin, Users, Clock } from 'lucide-react'
+import { usePartnerPortal } from '@/lib/useSupabase'
+import { Loader2, Calendar, Clock, Tag } from 'lucide-react'
+import { PartnerUnlinked } from './PartnerUnlinked'
+
+type Filter = 'all' | 'pending' | 'active' | 'completed'
 
 export function PartnerBookings() {
-  const { data: reservations, loading } = useReservations()
-  const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed'>('all')
+  const { partner, bookings, loading } = usePartnerPortal()
+  const [filter, setFilter] = useState<Filter>('all')
 
   if (loading) {
     return (
@@ -14,27 +17,34 @@ export function PartnerBookings() {
     )
   }
 
-  const filtered = filter === 'all'
-    ? reservations
-    : reservations.filter(r => r.status === filter)
+  if (!partner) {
+    return <PartnerUnlinked title="Bookings" />
+  }
 
-  const filters = [
-    { id: 'all' as const, label: 'All', count: reservations.length },
-    { id: 'pending' as const, label: 'Pending', count: reservations.filter(r => r.status === 'pending').length },
-    { id: 'confirmed' as const, label: 'Active', count: reservations.filter(r => r.status === 'confirmed').length },
-    { id: 'completed' as const, label: 'Done', count: reservations.filter(r => r.status === 'completed').length },
+  const matches = (status: string, f: Filter) => {
+    if (f === 'all') return true
+    if (f === 'pending') return status === 'pending'
+    if (f === 'active') return status === 'approved' || status === 'in_progress'
+    return status === 'completed'
+  }
+
+  const filtered = bookings.filter(b => matches(b.status, filter))
+
+  const filters: { id: Filter; label: string; count: number }[] = [
+    { id: 'all', label: 'All', count: bookings.length },
+    { id: 'pending', label: 'Pending', count: bookings.filter(b => b.status === 'pending').length },
+    { id: 'active', label: 'Active', count: bookings.filter(b => b.status === 'approved' || b.status === 'in_progress').length },
+    { id: 'completed', label: 'Done', count: bookings.filter(b => b.status === 'completed').length },
   ]
 
-  const formatDate = (d: string) => {
-    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-  }
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
   return (
     <div className="bg-gray-950 min-h-screen">
       {/* Header */}
       <div className="px-5 pt-14 pb-4">
         <h1 className="text-2xl font-bold text-white tracking-tight">Bookings</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your reservations</p>
+        <p className="text-sm text-gray-500 mt-1">Requests assigned to you</p>
       </div>
 
       {/* Filters */}
@@ -64,43 +74,39 @@ export function PartnerBookings() {
             <p className="text-sm text-gray-500">No bookings match this filter</p>
           </div>
         ) : (
-          filtered.map(r => (
-            <div key={r.id} className="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden active:bg-gray-800 transition-colors">
+          filtered.map(b => (
+            <div key={b.id} className="rounded-2xl bg-gray-900 border border-gray-800 overflow-hidden active:bg-gray-800 transition-colors">
               <div className="flex gap-4 p-4">
-                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
-                  <img src={r.property?.image_url ?? '/images/villa-hero.jpg'} alt="" className="w-full h-full object-cover" />
+                <div className="w-14 h-14 rounded-xl bg-gray-800 flex items-center justify-center flex-shrink-0">
+                  <Tag className="w-6 h-6 text-amber-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-white truncate">{r.guest_name}</h3>
+                    <h3 className="font-bold text-white truncate">{b.service_name}</h3>
                     <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      r.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400' :
-                      r.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
-                      r.status === 'in_progress' ? 'bg-blue-500/10 text-blue-400' :
-                      r.status === 'completed' ? 'bg-gray-500/10 text-gray-400' :
+                      b.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400' :
+                      b.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
+                      b.status === 'in_progress' ? 'bg-blue-500/10 text-blue-400' :
+                      b.status === 'completed' ? 'bg-gray-500/10 text-gray-400' :
                       'bg-red-500/10 text-red-400'
                     }`}>
-                      {r.status}
+                      {b.status.replace('_', ' ')}
                     </span>
                   </div>
-                  <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-1">
-                    <MapPin className="w-3 h-3" />
-                    {r.property?.name ?? 'Property'}{r.property?.location ? ` — ${r.property.location}` : ''}
-                  </p>
+                  {b.details && (
+                    <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{b.details}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 bg-gray-900/50">
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {formatDate(r.arrival)} — {formatDate(r.departure)}
-                  </span>
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    {r.guests_count}
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-white">&euro;{Number(r.total_amount).toLocaleString()}</p>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {b.preferred_date ? formatDate(b.preferred_date) : formatDate(b.created_at)}
+                  {b.preferred_time ? ` · ${b.preferred_time}` : ''}
+                </span>
+                <p className="text-sm font-bold text-white">
+                  {b.quoted_price != null ? `\u20ac${Number(b.quoted_price).toLocaleString()}` : 'No quote'}
+                </p>
               </div>
             </div>
           ))
