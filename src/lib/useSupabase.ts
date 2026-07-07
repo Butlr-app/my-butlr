@@ -95,7 +95,9 @@ export interface Partner {
   status: 'active' | 'inactive'
   rating: number
   bookings_count: number
+  user_id: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface ServiceProvider {
@@ -125,6 +127,7 @@ export interface Payment {
   amount: number
   status: 'pending' | 'paid' | 'failed' | 'refunded'
   date: string
+  partner_id: string | null
   created_at: string
 }
 
