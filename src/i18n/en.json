@@ -792,6 +792,17 @@
     "subtitle": "Inspections between each guest",
     "newInspection": "New Inspection",
     "inspector": "Inspector",
+    "type": "Type",
+    "types": {
+      "check_in": "Check-in",
+      "check_out": "Check-out",
+      "routine": "Routine"
+    },
+    "signature": "Signature",
+    "signatureHelp": "Sign below to complete this inspection. The signature is stored with the report.",
+    "signAndComplete": "Sign & Complete",
+    "completedToast": "Inspection completed",
+    "completedAt": "Completed on",
     "property": "Property",
     "selectProperty": "Select a property",
     "date": "Date",
