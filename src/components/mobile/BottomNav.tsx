@@ -6,6 +6,7 @@ export interface NavItem {
   path: string
   label: string
   icon: LucideIcon
+  badge?: number
 }
 
 interface BottomNavProps {
@@ -40,7 +41,14 @@ export function BottomNav({ items, variant = 'light' }: BottomNavProps) {
           >
             {({ isActive }) => (
               <>
-                <item.icon className={cn('w-6 h-6', isActive && 'stroke-[2.5]')} />
+                <span className="relative">
+                  <item.icon className={cn('w-6 h-6', isActive && 'stroke-[2.5]')} />
+                  {item.badge != null && item.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 text-[10px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </span>
                 <span className="tracking-wide">{item.label}</span>
               </>
             )}

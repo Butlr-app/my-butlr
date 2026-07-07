@@ -12,6 +12,7 @@
     "teamPlanning": "Planning équipe",
     "incidents": "Incidents",
     "workOrders": "Ordres de mission",
+    "maintenance": "Maintenance",
     "inventory": "Inventaire",
     "expenses": "Dépenses",
     "mobileApp": "App mobile",
@@ -33,6 +34,10 @@
     "menu": "Menu",
     "inspections": "États des lieux",
     "conciergePortal": "Portail Conciergerie"
+  },
+  "push": {
+    "title": "Notifications push",
+    "subtitle": "Recevoir les alertes sur cet appareil"
   },
   "apa": {
     "title": "APA — Encaissement & Reversements",
@@ -359,6 +364,56 @@
     "commentPlaceholder": "Comment s'est passée la mission ?",
     "submit": "Envoyer la note",
     "rated": "Note enregistrée"
+  },
+  "maintenance": {
+    "title": "Maintenance préventive",
+    "subtitle": "Planifiez la maintenance récurrente par villa ; les tâches sont créées automatiquement à l'échéance de chaque plan.",
+    "add": "Nouveau plan",
+    "editTitle": "Modifier le plan",
+    "created": "Plan de maintenance créé",
+    "updated": "Plan de maintenance mis à jour",
+    "deleted": "Plan de maintenance supprimé",
+    "empty": "Aucun plan de maintenance pour l'instant.",
+    "allProperties": "Toutes les villas",
+    "property": "Villa",
+    "planTitle": "Titre",
+    "titlePlaceholder": "ex. Entretien chaudière",
+    "categoryLabel": "Catégorie",
+    "frequency": "Fréquence",
+    "nextDue": "Prochaine échéance",
+    "leadDays": "Rappel (jours avant)",
+    "assignedTo": "Assigné à",
+    "unassigned": "Non assigné",
+    "notes": "Notes",
+    "activePlan": "Actif",
+    "inactive": "Inactif",
+    "every": "tous les",
+    "months": "mois",
+    "formError": "Le titre, la villa et la prochaine échéance sont requis",
+    "deleteTitle": "Supprimer le plan de maintenance",
+    "deleteMessage": "Supprimer le plan « {title} » ? Cette action est irréversible.",
+    "category": {
+      "hvac": "CVC / Chauffage",
+      "plumbing": "Plomberie",
+      "electrical": "Électricité",
+      "pool": "Piscine / Spa",
+      "garden": "Jardin",
+      "safety": "Sécurité",
+      "appliance": "Électroménager",
+      "other": "Autre"
+    },
+    "interval": {
+      "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
+      "semiannual": "Tous les 6 mois",
+      "annual": "Annuel",
+      "biennial": "Tous les 2 ans"
+    },
+    "due": {
+      "overdue": "En retard",
+      "soon": "Bientôt dû",
+      "scheduled": "Planifié"
+    }
   },
   "partners": {
     "title": "Partenaires",
@@ -1051,8 +1106,11 @@
       "today": "Aujourd'hui",
       "tasks": "Tâches",
       "incidents": "Incidents",
+      "alerts": "Alertes",
       "profile": "Profil"
     },
+    "markAllRead": "Tout marquer lu",
+    "noNotifications": "Aucune notification",
     "offlineBanner": "Hors ligne — les modifications seront synchronisées au retour du réseau",
     "backOnline": "De retour en ligne",
     "changesSynced": "modification(s) synchronisée(s)",
