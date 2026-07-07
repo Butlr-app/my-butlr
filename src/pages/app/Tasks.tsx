@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -8,12 +8,13 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { ExportButton } from '@/components/ExportButton'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { useTasks, useProperties, useReservations, useTeamMembers, useTaskComments, type Task, type TeamMember } from '@/lib/useSupabase'
+import { useTasks, useProperties, useReservations, useTeamMembers, useTaskComments, useTaskTemplates, generateRecurringTasks, type Task, type TeamMember, type TaskTemplate, type Property } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
-import { Plus, Loader2, Pencil, Trash2, Filter, MessageSquare, Send, UserRound } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Filter, MessageSquare, Send, UserRound, Zap } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
+import { useRole } from '@/lib/roleContext'
 import { AiTaskSuggestions } from '@/components/ai/AiTaskSuggestions'
 
 const columns = [
@@ -92,8 +93,222 @@ function TaskComments({ task, members }: { task: Task; members: TeamMember[] }) 
   )
 }
 
+const emptyTemplateForm = {
+  title: '',
+  description: '',
+  property_id: '',
+  priority: 'medium' as TaskTemplate['priority'],
+  trigger_type: 'checkout' as TaskTemplate['trigger_type'],
+  recurrence: 'weekly' as NonNullable<TaskTemplate['recurrence']>,
+  assigned_to: '',
+}
+
+function TaskAutomations({ properties, members }: { properties: Property[]; members: TeamMember[] }) {
+  const { data: templates, loading, insert, update, remove } = useTaskTemplates()
+  const { toast } = useToast()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(emptyTemplateForm)
+  const [saving, setSaving] = useState(false)
+  const propertyMap = Object.fromEntries(properties.map(p => [p.id, p.name]))
+  const memberMap = Object.fromEntries(members.map(m => [m.id, m]))
+
+  const openCreate = () => {
+    setEditingId(null)
+    setForm(emptyTemplateForm)
+    setShowForm(true)
+  }
+
+  const openEdit = (tpl: TaskTemplate) => {
+    setEditingId(tpl.id)
+    setForm({
+      title: tpl.title,
+      description: tpl.description ?? '',
+      property_id: tpl.property_id ?? '',
+      priority: tpl.priority,
+      trigger_type: tpl.trigger_type,
+      recurrence: tpl.recurrence ?? 'weekly',
+      assigned_to: tpl.assigned_to ?? '',
+    })
+    setShowForm(true)
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.title.trim()) { toast('Title is required', 'error'); return }
+    setSaving(true)
+    const payload = {
+      title: form.title.trim(),
+      description: form.description || null,
+      property_id: form.property_id || null,
+      priority: form.priority,
+      trigger_type: form.trigger_type,
+      recurrence: form.trigger_type === 'recurring' ? form.recurrence : null,
+      assigned_to: form.assigned_to || null,
+    }
+    try {
+      if (editingId) {
+        await update(editingId, payload)
+        toast('Template updated')
+      } else {
+        await insert({ ...payload, active: true })
+        toast('Template created')
+      }
+      setShowForm(false)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
+  }
+
+  const toggleActive = async (tpl: TaskTemplate) => {
+    try {
+      await update(tpl.id, { active: !tpl.active })
+      toast(tpl.active ? 'Template paused' : 'Template activated')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const deleteTemplate = async (tpl: TaskTemplate) => {
+    try {
+      await remove(tpl.id)
+      toast('Template deleted')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
+  const triggerLabel = (tpl: TaskTemplate) =>
+    tpl.trigger_type === 'checkout' ? 'On check-out' : `Recurring (${tpl.recurrence})`
+
+  if (showForm) {
+    return (
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Title" required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Cleaning after check-out" />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Description</label>
+          <textarea
+            className="w-full h-16 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info"
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Trigger"
+            value={form.trigger_type}
+            onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value as TaskTemplate['trigger_type'] }))}
+            options={[
+              { value: 'checkout', label: 'On check-out' },
+              { value: 'recurring', label: 'Recurring' },
+            ]}
+          />
+          {form.trigger_type === 'recurring' ? (
+            <Select
+              label="Frequency"
+              value={form.recurrence}
+              onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as NonNullable<TaskTemplate['recurrence']> }))}
+              options={[
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'monthly', label: 'Monthly' },
+              ]}
+            />
+          ) : (
+            <div />
+          )}
+        </div>
+        <Select
+          label="Property"
+          value={form.property_id}
+          onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}
+          options={[
+            { value: '', label: 'All properties' },
+            ...properties.map(p => ({ value: p.id, label: p.name })),
+          ]}
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Priority"
+            value={form.priority}
+            onChange={e => setForm(f => ({ ...f, priority: e.target.value as TaskTemplate['priority'] }))}
+            options={[
+              { value: 'low', label: 'Low' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'high', label: 'High' },
+            ]}
+          />
+          <Select
+            label="Assigned to"
+            value={form.assigned_to}
+            onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...members.map(m => ({ value: m.id, label: `${memberLabel(m)} (${m.role.replace('_', ' ')})` })),
+            ]}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>Back</Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+            {editingId ? 'Save changes' : 'Create template'}
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Check-out templates create a task at each reservation departure. Recurring templates create one task per period.
+      </p>
+      <div className="space-y-2 max-h-72 overflow-y-auto">
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        ) : templates.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No templates yet</p>
+        ) : (
+          templates.map(tpl => (
+            <div key={tpl.id} className="border border-border rounded-md p-2 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{tpl.title}</p>
+                  <Badge variant={tpl.active ? 'success' : 'muted'}>{tpl.active ? 'Active' : 'Paused'}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {triggerLabel(tpl)} · {tpl.property_id ? propertyMap[tpl.property_id] ?? '—' : 'All properties'}
+                  {tpl.assigned_to ? ` · ${memberLabel(memberMap[tpl.assigned_to])}` : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => toggleActive(tpl)} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">
+                  {tpl.active ? 'Pause' : 'Activate'}
+                </button>
+                <button onClick={() => openEdit(tpl)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button onClick={() => deleteTemplate(tpl)} className="text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="w-4 h-4 mr-1" /> New template
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function Tasks() {
-  const { data: rawTasks, loading, insert, update, remove } = useTasks()
+  const { data: rawTasks, loading, insert, update, remove, refetch } = useTasks()
   const { data: properties } = useProperties()
   const { data: reservations } = useReservations()
   const { toast } = useToast()
@@ -101,8 +316,10 @@ export function Tasks() {
   const { t } = useTranslation()
   const { filterTasks, filterReservations } = useRoleFilter()
   const { members } = useTeamMembers()
+  const { actualRole } = useRole()
   const tasks = filterTasks(rawTasks)
   const [commentsTask, setCommentsTask] = useState<Task | null>(null)
+  const [showAutomations, setShowAutomations] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -111,6 +328,13 @@ export function Tasks() {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+
+  useEffect(() => {
+    generateRecurringTasks()
+      .then(count => { if (count > 0) refetch() })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const filtered = tasks.filter(tk => {
     if (query) {
@@ -233,6 +457,11 @@ export function Tasks() {
             <Filter className="w-4 h-4 mr-1" /> {t('common.filter')}
           </Button>
           <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} filename={`tasks-${new Date().toISOString().split('T')[0]}`} />
+          {actualRole === 'owner' && (
+            <Button variant="secondary" size="sm" onClick={() => setShowAutomations(true)}>
+              <Zap className="w-4 h-4 mr-1" /> Automation
+            </Button>
+          )}
           <Button size="sm" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-1" /> {t('tasks.addTask')}
           </Button>
@@ -292,12 +521,19 @@ export function Tasks() {
                       <p className="text-xs text-muted-foreground">
                         {task.property_id ? propertyMap[task.property_id] ?? '—' : '—'}
                       </p>
-                      <Badge variant={
-                        task.priority === 'high' ? 'destructive' :
-                        task.priority === 'medium' ? 'warning' : 'muted'
-                      }>
-                        {task.priority}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        {task.template_id && (
+                          <Badge variant="muted">
+                            <Zap className="w-2.5 h-2.5 mr-0.5" /> Auto
+                          </Badge>
+                        )}
+                        <Badge variant={
+                          task.priority === 'high' ? 'destructive' :
+                          task.priority === 'medium' ? 'warning' : 'muted'
+                        }>
+                          {task.priority}
+                        </Badge>
+                      </div>
                     </div>
                     {task.assigned_to && (
                       <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
@@ -396,6 +632,10 @@ export function Tasks() {
 
       <Modal open={!!commentsTask} onClose={() => setCommentsTask(null)} title={commentsTask?.title ?? ''}>
         {commentsTask && <TaskComments task={commentsTask} members={members} />}
+      </Modal>
+
+      <Modal open={showAutomations} onClose={() => setShowAutomations(false)} title="Task automation">
+        <TaskAutomations properties={properties} members={members} />
       </Modal>
 
       <ConfirmModal
