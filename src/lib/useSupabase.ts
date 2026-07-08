@@ -67,6 +67,7 @@ export interface Service {
   commission: number
   available: boolean
   image_url: string | null
+  partner_id: string | null
   created_at: string
 }
 
@@ -760,6 +761,209 @@ export function usePartnerPortal() {
     updateRequest,
     refetch,
   }
+}
+
+// ─── Partner Phase 5: services, availability, reviews, documents ─────────────
+
+export interface PartnerAvailability {
+  id: string
+  partner_id: string
+  weekday: number
+  start_time: string
+  end_time: string
+  created_at: string
+}
+
+export interface PartnerReview {
+  id: string
+  partner_id: string
+  service_request_id: string | null
+  guest_user_id: string | null
+  rating: number
+  comment: string | null
+  created_at: string
+}
+
+export interface PartnerDocument {
+  id: string
+  partner_id: string
+  title: string
+  category: 'contract' | 'certificate' | 'insurance' | 'license' | 'other'
+  file_url: string
+  file_name: string | null
+  created_at: string
+}
+
+// The services a partner owns (services.partner_id = the partner). RLS lets a
+// partner mutate only these rows; the global catalog (partner_id NULL) is
+// managed by staff and left untouched here.
+export function usePartnerServices(partnerId: string | null | undefined) {
+  const [services, setServices] = useState<Service[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    if (!partnerId) { setServices([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('services')
+      .select('*')
+      .eq('partner_id', partnerId)
+      .order('created_at', { ascending: false })
+    setServices((data ?? []) as Service[])
+    setLoading(false)
+  }, [partnerId])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const addService = async (svc: Partial<Service>) => {
+    if (!partnerId) throw new Error('No partner')
+    const { data, error } = await supabase
+      .from('services')
+      .insert({ ...svc, partner_id: partnerId } as Record<string, unknown>)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setServices(prev => [data as Service, ...prev])
+    return data as Service
+  }
+
+  const updateService = async (id: string, patch: Partial<Service>) => {
+    const { data, error } = await supabase
+      .from('services')
+      .update(patch as Record<string, unknown>)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setServices(prev => prev.map(s => (s.id === id ? (data as Service) : s)))
+    return data as Service
+  }
+
+  const removeService = async (id: string) => {
+    const { error } = await supabase.from('services').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setServices(prev => prev.filter(s => s.id !== id))
+  }
+
+  return { services, loading, addService, updateService, removeService, refetch: fetch }
+}
+
+// A partner's weekly working hours (one row per weekday).
+export function usePartnerAvailability(partnerId: string | null | undefined) {
+  const [availability, setAvailability] = useState<PartnerAvailability[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    if (!partnerId) { setAvailability([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('partner_availability')
+      .select('*')
+      .eq('partner_id', partnerId)
+      .order('weekday', { ascending: true })
+    setAvailability((data ?? []) as PartnerAvailability[])
+    setLoading(false)
+  }, [partnerId])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  // Enable a weekday (upsert its hours).
+  const setDay = async (weekday: number, start_time: string, end_time: string) => {
+    if (!partnerId) throw new Error('No partner')
+    const { data, error } = await supabase
+      .from('partner_availability')
+      .upsert({ partner_id: partnerId, weekday, start_time, end_time }, { onConflict: 'partner_id,weekday' })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setAvailability(prev => {
+      const rest = prev.filter(a => a.weekday !== weekday)
+      return [...rest, data as PartnerAvailability].sort((a, b) => a.weekday - b.weekday)
+    })
+    return data as PartnerAvailability
+  }
+
+  // Disable a weekday (remove its row).
+  const clearDay = async (weekday: number) => {
+    if (!partnerId) return
+    const { error } = await supabase
+      .from('partner_availability')
+      .delete()
+      .eq('partner_id', partnerId)
+      .eq('weekday', weekday)
+    if (error) throw new Error(error.message)
+    setAvailability(prev => prev.filter(a => a.weekday !== weekday))
+  }
+
+  return { availability, loading, setDay, clearDay, refetch: fetch }
+}
+
+// Guest reviews for a partner. A DB trigger keeps partners.rating in sync, so
+// the aggregate here is just for display (count + average shown in the portal).
+export function usePartnerReviews(partnerId: string | null | undefined) {
+  const [reviews, setReviews] = useState<PartnerReview[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    if (!partnerId) { setReviews([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('partner_reviews')
+      .select('*')
+      .eq('partner_id', partnerId)
+      .order('created_at', { ascending: false })
+    setReviews((data ?? []) as PartnerReview[])
+    setLoading(false)
+  }, [partnerId])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const average = reviews.length
+    ? Math.round((reviews.reduce((s, r) => s + Number(r.rating), 0) / reviews.length) * 10) / 10
+    : null
+
+  return { reviews, average, count: reviews.length, loading, refetch: fetch }
+}
+
+// Metadata for a partner's uploaded documents. Files live in the public
+// "images" bucket under a partner-documents/ prefix (see storage.ts).
+export function usePartnerDocuments(partnerId: string | null | undefined) {
+  const [documents, setDocuments] = useState<PartnerDocument[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    if (!partnerId) { setDocuments([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('partner_documents')
+      .select('*')
+      .eq('partner_id', partnerId)
+      .order('created_at', { ascending: false })
+    setDocuments((data ?? []) as PartnerDocument[])
+    setLoading(false)
+  }, [partnerId])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const addDocument = async (doc: Omit<PartnerDocument, 'id' | 'partner_id' | 'created_at'>) => {
+    if (!partnerId) throw new Error('No partner')
+    const { data, error } = await supabase
+      .from('partner_documents')
+      .insert({ ...doc, partner_id: partnerId } as Record<string, unknown>)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    setDocuments(prev => [data as PartnerDocument, ...prev])
+    return data as PartnerDocument
+  }
+
+  const removeDocument = async (id: string) => {
+    const { error } = await supabase.from('partner_documents').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    setDocuments(prev => prev.filter(d => d.id !== id))
+  }
+
+  return { documents, loading, addDocument, removeDocument, refetch: fetch }
 }
 
 export function useServiceProviders() {

@@ -157,6 +157,40 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Partner Phase 5: partner-owned services, availability, reviews & documents
+ALTER TABLE services ADD COLUMN IF NOT EXISTS partner_id UUID REFERENCES partners(id) ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS partner_availability (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  weekday SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time TIME NOT NULL DEFAULT '09:00',
+  end_time TIME NOT NULL DEFAULT '17:00',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (partner_id, weekday)
+);
+
+CREATE TABLE IF NOT EXISTS partner_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  service_request_id UUID REFERENCES service_requests(id) ON DELETE SET NULL,
+  guest_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS partner_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id UUID NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'other'
+    CHECK (category IN ('contract','certificate','insurance','license','other')),
+  file_url TEXT NOT NULL,
+  file_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Contracts
 CREATE TABLE IF NOT EXISTS contracts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
