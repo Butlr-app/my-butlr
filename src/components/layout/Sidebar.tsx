@@ -8,7 +8,7 @@ import { useNotifications } from '@/lib/useSupabase'
 import {
   LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
   Calendar, CalendarCheck2, CalendarRange, AlertTriangle, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft, X,
-  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote, Smartphone, History, CalendarClock
+  FilePlus, Receipt, Bell, MessageSquare, Inbox, Wallet, Search, BookOpen, BookUser, ClipboardCheck, Briefcase, Wrench, Package, Banknote, Smartphone, PiggyBank, Clock, Award, FolderOpen, History, CalendarClock
 } from 'lucide-react'
 import { useTranslation } from '@/i18n/LanguageContext'
 
@@ -26,14 +26,18 @@ const navItems = [
   { to: '/app/tasks', icon: ClipboardList, labelKey: 'nav.tasks', page: 'tasks' },
   { to: '/app/day-sheet', icon: CalendarCheck2, labelKey: 'nav.daySheet', page: 'day-sheet' },
   { to: '/app/team-planning', icon: CalendarRange, labelKey: 'nav.teamPlanning', page: 'team-planning' },
+  { to: '/app/time-clock', icon: Clock, labelKey: 'nav.timeClock', page: 'time-clock' },
   { to: '/app/incidents', icon: AlertTriangle, labelKey: 'nav.incidents', page: 'incidents' },
   { to: '/app/work-orders', icon: Wrench, labelKey: 'nav.workOrders', page: 'work-orders' },
   { to: '/app/maintenance', icon: CalendarClock, labelKey: 'nav.maintenance', page: 'maintenance' },
   { to: '/app/inventory', icon: Package, labelKey: 'nav.inventory', page: 'inventory' },
   { to: '/app/expenses', icon: Banknote, labelKey: 'nav.expenses', page: 'expenses' },
+  { to: '/app/budgets', icon: PiggyBank, labelKey: 'nav.budgets', page: 'budgets' },
   { to: '/app/calendar', icon: Calendar, labelKey: 'nav.calendar', page: 'calendar' },
   { to: '/app/partners', icon: Handshake, labelKey: 'nav.partners', page: 'partners' },
   { to: '/app/service-providers', icon: BookUser, labelKey: 'nav.serviceProviders', page: 'service-providers' },
+  { to: '/app/provider-ratings', icon: Award, labelKey: 'nav.providerRatings', page: 'provider-ratings' },
+  { to: '/app/documents', icon: FolderOpen, labelKey: 'nav.documents', page: 'documents' },
   { to: '/app/concierge-portal', icon: Briefcase, labelKey: 'nav.conciergePortal', page: 'concierge-portal' },
   { to: '/app/payments', icon: CreditCard, labelKey: 'nav.payments', page: 'payments' },
   { to: '/app/apa', icon: Wallet, labelKey: 'nav.apa', page: 'apa' },

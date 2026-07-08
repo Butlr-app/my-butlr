@@ -69,6 +69,7 @@ const QUEUE_KEY = 'hm-offline-queue'
 export type QueuedOp =
   | { kind: 'task_update'; id: string; changes: Record<string, unknown> }
   | { kind: 'incident_insert'; tempId: string; row: Record<string, unknown> }
+  | { kind: 'incident_update'; id: string; changes: Record<string, unknown> }
 
 export function getQueue(): QueuedOp[] {
   try {
@@ -107,6 +108,16 @@ export function getPendingIncidents(): { tempId: string; row: Record<string, unk
   )
 }
 
+export function getPendingIncidentStatus(): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const op of getQueue()) {
+    if (op.kind === 'incident_update' && typeof op.changes.status === 'string') {
+      map[op.id] = op.changes.status
+    }
+  }
+  return map
+}
+
 export const SYNC_EVENT = 'hm-offline-synced'
 
 /**
@@ -126,6 +137,9 @@ export async function flushQueue(): Promise<number> {
     try {
       if (op.kind === 'task_update') {
         const { error } = await supabase.from('tasks').update(op.changes).eq('id', op.id)
+        if (error) throw new Error(error.message)
+      } else if (op.kind === 'incident_update') {
+        const { error } = await supabase.from('incidents').update(op.changes).eq('id', op.id)
         if (error) throw new Error(error.message)
       } else {
         const { error } = await supabase.from('incidents').insert(op.row)

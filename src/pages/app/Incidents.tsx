@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -7,12 +7,12 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useToast } from '@/components/ui/Toast'
-import { useIncidents, useProperties, useTeamMembers, type Incident, type TeamMember } from '@/lib/useSupabase'
+import { useIncidents, useProperties, useTeamMembers, escalateIncidents, type Incident, type TeamMember } from '@/lib/useSupabase'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 import { useRole } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
 import { useTranslation } from '@/i18n/LanguageContext'
-import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Loader2, Plus, Trash2, ArrowUpCircle } from 'lucide-react'
 
 const urgencyVariant = { critical: 'destructive', high: 'destructive', medium: 'warning', low: 'muted' } as const
 const statusVariant: Record<Incident['status'], 'destructive' | 'info' | 'success' | 'muted'> = {
@@ -44,10 +44,19 @@ export function Incidents() {
   const { toast } = useToast()
   const { user } = useAuth()
   const { actualRole } = useRole()
-  const { data: rawIncidents, loading, insert, update, remove } = useIncidents()
+  const { data: rawIncidents, loading, insert, update, remove, refetch } = useIncidents()
   const { data: rawProperties } = useProperties()
   const { members } = useTeamMembers()
   const { filterIncidents, filterProperties } = useRoleFilter()
+
+  const escalationChecked = useRef(false)
+  useEffect(() => {
+    if (escalationChecked.current) return
+    escalationChecked.current = true
+    escalateIncidents()
+      .then(n => { if (n > 0) refetch() })
+      .catch(() => {})
+  }, [refetch])
 
   const [statusFilter, setStatusFilter] = useState<string>('active')
   const [propertyFilter, setPropertyFilter] = useState<string>('')
@@ -190,6 +199,11 @@ export function Incidents() {
                   <Badge variant={urgencyVariant[incident.urgency]}>{t(`incidents.urgency.${incident.urgency}`)}</Badge>
                   <Badge variant={statusVariant[incident.status]}>{t(`incidents.status.${incident.status}`)}</Badge>
                   <Badge variant="muted">{t(`incidents.category.${incident.category}`)}</Badge>
+                  {incident.escalated_at && (
+                    <Badge variant="destructive" className="inline-flex items-center gap-1">
+                      <ArrowUpCircle className="w-3 h-3" />{t('incidents.escalated')}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {propertyName(incident.property_id)} · {new Date(incident.created_at).toLocaleDateString()}
@@ -307,6 +321,9 @@ export function Incidents() {
                 }}
               />
             </div>
+            {detail.escalated_at && (
+              <p className="text-xs text-destructive">{t('incidents.escalatedAt')} {new Date(detail.escalated_at).toLocaleString()}</p>
+            )}
             {detail.resolved_at && (
               <p className="text-xs text-muted-foreground">{t('incidents.resolvedAt')} {new Date(detail.resolved_at).toLocaleString()}</p>
             )}

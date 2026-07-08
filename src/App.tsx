@@ -68,6 +68,10 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { Terms } from './pages/Terms'
 import { Onboarding } from './pages/app/Onboarding'
 import { Guides } from './pages/app/Guides'
+import { Budgets } from './pages/app/Budgets'
+import { TimeClock } from './pages/app/TimeClock'
+import { ProviderRatings } from './pages/app/ProviderRatings'
+import { Documents } from './pages/app/Documents'
 import { Maintenance } from './pages/app/Maintenance'
 import { Inspections } from './pages/app/Inspections'
 import { InspectionDetail } from './pages/app/InspectionDetail'
@@ -114,14 +118,17 @@ export default function App() {
           <Route path="tasks" element={<Tasks />} />
           <Route path="day-sheet" element={<DaySheet />} />
           <Route path="team-planning" element={<TeamPlanning />} />
+          <Route path="time-clock" element={<TimeClock />} />
           <Route path="incidents" element={<Incidents />} />
           <Route path="work-orders" element={<WorkOrders />} />
           <Route path="maintenance" element={<Maintenance />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="expenses" element={<Expenses />} />
+          <Route path="budgets" element={<Budgets />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="service-providers" element={<ServiceProviders />} />
+          <Route path="provider-ratings" element={<ProviderRatings />} />
           <Route path="concierge-portal" element={<ConciergePortal />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
@@ -131,6 +138,7 @@ export default function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reports" element={<Reports />} />
           <Route path="guides" element={<Guides />} />
+          <Route path="documents" element={<Documents />} />
           <Route path="apa" element={<Apa />} />
           <Route path="inspections" element={<Inspections />} />
           <Route path="inspections/:id" element={<InspectionDetail />} />

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useRole, type Role } from './roleContext'
 import { useAuth } from './authContext'
-import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift, type MaintenancePlan } from './useSupabase'
+import { useRoleAssignments, useRolePermissions, type Property, type Reservation, type Task, type Service, type Payment, type Partner, type Contract, type Invoice, type ServiceProvider, type Incident, type WorkOrder, type Inspection, type InventoryItem, type Expense, type Shift, type Budget, type TimeEntry, type ProviderRating, type Document, type MaintenancePlan } from './useSupabase'
 
 export function useRoleFilter() {
   const { role } = useRole()
@@ -53,9 +53,8 @@ export function useRoleFilter() {
       case 'agency':
         return tasks
       case 'house_manager':
-        return tasks.filter(t => t.property_id && assignedSet.has(t.property_id))
       case 'concierge':
-        return tasks
+        return tasks.filter(t => t.property_id && assignedSet.has(t.property_id))
       case 'partner':
         return []
       case 'guest':
@@ -125,6 +124,58 @@ export function useRoleFilter() {
       case 'house_manager':
       case 'concierge':
         return items.filter(i => assignedSet.has(i.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterBudgets(budgets: Budget[]): Budget[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return budgets
+      case 'house_manager':
+      case 'concierge':
+        return budgets.filter(b => assignedSet.has(b.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterTimeEntries(entries: TimeEntry[]): TimeEntry[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return entries
+      case 'house_manager':
+      case 'concierge':
+        return entries.filter(e => e.user_id === user?.id || assignedSet.has(e.property_id))
+      default:
+        return entries.filter(e => e.user_id === user?.id)
+    }
+  }
+
+  function filterProviderRatings(ratings: ProviderRating[]): ProviderRating[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return ratings
+      case 'house_manager':
+      case 'concierge':
+        return ratings.filter(r => assignedSet.has(r.property_id))
+      default:
+        return []
+    }
+  }
+
+  function filterDocuments(documents: Document[]): Document[] {
+    switch (role) {
+      case 'owner':
+      case 'agency':
+        return documents
+      case 'house_manager':
+      case 'concierge':
+        return documents.filter(d => assignedSet.has(d.property_id))
       default:
         return []
     }
@@ -280,10 +331,14 @@ export function useRoleFilter() {
       maintenance: ['owner', 'house_manager', 'concierge', 'agency'],
       inventory: ['owner', 'house_manager', 'concierge', 'agency'],
       expenses: ['owner', 'house_manager', 'concierge', 'agency'],
+      budgets: ['owner', 'house_manager', 'concierge', 'agency'],
+      'time-clock': ['owner', 'house_manager', 'concierge', 'agency'],
+      'provider-ratings': ['owner', 'house_manager', 'concierge', 'agency'],
+      documents: ['owner', 'house_manager', 'concierge', 'agency'],
       calendar: ['owner', 'house_manager', 'concierge', 'agency'],
       partners: ['owner', 'agency', 'house_manager', 'concierge'],
       'service-providers': ['owner', 'house_manager', 'concierge', 'agency'],
-      'concierge-portal': ['owner', 'agency'],
+      'concierge-portal': ['owner', 'agency', 'concierge'],
       payments: ['owner', 'house_manager', 'concierge', 'agency', 'partner'],
       apa: ['owner', 'agency'],
       contracts: ['owner', 'agency', 'house_manager', 'concierge'],
@@ -311,6 +366,10 @@ export function useRoleFilter() {
     filterInspections,
     filterInventoryItems,
     filterExpenses,
+    filterBudgets,
+    filterTimeEntries,
+    filterProviderRatings,
+    filterDocuments,
     filterShifts,
     filterServices,
     filterPayments,

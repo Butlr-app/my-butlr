@@ -442,6 +442,12 @@ export async function generateRecurringTasks(): Promise<number> {
   return (data ?? 0) as number
 }
 
+export async function escalateIncidents(): Promise<number> {
+  const { data, error } = await supabase.rpc('escalate_incidents')
+  if (error) throw new Error(error.message)
+  return (data ?? 0) as number
+}
+
 export interface Incident {
   id: string
   property_id: string
@@ -455,6 +461,7 @@ export interface Incident {
   assigned_to: string | null
   resolution_note: string | null
   resolved_at: string | null
+  escalated_at: string | null
   created_at: string
   updated_at: string
 }
@@ -563,6 +570,20 @@ export function useExpenses() {
   return useTable<Expense>('expenses')
 }
 
+export interface Budget {
+  id: string
+  property_id: string
+  period_month: string
+  amount: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function useBudgets() {
+  return useTable<Budget>('budgets')
+}
+
 export interface Shift {
   id: string
   property_id: string
@@ -579,6 +600,21 @@ export interface Shift {
 
 export function useShifts() {
   return useTable<Shift>('shifts')
+}
+
+export interface TimeEntry {
+  id: string
+  property_id: string
+  user_id: string
+  shift_id: string | null
+  clock_in: string
+  clock_out: string | null
+  note: string | null
+  created_at: string
+}
+
+export function useTimeEntries() {
+  return useTable<TimeEntry>('time_entries')
 }
 
 export interface ActivityLogEntry {
@@ -728,6 +764,37 @@ export function usePartnerPortal() {
 
 export function useServiceProviders() {
   return useTable<ServiceProvider>('service_providers')
+}
+
+export interface ProviderRating {
+  id: string
+  provider_id: string
+  work_order_id: string | null
+  property_id: string
+  rating: number
+  comment: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export function useProviderRatings() {
+  return useTable<ProviderRating>('provider_ratings')
+}
+
+export interface Document {
+  id: string
+  property_id: string
+  title: string
+  category: 'manual' | 'warranty' | 'contract' | 'insurance' | 'certificate' | 'floorplan' | 'other'
+  file_url: string
+  file_name: string | null
+  notes: string | null
+  uploaded_by: string | null
+  created_at: string
+}
+
+export function useDocuments() {
+  return useTable<Document>('documents')
 }
 
 export function usePayments() {
