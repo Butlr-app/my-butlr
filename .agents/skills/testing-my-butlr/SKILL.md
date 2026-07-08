@@ -278,6 +278,44 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
   - Workaround to make the filter test adversarial: inject ONE distinctive paid payment in another year via the Supabase Management API, then **delete it after the test**. Example: `insert into payments (guest_name, property_name, type, amount, status, date) values ('E2E YearFilter 2025','Villa French Way','service',1234.56,'paid','2025-08-10');` then `delete from payments where id='<returned id>';`
   - This is STRONGER than an empty year: a broken filter would show the same number for both years (or the combined total). Verify: 2025 → Total €1,234.56, Booking €0, single Aug bar, donut "No data for this period", and 2026's €79,050 is GONE (no leakage); switch back to 2026 → values restored.
 
+### 23. Partners Phase 1 — RLS hardening + APA `partner_id` matching
+- Context: `partners` gained `user_id`/`updated_at` (+ touch trigger), `payments` gained `partner_id`, and permissive `USING(true)` policies were replaced with role-aware ones (helpers `is_app_staff()`, `can_manage_partners()`, `current_partner_id()`). `apa.ts` `computePayout` now resolves the partner by `partner_id` first, name only as legacy fallback.
+- Confirm the test user's role before asserting RLS: `select role from profiles where id='<uid>'`. `test@mybutlr.com` is **owner** → `is_app_staff()` true, so it should still see the full directory. If a future account is a non-staff role, an empty directory is EXPECTED, not a bug.
+- RLS regression (staff): `/app/partners` shows all 8 partners, `/app/service-providers` shows 2 — a populated list is the discriminating signal that the new staff SELECT policy works (a botched migration would show empty). Edit a partner → "Partner updated" toast + DB persists + `updated_at > created_at` proves the UPDATE policy + trigger.
+- APA `partner_id` matching (adversarial): inject a paid `service` payment whose `guest_name` matches NO partner but `partner_id` points to a partner with a distinctive commission (e.g. Spa Prestige `aa213818-...`, 12%). On `/app/apa` click "Generate payouts"; the new €1,000 row must read **payee = the partner name, 12%, net €880** — NOT the raw label at the 15% platform rate (€850). The two outcomes differ visibly, so this distinguishes id-match (new) from name-match (old).
+  - Cleanup: `delete from payouts where payment_id='<PID>'; delete from payments where id='<PID>';` AND restore any edited field. NOTE: clicking "Generate payouts" persists payout rows for ALL ungenerated payments; if the payouts table started empty, `delete from payouts;` to return to baseline. Verify payments=10, payouts back to its start count.
+- Partner-role scoping (partner sees only own row / assigned service_requests) is NOT UI-testable yet — no partner test account and no role-based routing until a later phase. Report as untested rather than faking it.
+- Migration lives in `supabase/migration_partners_phase1.sql`; apply via the Management API. Live policy names may differ from `schema.sql` (e.g. service_providers used per-action "Authenticated users can view/insert/update/delete ..." names) — check `pg_policies` and drop the ACTUAL names or old permissive policies survive and defeat the hardening.
+
+### 24. Partners Phase 2 — role-based routing & route guards
+- Context: `roleContext.tsx` exports `STAFF_ROLES` and `roleHome(role)` (partner→`/partner`, guest→`/guest`, else→`/app`). `ProtectedRoute` takes an optional `allow?: Role[]` and redirects to `roleHome(actualRole)` when the role isn't allowed (it waits for `roleLoading` first to avoid a flash). `App.tsx` guards: `/app` + `/app/onboarding`→`STAFF_ROLES`; `/partner`→`['partner','owner']`; `/guest`→`['guest','owner']`. `Login.tsx` resolves the role after sign-in and navigates to `roleHome`.
+- **Creating a partner-role test account** (needed to test redirects; the default `test@mybutlr.com` is owner): fetch the service_role key from the Management API, then use the Supabase admin API. The `handle_new_user` trigger (schema.sql) copies `raw_user_meta_data->>'role'` into `profiles.role`, so set it in `user_metadata`:
+  ```bash
+  SR=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+    "https://api.supabase.com/v1/projects/kpcahtliadmsaoespwpv/api-keys" \
+    | python3 -c "import sys,json;print([k['api_key'] for k in json.load(sys.stdin) if k['name']=='service_role'][0])")
+  curl -s -X POST "https://kpcahtliadmsaoespwpv.supabase.co/auth/v1/admin/users" \
+    -H "apikey: $SR" -H "Authorization: Bearer $SR" -H "Content-Type: application/json" \
+    -d '{"email":"e2e-partner@mybutlr.com","password":"PartnerPass123!","email_confirm":true,"user_metadata":{"full_name":"E2E Partner","role":"partner"}}'
+  ```
+  **Delete it after testing**: `DELETE .../auth/v1/admin/users/<id>` with the same key; verify `select count(*) from profiles where email='e2e-partner@mybutlr.com'` returns 0.
+- Test flow (all via UI): (1) owner login → URL `/app`, admin dashboard (guard didn't lock out staff). (2) partner login → URL `/partner`, dark mobile portal, NOT `/app`. (3) CORE: while logged in as partner, type `/app` and `/app/partners` in the address bar → both bounce back to `/partner`, admin never renders. A broken guard would render the admin dashboard for the partner (data leak) — that's the discriminating signal.
+- Switching accounts: the Topbar "Sign out" icon may not respond to clicks (observed unresponsive; possibly pre-existing). Workaround: navigate to `/login` directly and sign in as the other account — `signInWithPassword` replaces the existing session, so the role-redirect still fires.
+
+### 25. Partners Phase 3 — portal connected to scoped Supabase data (`/partner`)
+- Context: the `/partner` pages used to read `useReservations()` (ALL platform reservations) for every partner. New hooks `useCurrentPartner()` (resolves the `partners` row by `user_id=auth.uid()`) and `usePartnerPortal()` (bookings = `service_requests` filtered by `partner_id`, money = `payments` filtered by `partner_id`) scope everything. If the account is not linked to a partner row, pages render the shared `PartnerUnlinked` empty state.
+- **Setup** (one partner account + a dedicated partners row + scoped rows) — the discriminating trick is a SMALL distinctive total so platform-wide leakage is obvious. Create the partner auth user (see Phase 2 recipe), then via Management API:
+  - insert a `partners` row with `user_id=<uid>`, a distinctive `commission` (e.g. 20), `rating` (e.g. 4.3), and `category` matching real service categories (services categories are **lowercase**: wellness/dining/activities/lifestyle/transport/family — the filter is case-insensitive, so partner category `Wellness` matches 2 services).
+  - insert 3 `service_requests` (partner_id=that row) with statuses pending/approved/completed and quoted_price; insert 2 `payments` (partner_id=that row) e.g. €1,000 paid + €500 pending → gross €1,500.
+- **Adversarial assertions** (a pre-Phase-3 build shows platform totals — payments ~€112k / reservations €140,000 — and seed guest names Laurent/Chen/Anderson; the fix shows ONLY the €1,500 + your E2E rows):
+  - Dashboard: Total Revenue €1,500 (Received €1,000 / Pending €500), commission badge = 20%, Bookings 3, Active 1 (only approved/in_progress), Rating 4.3; Recent Activity = the 3 service_request names.
+  - Bookings: exactly 3 cards; filter counts All 3 / Pending 1 / Active 1 / Done 1; Pending filter → only the pending one.
+  - Earnings: Gross €1,500, "Platform Commission (20%)" = €300, Net €1,200 "after 20%"; transactions = your 2 payments only.
+  - Services: header "Your <Category> catalog", only category-matching services (not the full 10-catalog), rating chip = partner.rating.
+  - Profile: name/rating/commission/Bookings/Revenue all from the partners row + scoped payments (revenue shown as €X.Xk).
+- **Cleanup**: `delete from payments where partner_id=<pid>; delete from service_requests where partner_id=<pid>; delete from partners where user_id=<uid>;` then delete the auth user; verify partners=8, payments=10 baseline.
+- Note: partner write actions (accept/quote/toggle service) are Phase 4 — those buttons are inert; don't assert on them.
+
 ### Supabase Management API (writing test data despite RLS)
 - The anon key is blocked by RLS for writes, so to seed/clean adversarial test data use the Management API with `SUPABASE_ACCESS_TOKEN`:
   `curl -s -X POST "https://api.supabase.com/v1/projects/kpcahtliadmsaoespwpv/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -d '{"query":"<SQL>"}'`
