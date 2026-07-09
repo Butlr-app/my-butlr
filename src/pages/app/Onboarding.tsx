@@ -10,7 +10,7 @@ import { useProfile, type Profile } from '@/lib/useSupabase'
 import { supabase } from '@/lib/supabase'
 import { useTranslation, type Language } from '@/i18n/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
-import type { Role } from '@/lib/roleContext'
+import { roleHome, type Role } from '@/lib/roleContext'
 import {
   Building2, Home, Settings2, CheckCircle2, User, Users, ConciergeBell,
   Briefcase, Star, BookOpen, Bell, Handshake, Sparkles, ArrowRight,
@@ -27,9 +27,9 @@ type StepDef = {
 const ROLE_STEPS: Record<Role, StepDef[]> = {
   owner: [
     { id: 'welcome', icon: Crown, labelKey: 'onboarding.steps.welcome' },
+    { id: 'profile', icon: User, labelKey: 'onboarding.steps.profile' },
     { id: 'company', icon: Building2, labelKey: 'onboarding.steps.company' },
     { id: 'property', icon: Home, labelKey: 'onboarding.steps.property' },
-    { id: 'team', icon: Users, labelKey: 'onboarding.steps.team' },
     { id: 'preferences', icon: Settings2, labelKey: 'onboarding.steps.preferences' },
     { id: 'done', icon: CheckCircle2, labelKey: 'onboarding.steps.done' },
   ],
@@ -95,11 +95,6 @@ interface ProfileForm {
 
 interface CompanyForm {
   company_name: string
-  address: string
-  siret: string
-  rcs: string
-  email: string
-  phone: string
 }
 
 interface PropertyForm {
@@ -122,11 +117,6 @@ interface PrefsForm {
   language: string
   currency: string
   timezone: string
-}
-
-interface InviteForm {
-  email: string
-  role: string
 }
 
 interface ServiceSelection {
@@ -167,6 +157,9 @@ export function Onboarding() {
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [animateIn, setAnimateIn] = useState(true)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [saveError, setSaveError] = useState('')
+  const [skipConfirm, setSkipConfirm] = useState(false)
 
   const detectedRole: Role = (profile?.role as Role) ?? 'owner'
   const steps = ROLE_STEPS[detectedRole]
@@ -175,11 +168,10 @@ export function Onboarding() {
   const progress = ((step + 1) / totalSteps) * 100
 
   const [profileForm, setProfileForm] = useState<ProfileForm>({ full_name: '', phone: '', avatar_url: '' })
-  const [company, setCompany] = useState<CompanyForm>({ company_name: '', address: '', siret: '', rcs: '', email: '', phone: '' })
+  const [company, setCompany] = useState<CompanyForm>({ company_name: '' })
   const [property, setProperty] = useState<PropertyForm>({ name: '', address: '', type: 'villa', bedrooms: '3', surface_m2: '150' })
   const [business, setBusiness] = useState<BusinessForm>({ company_name: '', specialty: '', location: '', phone: '', email: '' })
   const [prefs, setPrefs] = useState<PrefsForm>({ language: 'fr', currency: 'EUR', timezone: 'Europe/Paris' })
-  const [invites, setInvites] = useState<InviteForm[]>([{ email: '', role: 'house_manager' }])
   const [selectedServices, setSelectedServices] = useState<ServiceSelection>({})
 
   useEffect(() => {
@@ -193,10 +185,7 @@ export function Onboarding() {
         setCompany(prev => ({ ...prev, company_name: profile.company ?? '' }))
         setBusiness(prev => ({ ...prev, company_name: profile.company ?? '' }))
       }
-      if (profile.email) {
-        setCompany(prev => ({ ...prev, email: profile.email ?? '' }))
-        setBusiness(prev => ({ ...prev, email: profile.email ?? '' }))
-      }
+      if (profile.email) setBusiness(prev => ({ ...prev, email: profile.email ?? '' }))
     }
   }, [profile])
 
@@ -205,20 +194,43 @@ export function Onboarding() {
     setTimeout(() => {
       setStep(newStep)
       setAnimateIn(true)
+      setFormErrors({})
+      setSaveError('')
     }, 150)
   }
 
+  const validateCurrentStep = () => {
+    const errors: Record<string, string> = {}
+    const required = t('onboarding.errors.required')
+    const positiveNumber = t('onboarding.errors.positiveNumber')
+
+    if (currentStep.id === 'profile' && !profileForm.full_name.trim()) {
+      errors.full_name = required
+    }
+    if (currentStep.id === 'company' && !company.company_name.trim()) {
+      errors.company_name = required
+    }
+    if (currentStep.id === 'property') {
+      if (!property.name.trim()) errors.property_name = required
+      if (!property.address.trim()) errors.property_address = required
+      if (!Number.isInteger(Number(property.bedrooms)) || Number(property.bedrooms) <= 0) {
+        errors.property_bedrooms = positiveNumber
+      }
+      if (!Number.isFinite(Number(property.surface_m2)) || Number(property.surface_m2) <= 0) {
+        errors.property_surface = positiveNumber
+      }
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const next = () => {
-    if (step < totalSteps - 1) animateStep(step + 1)
+    if (step < totalSteps - 1 && validateCurrentStep()) animateStep(step + 1)
   }
   const prev = () => {
     if (step > 0) animateStep(step - 1)
   }
-
-  const addInvite = () => setInvites(prev => [...prev, { email: '', role: 'concierge' }])
-  const removeInvite = (i: number) => setInvites(prev => prev.filter((_, idx) => idx !== i))
-  const updateInvite = (i: number, field: keyof InviteForm, value: string) =>
-    setInvites(prev => prev.map((inv, idx) => idx === i ? { ...inv, [field]: value } : inv))
 
   const toggleService = (key: string) =>
     setSelectedServices(prev => ({ ...prev, [key]: !prev[key] }))
@@ -226,54 +238,36 @@ export function Onboarding() {
   const finish = async () => {
     if (!user) return
     setSaving(true)
+    setSaveError('')
 
     try {
-      const profileUpdates: Partial<Profile> = {
-        onboarding_completed: true,
-      }
-      if (profileForm.full_name) profileUpdates.full_name = profileForm.full_name
-      if (profileForm.phone) profileUpdates.phone = profileForm.phone
+      const profileUpdates: Partial<Profile> = {}
+      if (profileForm.full_name) profileUpdates.full_name = profileForm.full_name.trim()
+      if (profileForm.phone) profileUpdates.phone = profileForm.phone.trim()
       if (profileForm.avatar_url) profileUpdates.avatar_url = profileForm.avatar_url
 
       if (detectedRole === 'owner' || detectedRole === 'agency') {
-        if (company.company_name) profileUpdates.company = company.company_name
-        if (company.phone) profileUpdates.phone = company.phone
+        if (company.company_name) profileUpdates.company = company.company_name.trim()
       }
 
       if (detectedRole === 'partner') {
-        if (business.company_name) profileUpdates.company = business.company_name
-        if (business.phone) profileUpdates.phone = business.phone
+        if (business.company_name) profileUpdates.company = business.company_name.trim()
+        if (business.phone) profileUpdates.phone = business.phone.trim()
       }
-
-      await updateProfile(profileUpdates)
 
       const hasPrefsStep = steps.some(s => s.id === 'preferences')
-      if (hasPrefsStep) {
-        if (prefs.language === 'fr' || prefs.language === 'en') {
-          setLanguage(prefs.language as Language)
-        }
-        localStorage.setItem('butlr-currency', prefs.currency)
-        localStorage.setItem('butlr-timezone', prefs.timezone)
-      }
 
       if ((detectedRole === 'owner') && property.name) {
-        await supabase.from('properties').insert({
+        const { error } = await supabase.from('properties').insert({
           owner_id: user.id,
-          name: property.name,
-          location: property.address || null,
+          name: property.name.trim(),
+          location: property.address.trim(),
           type: property.type,
-          bedrooms: parseInt(property.bedrooms) || 3,
-          surface_m2: parseInt(property.surface_m2) || 150,
+          bedrooms: Number(property.bedrooms),
+          surface_m2: Number(property.surface_m2),
           status: 'active',
         })
-      }
-
-      if (detectedRole === 'owner' && invites.length > 0) {
-        for (const inv of invites) {
-          if (inv.email.trim()) {
-            await supabase.auth.admin.inviteUserByEmail(inv.email).catch(() => {})
-          }
-        }
+        if (error) throw new Error(error.message)
       }
 
       const enabledServices = Object.entries(selectedServices)
@@ -290,13 +284,39 @@ export function Onboarding() {
             available: true,
           }
         })
-        try { await supabase.from('services').insert(serviceInserts) } catch { /* ignore */ }
+        const { error } = await supabase.from('services').insert(serviceInserts)
+        if (error) throw new Error(error.message)
+      }
+
+      await updateProfile({ ...profileUpdates, onboarding_completed: true })
+
+      if (hasPrefsStep) {
+        if (prefs.language === 'fr' || prefs.language === 'en') {
+          setLanguage(prefs.language as Language)
+        }
+        localStorage.setItem('butlr-currency', prefs.currency)
+        localStorage.setItem('butlr-timezone', prefs.timezone)
       }
 
       toast(t('onboarding.done.successToast'), 'success')
-      navigate('/app')
+      navigate(roleHome(detectedRole))
     } catch {
-      navigate('/app')
+      setSaveError(t('onboarding.errors.saveFailed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const skip = async () => {
+    if (!user) return
+    setSaving(true)
+    setSaveError('')
+    try {
+      await updateProfile({ onboarding_completed: true })
+      navigate(roleHome(detectedRole))
+    } catch {
+      setSaveError(t('onboarding.errors.skipFailed'))
+      setSkipConfirm(false)
     } finally {
       setSaving(false)
     }
@@ -404,7 +424,11 @@ export function Onboarding() {
           label={t('onboarding.profile.fullName')}
           placeholder="Jean Dupont"
           value={profileForm.full_name}
-          onChange={e => setProfileForm(p => ({ ...p, full_name: e.target.value }))}
+          error={formErrors.full_name}
+          onChange={e => {
+            setProfileForm(p => ({ ...p, full_name: e.target.value }))
+            setFormErrors(errors => ({ ...errors, full_name: '' }))
+          }}
         />
         <Input
           label={t('onboarding.profile.phone')}
@@ -423,44 +447,16 @@ export function Onboarding() {
         <h2 className="text-lg font-semibold">{t('onboarding.company.title')}</h2>
         <p className="text-sm text-muted-foreground">{t('onboarding.company.subtitle')}</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+      <div className="mt-2">
         <Input
           label={t('onboarding.company.name')}
           placeholder="SAS My Company"
           value={company.company_name}
-          onChange={e => setCompany(p => ({ ...p, company_name: e.target.value }))}
-        />
-        <Input
-          label={t('onboarding.company.address')}
-          placeholder="123 Rue de la Paix, Paris"
-          value={company.address}
-          onChange={e => setCompany(p => ({ ...p, address: e.target.value }))}
-        />
-        <Input
-          label="SIRET"
-          placeholder="123 456 789 00001"
-          value={company.siret}
-          onChange={e => setCompany(p => ({ ...p, siret: e.target.value }))}
-        />
-        <Input
-          label="RCS"
-          placeholder="Paris B 123 456 789"
-          value={company.rcs}
-          onChange={e => setCompany(p => ({ ...p, rcs: e.target.value }))}
-        />
-        <Input
-          label={t('onboarding.company.email')}
-          type="email"
-          placeholder="contact@company.com"
-          value={company.email}
-          onChange={e => setCompany(p => ({ ...p, email: e.target.value }))}
-        />
-        <Input
-          label={t('onboarding.company.phone')}
-          type="tel"
-          placeholder="+33 1 23 45 67 89"
-          value={company.phone}
-          onChange={e => setCompany(p => ({ ...p, phone: e.target.value }))}
+          error={formErrors.company_name}
+          onChange={e => {
+            setCompany({ company_name: e.target.value })
+            setFormErrors(errors => ({ ...errors, company_name: '' }))
+          }}
         />
       </div>
     </div>
@@ -477,13 +473,21 @@ export function Onboarding() {
           label={t('onboarding.property.name')}
           placeholder="Villa Azure"
           value={property.name}
-          onChange={e => setProperty(p => ({ ...p, name: e.target.value }))}
+          error={formErrors.property_name}
+          onChange={e => {
+            setProperty(p => ({ ...p, name: e.target.value }))
+            setFormErrors(errors => ({ ...errors, property_name: '' }))
+          }}
         />
         <Input
           label={t('onboarding.property.address')}
           placeholder="Cannes, France"
           value={property.address}
-          onChange={e => setProperty(p => ({ ...p, address: e.target.value }))}
+          error={formErrors.property_address}
+          onChange={e => {
+            setProperty(p => ({ ...p, address: e.target.value }))
+            setFormErrors(errors => ({ ...errors, property_address: '' }))
+          }}
         />
         <Select
           label={t('onboarding.property.type')}
@@ -501,65 +505,28 @@ export function Onboarding() {
           type="number"
           placeholder="3"
           value={property.bedrooms}
-          onChange={e => setProperty(p => ({ ...p, bedrooms: e.target.value }))}
+          min="0"
+          step="1"
+          error={formErrors.property_bedrooms}
+          onChange={e => {
+            setProperty(p => ({ ...p, bedrooms: e.target.value }))
+            setFormErrors(errors => ({ ...errors, property_bedrooms: '' }))
+          }}
         />
         <Input
           label={t('onboarding.property.surface')}
           type="number"
           placeholder="150"
           value={property.surface_m2}
-          onChange={e => setProperty(p => ({ ...p, surface_m2: e.target.value }))}
+          min="1"
+          error={formErrors.property_surface}
+          onChange={e => {
+            setProperty(p => ({ ...p, surface_m2: e.target.value }))
+            setFormErrors(errors => ({ ...errors, property_surface: '' }))
+          }}
         />
       </div>
       <p className="text-xs text-muted-foreground mt-2">{t('onboarding.property.hint')}</p>
-    </div>
-  )
-
-  const renderTeam = () => (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">{t('onboarding.team.title')}</h2>
-        <p className="text-sm text-muted-foreground">{t('onboarding.team.subtitle')}</p>
-      </div>
-      <div className="space-y-3 mt-2">
-        {invites.map((inv, i) => (
-          <div key={i} className="flex items-end gap-3">
-            <div className="flex-1">
-              <Input
-                label={i === 0 ? t('onboarding.team.email') : undefined}
-                type="email"
-                placeholder="colleague@company.com"
-                value={inv.email}
-                onChange={e => updateInvite(i, 'email', e.target.value)}
-              />
-            </div>
-            <div className="w-40">
-              <Select
-                label={i === 0 ? t('onboarding.team.role') : undefined}
-                value={inv.role}
-                onChange={e => updateInvite(i, 'role', e.target.value)}
-                options={[
-                  { value: 'house_manager', label: 'House Manager' },
-                  { value: 'concierge', label: 'Concierge' },
-                  { value: 'partner', label: t('onboarding.team.partner') },
-                ]}
-              />
-            </div>
-            {invites.length > 1 && (
-              <button
-                onClick={() => removeInvite(i)}
-                className="h-10 px-2 text-muted-foreground hover:text-destructive transition-colors"
-              >
-                &times;
-              </button>
-            )}
-          </div>
-        ))}
-        <Button variant="secondary" size="sm" onClick={addInvite}>
-          + {t('onboarding.team.addMore')}
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">{t('onboarding.team.hint')}</p>
     </div>
   )
 
@@ -784,11 +751,6 @@ export function Onboarding() {
       summaryItems.push({ label: t('onboarding.done.services'), value: `${enabledServices} ${t('onboarding.done.selected')}` })
     }
 
-    const validInvites = invites.filter(i => i.email.trim()).length
-    if (validInvites > 0) {
-      summaryItems.push({ label: t('onboarding.done.invitations'), value: `${validInvites} ${t('onboarding.done.members')}` })
-    }
-
     if (steps.some(s => s.id === 'preferences')) {
       summaryItems.push({ label: t('onboarding.done.language'), value: prefs.language.toUpperCase() })
       summaryItems.push({ label: t('onboarding.done.currency'), value: prefs.currency })
@@ -825,7 +787,6 @@ export function Onboarding() {
       case 'profile': return renderProfile()
       case 'company': return renderCompany()
       case 'property': return renderProperty()
-      case 'team': return renderTeam()
       case 'workspace': return renderWorkspace()
       case 'workflow': return renderWorkflow()
       case 'portal': return renderPortal()
@@ -941,25 +902,39 @@ export function Onboarding() {
                 </Button>
               )}
             </div>
+            {saveError && (
+              <p className="text-xs text-destructive text-center mt-3" role="alert">
+                {saveError}
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Skip link */}
         <div className="text-center mt-4">
-          <button
-            onClick={() => {
-              if (user) {
-                supabase.from('profiles').update({ onboarding_completed: true }).eq('id', user.id).then(() => navigate('/app'))
-              }
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
-          >
-            {t('onboarding.skipForNow')}
-          </button>
+          {skipConfirm ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">{t('onboarding.skipConfirm')}</p>
+              <div className="flex justify-center gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setSkipConfirm(false)} disabled={saving}>
+                  {t('onboarding.cancel')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={skip} disabled={saving}>
+                  {t('onboarding.confirmSkip')}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSkipConfirm(true)}
+              disabled={saving}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 disabled:opacity-50"
+            >
+              {t('onboarding.skipForNow')}
+            </button>
+          )}
         </div>
       </div>
     </div>
   )
 }
-
-

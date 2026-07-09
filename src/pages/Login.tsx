@@ -34,10 +34,12 @@ export function Login() {
     if (user) {
       const { data } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, onboarding_completed')
         .eq('id', user.id)
         .maybeSingle()
-      dest = roleHome(data?.role as Role | undefined)
+      dest = data && !data.onboarding_completed
+        ? '/app/onboarding'
+        : roleHome(data?.role as Role | undefined)
     }
     setLoading(false)
     navigate(dest)

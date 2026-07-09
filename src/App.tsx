@@ -100,7 +100,7 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
 
         {/* Onboarding wizard */}
-        <Route path="/app/onboarding" element={<ProtectedRoute allow={STAFF_ROLES}><Onboarding /></ProtectedRoute>} />
+        <Route path="/app/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
         {/* Public signing page */}
         <Route path="/sign/:token" element={<ContractSigning />} />
