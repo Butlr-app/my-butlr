@@ -505,7 +505,7 @@ export function Onboarding() {
           type="number"
           placeholder="3"
           value={property.bedrooms}
-          min="0"
+          min="1"
           step="1"
           error={formErrors.property_bedrooms}
           onChange={e => {
