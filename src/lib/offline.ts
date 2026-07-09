@@ -66,10 +66,12 @@ export function useCachedRows<T>(
 
 const QUEUE_KEY = 'hm-offline-queue'
 
-export type QueuedOp =
+export type QueuedOpInput =
   | { kind: 'task_update'; id: string; changes: Record<string, unknown> }
   | { kind: 'incident_insert'; tempId: string; row: Record<string, unknown> }
   | { kind: 'incident_update'; id: string; changes: Record<string, unknown> }
+
+export type QueuedOp = QueuedOpInput & { attempts?: number }
 
 export function getQueue(): QueuedOp[] {
   try {
@@ -88,8 +90,8 @@ function setQueue(ops: QueuedOp[]): void {
   }
 }
 
-export function queueOp(op: QueuedOp): void {
-  setQueue([...getQueue(), op])
+export function queueOp(op: QueuedOpInput): void {
+  setQueue([...getQueue(), { ...op, attempts: 0 }])
 }
 
 export function getPendingTaskStatus(): Record<string, string> {
@@ -119,21 +121,30 @@ export function getPendingIncidentStatus(): Record<string, string> {
 }
 
 export const SYNC_EVENT = 'hm-offline-synced'
+export const MAX_RETRY_ATTEMPTS = 3
+
+export interface FlushResult {
+  synced: number
+  errors: string[]
+}
 
 /**
  * Replays queued mutations against Supabase. Ops that fail with a network
- * error stay queued; ops rejected by the server (RLS, validation) are dropped
- * so the queue cannot wedge. Returns the number of synced ops and dispatches
- * SYNC_EVENT when at least one op was applied.
+ * error stay queued; ops rejected by the server (RLS, validation) are retried
+ * up to MAX_RETRY_ATTEMPTS before being dropped. Returns the number of synced
+ * ops plus a list of permanent errors, and dispatches SYNC_EVENT whenever the
+ * queue was processed so UI can refresh pending state.
  */
-export async function flushQueue(): Promise<number> {
+export async function flushQueue(): Promise<FlushResult> {
   const ops = getQueue()
-  if (ops.length === 0) return 0
+  if (ops.length === 0) return { synced: 0, errors: [] }
 
   const remaining: QueuedOp[] = []
+  const errors: string[] = []
   let synced = 0
 
   for (const op of ops) {
+    const attempts = (op.attempts ?? 0) + 1
     try {
       if (op.kind === 'task_update') {
         const { error } = await supabase.from('tasks').update(op.changes).eq('id', op.id)
@@ -150,13 +161,18 @@ export async function flushQueue(): Promise<number> {
       const msg = (err as Error).message ?? ''
       if (!navigator.onLine || /fetch|network/i.test(msg)) {
         // Network failure — still offline, keep the op for the next flush.
-        remaining.push(op)
+        remaining.push({ ...op, attempts })
+      } else if (attempts < MAX_RETRY_ATTEMPTS) {
+        // Server-side rejection (RLS, validation, etc.) — keep for retry.
+        remaining.push({ ...op, attempts })
+      } else {
+        // Permanent failure after retries: drop and report the error.
+        errors.push(msg)
       }
-      // Server-side rejection (RLS, validation): drop the op.
     }
   }
 
   setQueue(remaining)
-  if (synced > 0) window.dispatchEvent(new Event(SYNC_EVENT))
-  return synced
+  window.dispatchEvent(new Event(SYNC_EVENT))
+  return { synced, errors }
 }

@@ -1231,6 +1231,7 @@
     "updated": "Incident mis à jour",
     "savedOffline": "Enregistré hors ligne — sera synchronisé au retour du réseau",
     "savedOfflineNoPhoto": "Enregistré hors ligne sans photo — sera synchronisé",
+    "syncFailed": "Certaines modifications n'ont pas pu être synchronisées",
     "report": "Signaler",
     "reportIncident": "Signaler un incident",
     "pendingSync": "En attente de synchro",

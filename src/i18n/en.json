@@ -1231,6 +1231,7 @@
     "updated": "Incident updated",
     "savedOffline": "Saved offline — will sync when back online",
     "savedOfflineNoPhoto": "Saved offline without photo — will sync",
+    "syncFailed": "Some changes could not sync",
     "report": "Report",
     "reportIncident": "Report incident",
     "pendingSync": "Pending sync",
