@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase } from './supabase'
+import { sanitizeSignupRole } from './signupRoles'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -42,11 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, fullName: string, role?: string) => {
+    const safeRole = sanitizeSignupRole(role)
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role: role || 'owner' },
+        data: { full_name: fullName, role: safeRole },
       },
     })
     return { error: error as Error | null, needsConfirmation: !error && !data?.session }

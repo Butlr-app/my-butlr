@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/lib/authContext'
+import { PUBLIC_SIGNUP_ROLES, PUBLIC_SIGNUP_DEFAULT_ROLE } from '@/lib/signupRoles'
+import { roleHome } from '@/lib/roleContext'
 import { useState } from 'react'
 import { Mail } from 'lucide-react'
 
@@ -42,7 +44,7 @@ export function Signup() {
       setNeedsConfirmation(true)
     } else {
       setSuccess(true)
-      setTimeout(() => navigate('/app/onboarding'), 1500)
+      setTimeout(() => navigate(roleHome(PUBLIC_SIGNUP_DEFAULT_ROLE)), 1500)
     }
   }
 
@@ -95,14 +97,11 @@ export function Signup() {
           <Select
             label="Role"
             name="role"
-            options={[
-              { value: 'owner', label: 'Owner' },
-              { value: 'house_manager', label: 'House Manager' },
-              { value: 'concierge', label: 'Concierge' },
-              { value: 'agency', label: 'Agency' },
-              { value: 'partner', label: 'Partner' },
-            ]}
+            options={PUBLIC_SIGNUP_ROLES}
           />
+          <p className="text-xs text-muted-foreground">
+            Owner, House Manager, Concierge, and Agency accounts are created by invitation only.
+          </p>
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}

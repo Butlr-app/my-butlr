@@ -2,10 +2,13 @@
 
 ## Development Setup
 
-1. Clone the repository
-2. Run `npm install`
+1. Clone `https://github.com/butlr-app/my-butlr.git`
+2. Run `npm ci` (Node 20+, see `.nvmrc`)
 3. Copy `.env.example` to `.env` and fill in your Supabase credentials
-4. Run `npm run dev` to start the dev server
+4. Apply database migrations — see `supabase/MIGRATIONS.md`
+5. Run `npm run dev` to start the dev server
+
+Cloud Agents: see `AGENTS.md` for Cursor-specific instructions.
 
 ## Code Style
 

@@ -99,7 +99,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               <span className="font-luxury text-2xl font-semibold tracking-tight leading-none">
                 butlr<span className="text-primary">.</span>
               </span>
-              <span className="text-[11px] text-primary/90 font-medium mt-1">My Butler</span>
+              <span className="text-[11px] text-primary/90 font-medium mt-1">My Butlr</span>
             </div>
           )}
           <button

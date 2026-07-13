@@ -4,6 +4,7 @@
 import { supabase } from '@/lib/supabase'
 
 export const VAPID_PUBLIC_KEY =
+  import.meta.env.VITE_VAPID_PUBLIC_KEY ??
   'BOcJKw93INTEPj6HU0vkCJTq2V7HWfscNHAQDM-mMb73zpfJKRntfsR-ngPZEAeV84T3TkxC7FrJryOfKyFTErg'
 
 export function isPushSupported(): boolean {

@@ -25,50 +25,58 @@ The private operating system for luxury stays. Manage villas, yachts, and chalet
 - **Invoices** management + French invoice PDF generator (FC-YYYY-XXX)
 - **Notifications** with real-time updates via Supabase Realtime
 - **Settings** with account, team, properties, payments, and services tabs
-- **Authentication** with email/password, role selection, password reset
+- **Authentication** with email/password, invite-only staff roles, password reset
 - **Reports** with revenue analytics and property performance
-- **Guest Portal** preview
+- **Guest / Partner / House Manager** mobile apps + PWA
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (see `.nvmrc`)
 - npm 9+
 - A Supabase project (free tier works)
 
 ### Installation
 
 ```bash
-git clone https://github.com/Butlr-app/my-butlr.git
+git clone https://github.com/butlr-app/my-butlr.git
 cd my-butlr
-npm install
+npm ci
 ```
 
 ### Environment Variables
-
-Copy the example env file and fill in your Supabase credentials:
 
 ```bash
 cp .env.example .env
 ```
 
-Required variables:
+Required (build fails without them):
+
 - `VITE_SUPABASE_URL` — Your Supabase project URL
 - `VITE_SUPABASE_ANON_KEY` — Your Supabase anon/public key
 
+Optional:
+
+- `VITE_VAPID_PUBLIC_KEY` — Web Push (House Manager PWA)
+- `SUPABASE_ACCESS_TOKEN` — Management API (Cloud Agents)
+- `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` — Playwright E2E
+
 ### Database Setup
 
-Run the SQL schema on your Supabase project:
+**Do not run only `schema.sql`.** Apply the full migration chain:
 
-1. Go to your Supabase dashboard > SQL Editor
-2. Copy the contents of `supabase/schema.sql`
-3. Run the query to create all tables, policies, and triggers
+```bash
+bash supabase/apply-migrations.sh
+```
 
-Optionally seed with demo data:
+Then paste each listed file into Supabase SQL Editor, or use `psql` with your connection string. See `supabase/MIGRATIONS.md` for the ordered list and descriptions.
 
-1. Copy the contents of `supabase/seed.sql`
-2. Run in the SQL Editor
+Optionally seed demo data (development only):
+
+```bash
+# supabase/seed.sql in SQL Editor
+```
 
 ### Development
 
@@ -86,63 +94,67 @@ npm run build
 
 Output goes to `dist/`.
 
-### Type Check
+### Scripts
 
-```bash
-npx tsc --noEmit
-```
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run typecheck` | TypeScript check |
+| `npm run lint` | Oxlint |
+| `npm test -- --run` | Unit tests |
+| `npm run test:e2e` | Playwright E2E |
+| `npm run generate:icons` | Regenerate PWA PNGs from SVG |
 
 ## Project Structure
 
 ```
 src/
-  components/
-    layout/          # AppLayout, Sidebar, Topbar
-    ui/              # Button, Card, Input, Modal, Badge, etc.
-    ErrorBoundary.tsx
-    ProtectedRoute.tsx
-  data/
-    amenities.ts     # Amenity definitions by category
-    mockData.ts      # Legacy mock data (unused in production)
-  lib/
-    authContext.tsx   # Auth provider with Supabase Auth
-    roleContext.tsx   # Role-based access control
-    searchContext.tsx # Global search state
-    supabase.ts      # Supabase client initialization
-    useSupabase.ts   # All hooks: useTable, useProperties, useReservations, etc.
-    utils.ts         # Utility functions
+  components/        # UI, layout, ProtectedRoute
+  lib/               # Auth, roles, Supabase hooks
   pages/
-    app/             # All authenticated SaaS pages
-    Landing.tsx      # Public landing page
-    Login.tsx        # Auth pages
-    Signup.tsx
-    ForgotPassword.tsx
-    ResetPassword.tsx
-    NotFound.tsx     # 404 page
+    app/             # Staff dashboard (/app)
+    mobile/          # Guest, partner, HM apps
+  i18n/              # FR/EN translations
 supabase/
-  schema.sql         # Full database schema with RLS policies
-  seed.sql           # Demo data for development
+  schema.sql         # Baseline schema
+  migration_*.sql    # Incremental migrations (apply in order)
+  MIGRATIONS.md      # Migration order reference
+  seed.sql           # Demo data (dev only)
+.cursor/
+  environment.json   # Cursor Cloud Agent setup
+AGENTS.md            # Cloud Agent instructions
 public/
-  sitemap.xml
-  robots.txt
-  favicon.svg
+  manifest.webmanifest
+  sw.js
 ```
 
 ## Roles
 
-The platform supports multiple roles via the role selector:
-- **Owner** — Full access to all features
-- **House Manager** — Property and operations management
-- **Concierge** — Guest services and task management
-- **Agency** — Booking and partner management
-- **Partner** — Service provider view
-- **Guest** — Guest portal access
+| Role | Access |
+|------|--------|
+| **Owner** | Full dashboard + role preview |
+| **House Manager** | Operations, HM mobile app |
+| **Concierge** | Guest services |
+| **Agency** | Bookings and partners |
+| **Partner** | Partner mobile app (public signup) |
+| **Guest** | Guest mobile app |
+
+Staff roles (Owner, HM, Concierge, Agency) are **invite-only**. Public signup creates Partner accounts.
+
+## Cursor Cloud Agents
+
+See `AGENTS.md` for Cloud Agent and mobile setup. Repo: `butlr-app/my-butlr`.
 
 ## Deployment
 
-Build the project and deploy the `dist/` folder to any static hosting (Vercel, Netlify, Cloudflare Pages, etc.).
+Build `dist/` and deploy to Vercel, Netlify, or Cloudflare Pages. Set `VITE_SUPABASE_*` in hosting secrets. Security headers are configured in `vercel.json` and `public/_headers`.
 
-Ensure your Supabase project URL and anon key are set as environment variables in your hosting provider.
+GitHub Actions:
+
+- **CI** — lint, typecheck, unit tests, build on every PR
+- **Deploy** — build artifact on push to `main` (configure Vercel/Netlify secrets to enable live deploy)
+- **E2E** — weekly/manual Playwright run when test secrets are set
 
 ## License
 

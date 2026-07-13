@@ -167,7 +167,7 @@ export default function App() {
         </Route>
 
         {/* House Manager Mobile App */}
-        <Route path="/hm" element={<ProtectedRoute><HmLayout /></ProtectedRoute>}>
+        <Route path="/hm" element={<ProtectedRoute allow={STAFF_ROLES}><HmLayout /></ProtectedRoute>}>
           <Route index element={<HmToday />} />
           <Route path="tasks" element={<HmTasks />} />
           <Route path="incidents" element={<HmIncidents />} />
