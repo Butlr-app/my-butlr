@@ -4,13 +4,34 @@ import { Input } from '@/components/ui/Input'
 import { useAuth } from '@/lib/authContext'
 import { supabase } from '@/lib/supabase'
 import { roleHome, type Role } from '@/lib/roleContext'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
 export function Login() {
   const navigate = useNavigate()
-  const { signIn } = useAuth()
+  const { signIn, user, loading: authLoading } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
+
+  // PWA / returning users: bounce to role home when already signed in
+  useEffect(() => {
+    if (authLoading) return
+    let cancelled = false
+    ;(async () => {
+      if (!user) {
+        if (!cancelled) setCheckingSession(false)
+        return
+      }
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (!cancelled) navigate(roleHome(data?.role as Role | undefined), { replace: true })
+    })()
+    return () => { cancelled = true }
+  }, [user, authLoading, navigate])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -29,18 +50,26 @@ export function Login() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user: signedIn } } = await supabase.auth.getUser()
     let dest = '/app'
-    if (user) {
+    if (signedIn) {
       const { data } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', signedIn.id)
         .maybeSingle()
       dest = roleHome(data?.role as Role | undefined)
     }
     setLoading(false)
     navigate(dest)
+  }
+
+  if (authLoading || checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (

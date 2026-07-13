@@ -13,6 +13,7 @@ export const STAFF_ROLES: Role[] = ['owner', 'house_manager', 'concierge', 'agen
 export function roleHome(role: Role | null | undefined): string {
   if (role === 'partner') return '/partner'
   if (role === 'guest') return '/guest'
+  if (role === 'house_manager' || role === 'concierge') return '/hm'
   return '/app'
 }
 

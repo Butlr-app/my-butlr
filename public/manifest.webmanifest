@@ -3,7 +3,7 @@
   "short_name": "Butlr",
   "description": "The private operating system for luxury stays — reservations, services, guests, contracts and invoices from a single dashboard.",
   "id": "/",
-  "start_url": "/app",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -34,21 +34,27 @@
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
+      "name": "Staff dashboard",
       "short_name": "Dashboard",
       "url": "/app",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Reservations",
-      "short_name": "Reservations",
-      "url": "/app/reservations",
+      "name": "Field app (HM)",
+      "short_name": "Today",
+      "url": "/hm",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Messages",
-      "short_name": "Messages",
-      "url": "/app/messages",
+      "name": "Guest app",
+      "short_name": "Guest",
+      "url": "/guest",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Partner app",
+      "short_name": "Partner",
+      "url": "/partner",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
