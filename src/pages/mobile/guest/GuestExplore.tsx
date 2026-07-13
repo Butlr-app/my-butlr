@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useReservations, useServices } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
-import { Loader2, MapPin, Star, Sparkles, Heart, ArrowRight, Clock, Users } from 'lucide-react'
+import { Loader2, MapPin, Star, Sparkles, Heart, ArrowRight, Clock, Users, BookOpen } from 'lucide-react'
 
 const SERVICE_IMAGES: Record<string, string> = {
   'Private Chef': '/images/chef.jpg',
@@ -131,8 +132,8 @@ export function GuestExplore() {
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="px-5 -mt-6 relative z-10">
+      {/* Search Bar → shortcuts */}
+      <div className="px-5 -mt-6 relative z-10 space-y-3">
         <div className="flex items-center gap-3 bg-white rounded-2xl px-5 py-4 shadow-lg border border-gray-100/80">
           <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -145,6 +146,19 @@ export function GuestExplore() {
             <Sparkles className="w-4 h-4 text-amber-600" />
           </div>
         </div>
+        <Link
+          to="/guest/guides"
+          className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3.5 shadow-sm border border-gray-100/80"
+        >
+          <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center">
+            <BookOpen className="w-4 h-4 text-amber-700" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">Villa guides</p>
+            <p className="text-xs text-gray-400">House manuals, spa, Wi‑Fi & more</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-gray-300" />
+        </Link>
       </div>
 
       {/* Concierge Picks */}

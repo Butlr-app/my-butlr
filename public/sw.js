@@ -88,7 +88,9 @@ self.addEventListener('fetch', (event) => {
  * Receives Web Push events from a push server (VAPID). The client-side opt-in
  * also dispatches local notifications via registration.showNotification(). */
 self.addEventListener('push', (event) => {
-  let payload = { title: 'My Butlr', body: 'You have a new notification', url: '/app/notifications' }
+  // Prefer payload.url from the server (role-aware). Fall back to root so the
+  // client session lands via roleHome after auth instead of forcing /app.
+  let payload = { title: 'My Butlr', body: 'You have a new notification', url: '/' }
   try {
     if (event.data) payload = { ...payload, ...event.data.json() }
   } catch {
@@ -100,14 +102,14 @@ self.addEventListener('push', (event) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: payload.tag || 'butlr-notification',
-      data: { url: payload.url || '/app/notifications' },
+      data: { url: payload.url || '/' },
     })
   )
 })
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const target = (event.notification.data && event.notification.data.url) || '/app/notifications'
+  const target = (event.notification.data && event.notification.data.url) || '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

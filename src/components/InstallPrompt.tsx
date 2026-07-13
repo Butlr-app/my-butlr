@@ -77,7 +77,7 @@ export function InstallPrompt() {
   if (!visible || !consentDecided) return null
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md safe-area-bottom">
       <div className="bg-card border border-border rounded-xl shadow-lg p-4 flex items-start gap-3">
         <span className="w-10 h-10 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-lg shrink-0">
           b

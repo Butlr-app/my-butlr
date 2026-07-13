@@ -149,25 +149,30 @@ export function ChatThread({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{ height }}>
+      <div className="flex items-center justify-center h-full" style={height === '100%' ? undefined : { height }}>
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <Card className="flex flex-col" style={{ height }}>
-      <div className="px-4 py-3 border-b border-border flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-          <MessageSquare className="w-4 h-4 text-white" />
+    <Card
+      className={`flex flex-col ${height === '100%' ? 'h-full min-h-0 overflow-hidden' : ''}`}
+      style={height === '100%' ? undefined : { height }}
+    >
+      {title ? (
+        <div className="px-4 py-3 border-b border-border flex items-center gap-3 shrink-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+            <MessageSquare className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold truncate">{title}</h3>
+            {subtitle ? <p className="text-xs text-muted-foreground truncate">{subtitle}</p> : null}
+          </div>
         </div>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold truncate">{title}</h3>
-          <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
-        </div>
-      </div>
+      ) : null}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-slate-100/60 dark:from-slate-900 dark:to-slate-950">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-slate-100/60 dark:from-slate-900 dark:to-slate-950">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <div className="w-14 h-14 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center">

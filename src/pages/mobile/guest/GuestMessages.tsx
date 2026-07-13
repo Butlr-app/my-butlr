@@ -46,9 +46,9 @@ export function GuestMessages() {
   }
 
   return (
-    <div className="bg-white min-h-screen flex flex-col">
+    <div className="bg-white min-h-[100dvh] flex flex-col">
       {/* Header */}
-      <div className="px-5 pt-14 pb-4 border-b border-gray-100 flex-shrink-0">
+      <div className="px-5 pt-safe pb-4 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
             <span className="text-white font-bold text-sm">B</span>
@@ -67,14 +67,16 @@ export function GuestMessages() {
         </div>
       </div>
 
-      {/* Chat */}
-      <div className="flex-1 overflow-hidden">
+      {/* Chat fills remaining viewport above bottom nav */}
+      <div className="flex-1 min-h-0 overflow-hidden pb-24">
         <ChatThread
           reservationId={currentReservation.id}
           userId={user?.id}
           senderName={currentReservation.guest_name || 'Guest'}
           senderRole="guest"
-          subtitle="Your concierge"
+          title=""
+          subtitle=""
+          height="100%"
           showServicePicker={false}
         />
       </div>

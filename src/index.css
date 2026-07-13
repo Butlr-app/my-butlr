@@ -160,6 +160,14 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .pt-safe {
+    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

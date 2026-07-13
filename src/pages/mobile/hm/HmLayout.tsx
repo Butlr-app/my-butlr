@@ -48,7 +48,7 @@ export function HmLayout() {
   return (
     <>
       {!online && (
-        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-1.5 bg-gray-900 text-white text-[11px] font-semibold py-1.5">
+        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-1.5 bg-gray-900 text-white text-[11px] font-semibold py-1.5 safe-area-top">
           <WifiOff className="w-3.5 h-3.5" />
           {t('hm.offlineBanner')}
         </div>
