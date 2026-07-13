@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -6,8 +7,10 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useToast } from '@/components/ui/Toast'
-import { useProperties, useReservations } from '@/lib/useSupabase'
+import { useProperties, useReservations, useNotifications } from '@/lib/useSupabase'
 import { useContractTemplates } from '@/lib/useContractTemplates'
+import { uploadFile } from '@/lib/storage'
+import { supabase } from '@/lib/supabase'
 import {
   FileText, Download, Loader2, ChevronRight, ChevronLeft, Plus, Trash2,
   GripVertical, Eye, EyeOff, Pencil, Save, Copy, Settings2, BookOpen,
@@ -716,12 +719,15 @@ function generateContractPDF(
 
 export function ContractGenerator() {
   const { toast } = useToast()
+  const navigate = useNavigate()
+  const { insertNotification } = useNotifications()
   const { data: properties } = useProperties()
   const { data: reservations } = useReservations()
-  const { templates, loading: templatesLoading, saveTemplate, deleteTemplate } = useContractTemplates()
+  const { templates, loading: templatesLoading, saveTemplate, updateTemplate, deleteTemplate } = useContractTemplates()
 
   const [step, setStep] = useState(0)
   const [generating, setGenerating] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   // Template state
   const [template, setTemplate] = useState<ContractTemplate>(createDefaultTemplate)
@@ -870,20 +876,38 @@ export function ContractGenerator() {
     toast('Article ajoute')
   }
 
-  // Save template
+  // Save template (create new, or update selected saved template)
   const handleSaveTemplate = async () => {
-    if (!templateName.trim()) {
+    const isUpdating = selectedTemplateId !== 'default'
+    const name = (templateName.trim() || (isUpdating
+      ? templates.find(t => t.id === selectedTemplateId)?.name ?? ''
+      : '')).trim()
+    if (!name) {
       toast('Nom du modele requis', 'error')
       return
     }
     try {
-      await saveTemplate(templateName, template)
-      toast('Modele sauvegarde')
+      if (isUpdating) {
+        await updateTemplate(selectedTemplateId, name, template)
+        toast('Modele mis a jour')
+      } else {
+        const created = await saveTemplate(name, template)
+        setSelectedTemplateId(created.id)
+        toast('Modele sauvegarde')
+      }
       setShowSaveModal(false)
       setTemplateName('')
     } catch (err) {
       toast((err as Error).message, 'error')
     }
+  }
+
+  const openSaveModal = () => {
+    const existing = selectedTemplateId !== 'default'
+      ? templates.find(t => t.id === selectedTemplateId)?.name ?? ''
+      : ''
+    setTemplateName(existing)
+    setShowSaveModal(true)
   }
 
   // Delete template
@@ -901,16 +925,21 @@ export function ContractGenerator() {
     setDeleteConfirm(null)
   }
 
-  // Generate
-  const handleGenerate = () => {
+  const validateContractForm = () => {
     if (!tenant.name) {
       toast('Nom du locataire requis', 'error')
-      return
+      return false
     }
     if (!stay.arrivalDate || !stay.departureDate) {
       toast('Dates du sejour requises', 'error')
-      return
+      return false
     }
+    return true
+  }
+
+  // Generate PDF download only
+  const handleGenerate = () => {
+    if (!validateContractForm()) return
 
     setGenerating(true)
     try {
@@ -922,6 +951,56 @@ export function ContractGenerator() {
       toast((err as Error).message, 'error')
     }
     setGenerating(false)
+  }
+
+  // Persist contract row + upload PDF so signing / guest portal can open it
+  const handleSaveAndCreate = async () => {
+    if (!validateContractForm()) return
+
+    setSaving(true)
+    try {
+      const doc = generateContractPDF(template, tenant, intermediary, stay)
+      const safeProperty = stay.propertyName.replace(/\s+/g, '-').toLowerCase() || 'propriete'
+      const safeGuest = tenant.name.replace(/\s+/g, '-').toLowerCase() || 'locataire'
+      const fileName = `contrat-${safeProperty}-${safeGuest}.pdf`
+      const blob = doc.output('blob')
+      const file = new File([blob], fileName, { type: 'application/pdf' })
+      const documentUrl = await uploadFile('contracts', file)
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: created, error } = await supabase
+        .from('contracts')
+        .insert({
+          guest_name: tenant.name,
+          property_name: stay.propertyName || null,
+          type: 'rental',
+          status: 'draft',
+          date: stay.arrivalDate || new Date().toISOString().split('T')[0],
+          reservation_id: stay.reservationId || null,
+          document_url: documentUrl,
+        })
+        .select()
+        .single()
+
+      if (error) throw new Error(error.message)
+
+      await insertNotification({
+        user_id: user?.id ?? null,
+        type: 'system',
+        title: 'Contrat cree',
+        message: `Contrat de location pour ${tenant.name} — ${stay.propertyName}`,
+        data: { contract_id: created.id },
+        related_id: created.id,
+      })
+
+      // Also offer a local download of the same PDF
+      doc.save(fileName)
+      toast('Contrat enregistre et PDF genere')
+      navigate('/app/contracts')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
   }
 
   // Active articles count
@@ -944,13 +1023,17 @@ export function ContractGenerator() {
           Generateur de contrats
         </p>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setShowSaveModal(true)}>
+          <Button size="sm" variant="secondary" onClick={openSaveModal}>
             <Save className="w-4 h-4 mr-2" />
-            Sauvegarder modele
+            {selectedTemplateId === 'default' ? 'Sauvegarder modele' : 'Mettre a jour modele'}
           </Button>
-          <Button size="sm" onClick={handleGenerate} disabled={generating}>
+          <Button size="sm" variant="secondary" onClick={handleGenerate} disabled={generating || saving}>
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
             Generer PDF
+          </Button>
+          <Button size="sm" onClick={handleSaveAndCreate} disabled={generating || saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Enregistrer & creer
           </Button>
         </div>
       </div>
@@ -1304,11 +1387,15 @@ export function ContractGenerator() {
             </div>
           </Card>
 
-          {/* Generate button */}
-          <div className="flex justify-end">
-            <Button size="lg" onClick={handleGenerate} disabled={generating}>
+          {/* Generate / save buttons */}
+          <div className="flex justify-end gap-2">
+            <Button size="lg" variant="secondary" onClick={handleGenerate} disabled={generating || saving}>
               {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
               Generer le PDF
+            </Button>
+            <Button size="lg" onClick={handleSaveAndCreate} disabled={generating || saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              Enregistrer & creer
             </Button>
           </div>
         </div>
@@ -1336,7 +1423,11 @@ export function ContractGenerator() {
       </div>
 
       {/* ─── Save template modal ────────────────────────────────────────── */}
-      <Modal open={showSaveModal} onClose={() => setShowSaveModal(false)} title="Sauvegarder le modele">
+      <Modal
+        open={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        title={selectedTemplateId === 'default' ? 'Sauvegarder le modele' : 'Mettre a jour le modele'}
+      >
         <div className="space-y-4">
           <Input
             label="Nom du modele"
@@ -1345,11 +1436,15 @@ export function ContractGenerator() {
             placeholder="ex: Contrat Villa Saint-Tropez"
           />
           <p className="text-xs text-muted-foreground">
-            Le modele sera sauvegarde avec les {template.articles.length} articles actuels et les informations du bailleur.
+            {selectedTemplateId === 'default'
+              ? `Le modele sera cree avec les ${template.articles.length} articles actuels et les informations du bailleur.`
+              : `Le modele selectionne sera mis a jour avec les ${template.articles.length} articles actuels et les informations du bailleur.`}
           </p>
           <div className="flex gap-3 justify-end">
             <Button size="sm" variant="secondary" onClick={() => setShowSaveModal(false)}>Annuler</Button>
-            <Button size="sm" onClick={handleSaveTemplate}>Sauvegarder</Button>
+            <Button size="sm" onClick={handleSaveTemplate}>
+              {selectedTemplateId === 'default' ? 'Sauvegarder' : 'Mettre a jour'}
+            </Button>
           </div>
         </div>
       </Modal>

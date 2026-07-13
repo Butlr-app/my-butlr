@@ -164,9 +164,10 @@ CREATE TABLE IF NOT EXISTS contracts (
   guest_name TEXT NOT NULL,
   property_name TEXT,
   type TEXT DEFAULT 'rental' CHECK (type IN ('rental', 'service', 'partnership')),
-  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'signed', 'expired')),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'signed', 'archived', 'expired')),
   date DATE DEFAULT CURRENT_DATE,
   document_url TEXT,
+  signing_token TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

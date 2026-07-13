@@ -142,11 +142,17 @@ export function ContractSigning() {
             </div>
           </div>
 
-          {contract?.document_url && (
+          {contract?.document_url ? (
             <div className="mt-4">
               <a href={contract.document_url} target="_blank" rel="noopener noreferrer" className="text-sm text-info underline">
                 View contract document
               </a>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-sm border border-border bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">
+                No PDF is attached to this contract yet. Ask the property manager to generate and save the contract before signing.
+              </p>
             </div>
           )}
         </Card>

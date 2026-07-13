@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,7 +11,7 @@ import { useContracts, useNotifications, type Contract } from '@/lib/useSupabase
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { supabase } from '@/lib/supabase'
-import { Plus, Loader2, Trash2, FileText, Pencil, Download, Send, Link2, Copy, Archive } from 'lucide-react'
+import { Plus, Loader2, Trash2, FileText, Pencil, Download, Send, Link2, Copy, Archive, FilePlus } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
@@ -24,6 +25,7 @@ const emptyForm = {
 }
 
 export function Contracts() {
+  const navigate = useNavigate()
   const { data: contracts, loading, insert, update, remove } = useContracts()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
@@ -138,16 +140,18 @@ export function Contracts() {
       } else {
         await update(contract.id, { status: 'sent' })
       }
+      const link = `${window.location.origin}/sign/${token}`
       const { data: { user } } = await supabase.auth.getUser()
       await insertNotification({
         user_id: user?.id ?? null,
         type: 'system',
         title: `Contract sent for signature`,
-        message: `Contract for ${contract.guest_name} has been sent for signature`,
-        data: { contract_id: contract.id },
+        message: `Contract for ${contract.guest_name} is ready to sign. Share the signing link.`,
+        data: { contract_id: contract.id, signing_link: link },
         related_id: null,
       })
-      toast('Contract sent for signature')
+      setSigningLink(link)
+      toast('Contract marked as sent — copy the signing link to share')
     } catch (err) {
       toast((err as Error).message, 'error')
     }
@@ -202,9 +206,14 @@ export function Contracts() {
             <Download className="w-4 h-4 mr-1" /> Export CSV
           </Button>
           {editable && (
-            <Button variant="gold" size="sm" onClick={openCreate}>
-              <Plus className="w-4 h-4 mr-1" /> New contract
-            </Button>
+            <>
+              <Button variant="secondary" size="sm" onClick={() => navigate('/app/contracts/generate')}>
+                <FilePlus className="w-4 h-4 mr-1" /> Generate PDF
+              </Button>
+              <Button variant="gold" size="sm" onClick={openCreate}>
+                <Plus className="w-4 h-4 mr-1" /> New contract
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -438,7 +447,10 @@ export function Contracts() {
       {/* Signing Link Modal */}
       <Modal open={!!signingLink} onClose={() => setSigningLink(null)} title="Signing Link">
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Share this link with the signer. They can sign the contract without logging in.</p>
+          <p className="text-sm text-muted-foreground">
+            Share this link with the signer. They can sign without logging in.
+            Email delivery is not configured yet — copy and send the link manually.
+          </p>
           <div className="flex items-center gap-2">
             <input
               readOnly
