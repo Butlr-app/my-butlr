@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   company TEXT,
   role TEXT DEFAULT 'owner' CHECK (role IN ('owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest')),
   avatar_url TEXT,
+  onboarding_completed BOOLEAN DEFAULT false,
+  date_format TEXT NOT NULL DEFAULT 'DD/MM/YYYY' CHECK (date_format IN ('DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD')),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -26,6 +28,9 @@ CREATE TABLE IF NOT EXISTS properties (
   max_guests INTEGER DEFAULT 0,
   description TEXT,
   image_url TEXT,
+  address TEXT,
+  surface_m2 INTEGER,
+  amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -41,8 +46,10 @@ CREATE TABLE IF NOT EXISTS reservations (
   departure DATE NOT NULL,
   guests_count INTEGER DEFAULT 1,
   status TEXT DEFAULT 'confirmed' CHECK (status IN ('pending', 'confirmed', 'in_progress', 'completed', 'cancelled')),
-  payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'partial', 'paid', 'refunded')),
+  payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'partial', 'paid', 'refunded', 'not_applicable')),
   contract_status TEXT DEFAULT 'none' CHECK (contract_status IN ('none', 'draft', 'sent', 'signed')),
+  contract_mode TEXT NOT NULL DEFAULT 'none' CHECK (contract_mode IN ('to_prepare', 'already_done', 'concierge', 'none')),
+  booking_kind TEXT NOT NULL DEFAULT 'guest' CHECK (booking_kind IN ('guest', 'owner_stay', 'marketing_event', 'blocked_dates', 'other')),
   total_amount DECIMAL(10,2) DEFAULT 0,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -177,8 +184,8 @@ CREATE POLICY "Authenticated manage calendar" ON calendar_events FOR ALL TO auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email);
+  INSERT INTO public.profiles (id, full_name, email, role)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.email, COALESCE(new.raw_user_meta_data->>'role', 'owner'));
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

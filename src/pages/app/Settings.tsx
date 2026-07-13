@@ -1,9 +1,18 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { Select } from '@/components/ui/Select'
+import { ImageUpload } from '@/components/ui/ImageUpload'
+import { uploadImageAsset } from '@/lib/uploadImageAsset'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/authContext'
+import {
+  dateFormatLabels,
+  dateFormats,
+  type DateFormat,
+} from '@/lib/dateFormat'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +46,9 @@ interface Service {
   commission: number | null
   available: boolean | null
   image_url: string | null
+  pricing_mode?: 'fixed' | 'per_person' | 'quote' | null
+  provider_name?: string | null
+  includes_text?: string | null
 }
 
 interface NotificationPrefs {
@@ -48,6 +60,7 @@ interface NotificationPrefs {
   push_team: boolean
   sms_bookings: boolean
   sms_payments: boolean
+  sms_team: boolean
 }
 
 // ─── Spinner Component ───────────────────────────────────────────────────────
@@ -111,7 +124,7 @@ const settingsTabs = ['Account', 'Team', 'Roles', 'Payments', 'Services', 'Notif
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function Settings() {
-  const { user } = useAuth()
+  const { user, refreshProfile } = useAuth()
   const [activeTab, setActiveTab] = useState('Account')
 
   return (
@@ -136,7 +149,9 @@ export function Settings() {
         </div>
       </div>
 
-      {activeTab === 'Account' && <AccountTab userId={user?.id} />}
+      {activeTab === 'Account' && (
+        <AccountTab userId={user?.id} refreshProfile={refreshProfile} />
+      )}
       {activeTab === 'Team' && <TeamTab />}
       {activeTab === 'Roles' && <RolesTab />}
       {activeTab === 'Payments' && <PaymentsTab />}
@@ -148,11 +163,18 @@ export function Settings() {
 
 // ─── 1. Account Tab ──────────────────────────────────────────────────────────
 
-function AccountTab({ userId }: { userId: string | undefined }) {
+function AccountTab({
+  userId,
+  refreshProfile,
+}: {
+  userId: string | undefined
+  refreshProfile: (options?: { silent?: boolean }) => Promise<void>
+}) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
+  const [dateFormat, setDateFormat] = useState<DateFormat>('DD/MM/YYYY')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -163,7 +185,7 @@ function AccountTab({ userId }: { userId: string | undefined }) {
       setLoading(true)
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, email, phone, company')
+        .select('full_name, email, phone, company, date_format')
         .eq('id', userId)
         .single()
       if (!error && data) {
@@ -171,6 +193,7 @@ function AccountTab({ userId }: { userId: string | undefined }) {
         setEmail(data.email || '')
         setPhone(data.phone || '')
         setCompany(data.company || '')
+        setDateFormat((data.date_format as DateFormat | null) ?? 'DD/MM/YYYY')
       }
       setLoading(false)
     }
@@ -183,12 +206,13 @@ function AccountTab({ userId }: { userId: string | undefined }) {
     setFeedback(null)
     const { error } = await supabase
       .from('profiles')
-      .update({ full_name: fullName, email, phone, company })
+      .update({ full_name: fullName, email, phone, company, date_format: dateFormat })
       .eq('id', userId)
     setSaving(false)
     if (error) {
       setFeedback({ message: `Error: ${error.message}`, type: 'error' })
     } else {
+      await refreshProfile({ silent: true })
       setFeedback({ message: 'Profile saved successfully.', type: 'success' })
     }
   }
@@ -210,8 +234,20 @@ function AccountTab({ userId }: { userId: string | undefined }) {
       <div className="space-y-4">
         <Input label="Full name" value={fullName} onChange={e => setFullName(e.target.value)} />
         <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-        <Input label="Phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+        <PhoneInput label="Phone" value={phone} onChange={setPhone} />
         <Input label="Company" value={company} onChange={e => setCompany(e.target.value)} />
+        <Select
+          label="Format des dates"
+          value={dateFormat}
+          onChange={event => setDateFormat(event.target.value as DateFormat)}
+          options={dateFormats.map(format => ({
+            value: format,
+            label: dateFormatLabels[format],
+          }))}
+        />
+        <p className="text-xs text-muted-foreground">
+          Ce format sera utilisé dans les formulaires, les réservations et le calendrier.
+        </p>
         <Button size="sm" onClick={handleSave} disabled={saving}>
           {saving && <Spinner className="mr-2" />}
           {saving ? 'Saving…' : 'Save changes'}
@@ -582,6 +618,7 @@ function PaymentsTab() {
 // ─── 5. Services Tab ─────────────────────────────────────────────────────────
 
 function ServicesTab() {
+  const { user } = useAuth()
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -596,6 +633,12 @@ function ServicesTab() {
   const [formPrice, setFormPrice] = useState('')
   const [formCommission, setFormCommission] = useState('')
   const [formAvailable, setFormAvailable] = useState(true)
+  const [formPricingMode, setFormPricingMode] = useState<'fixed' | 'per_person' | 'quote'>('fixed')
+  const [formProviderName, setFormProviderName] = useState('')
+  const [formIncludesText, setFormIncludesText] = useState('')
+  const [formImageUrl, setFormImageUrl] = useState<string | null>(null)
+  const [formImageFile, setFormImageFile] = useState<File | null>(null)
+  const [formImagePreview, setFormImagePreview] = useState<string | null>(null)
 
   const resetForm = () => {
     setFormName('')
@@ -604,6 +647,13 @@ function ServicesTab() {
     setFormPrice('')
     setFormCommission('')
     setFormAvailable(true)
+    setFormPricingMode('fixed')
+    setFormProviderName('')
+    setFormIncludesText('')
+    setFormImageUrl(null)
+    setFormImageFile(null)
+    if (formImagePreview?.startsWith('blob:')) URL.revokeObjectURL(formImagePreview)
+    setFormImagePreview(null)
     setEditingId(null)
     setShowForm(false)
   }
@@ -616,6 +666,12 @@ function ServicesTab() {
     setFormPrice(service.starting_price?.toString() || '')
     setFormCommission(service.commission?.toString() || '')
     setFormAvailable(service.available ?? true)
+    setFormPricingMode(service.pricing_mode ?? 'fixed')
+    setFormProviderName(service.provider_name ?? '')
+    setFormIncludesText(service.includes_text ?? '')
+    setFormImageUrl(service.image_url)
+    setFormImageFile(null)
+    setFormImagePreview(service.image_url)
     setShowForm(true)
   }
 
@@ -623,7 +679,7 @@ function ServicesTab() {
     setLoading(true)
     const { data, error } = await supabase
       .from('services')
-      .select('id, name, description, category, starting_price, commission, available, image_url')
+      .select('id, name, description, category, starting_price, commission, available, image_url, pricing_mode, provider_name, includes_text')
       .order('name', { ascending: true })
     if (error) {
       setFeedback({ message: `Error loading services: ${error.message}`, type: 'error' })
@@ -645,13 +701,33 @@ function ServicesTab() {
     setFormLoading(true)
     setFeedback(null)
 
+    let imageUrl = formImageUrl
+    if (formImageFile && user) {
+      const { url, error: uploadError } = await uploadImageAsset(
+        formImageFile,
+        user.id,
+        'services',
+        editingId ?? undefined,
+      )
+      if (uploadError || !url) {
+        setFormLoading(false)
+        setFeedback({ message: uploadError?.message ?? 'Image upload failed.', type: 'error' })
+        return
+      }
+      imageUrl = url
+    }
+
     const payload = {
       name: formName.trim(),
       description: formDesc.trim() || null,
       category: formCategory.trim() || null,
-      starting_price: formPrice ? parseFloat(formPrice) : null,
+      starting_price: formPricingMode === 'quote' ? null : (formPrice ? parseFloat(formPrice) : null),
       commission: formCommission ? parseFloat(formCommission) : null,
       available: formAvailable,
+      pricing_mode: formPricingMode,
+      provider_name: formProviderName.trim() || null,
+      includes_text: formIncludesText.trim() || null,
+      image_url: imageUrl,
     }
 
     const { error } = editingId
@@ -704,7 +780,7 @@ function ServicesTab() {
     <div className="space-y-6">
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-base font-semibold">Services</h3>
+          <h3 className="text-base font-semibold">Catalogue conciergerie</h3>
           <div className="flex gap-2">
             {showForm && <Button variant="secondary" size="sm" onClick={resetForm}>Cancel</Button>}
             {!showForm && <Button size="sm" onClick={() => setShowForm(true)}>Add Service</Button>}
@@ -721,10 +797,38 @@ function ServicesTab() {
             </p>
             <Input label="Name" value={formName} onChange={e => setFormName(e.target.value)} placeholder="City Tour" />
             <Input label="Description" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Private city tour with local guide" />
+            {user && (
+              <ImageUpload
+                label="Photo du service"
+                value={formImageFile}
+                previewUrl={formImagePreview}
+                onChange={(file, previewUrl) => {
+                  setFormImageFile(file)
+                  setFormImagePreview(previewUrl)
+                  if (!file) setFormImageUrl(null)
+                }}
+              />
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input label="Category" value={formCategory} onChange={e => setFormCategory(e.target.value)} placeholder="Experiences" />
-              <Input label="Starting Price (€)" type="number" value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder="45.00" />
+              <Input label="Starting Price (€)" type="number" value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder="45.00" disabled={formPricingMode === 'quote'} />
               <Input label="Commission (%)" type="number" value={formCommission} onChange={e => setFormCommission(e.target.value)} placeholder="10" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-foreground">Pricing mode</label>
+                <select
+                  value={formPricingMode}
+                  onChange={e => setFormPricingMode(e.target.value as 'fixed' | 'per_person' | 'quote')}
+                  className="h-10 w-full px-3 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info focus:ring-1 focus:ring-info/20"
+                >
+                  <option value="fixed">Fixed price</option>
+                  <option value="per_person">Per person</option>
+                  <option value="quote">On quote</option>
+                </select>
+              </div>
+              <Input label="Provider name" value={formProviderName} onChange={e => setFormProviderName(e.target.value)} placeholder="Chef Remi" />
+              <Input label="Includes" value={formIncludesText} onChange={e => setFormIncludesText(e.target.value)} placeholder="Groceries included" />
             </div>
             <div className="flex items-center gap-3">
               <label className="text-sm font-medium text-foreground">Available</label>
@@ -756,6 +860,11 @@ function ServicesTab() {
           )}
           {services.map(service => (
             <div key={service.id} className="py-4 flex items-start justify-between gap-4">
+              {service.image_url && (
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                  <img src={service.image_url} alt="" className="h-full w-full object-cover" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium">{service.name || '—'}</p>

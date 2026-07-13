@@ -1,65 +1,148 @@
 import { cn } from '@/lib/utils'
 import { NavLink } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
 import {
-  LayoutDashboard, Building2, CalendarDays, Users, ConciergeBell, ClipboardList,
-  Calendar, Handshake, CreditCard, FileText, BarChart3, Settings, PanelLeftClose, PanelLeft,
-  FilePlus, Receipt
+  LayoutDashboard,
+  Building2,
+  CalendarDays,
+  CalendarRange,
+  ConciergeBell,
+  ClipboardList,
+  Handshake,
+  CreditCard,
+  FileText,
+  BarChart3,
+  Settings,
+  PanelLeftClose,
+  PanelLeft,
+  Receipt,
+  Wallet,
+  ShoppingBag,
+  MessageSquare,
+  Smartphone,
 } from 'lucide-react'
 import { useState } from 'react'
 
-const navItems = [
-  { to: '/app', icon: LayoutDashboard, label: 'Overview', end: true },
-  { to: '/app/properties', icon: Building2, label: 'Properties' },
-  { to: '/app/reservations', icon: CalendarDays, label: 'Reservations' },
-  { to: '/app/guest-portal', icon: Users, label: 'Guest Portal' },
-  { to: '/app/services', icon: ConciergeBell, label: 'Services' },
-  { to: '/app/tasks', icon: ClipboardList, label: 'Tasks' },
-  { to: '/app/calendar', icon: Calendar, label: 'Calendar' },
-  { to: '/app/partners', icon: Handshake, label: 'Partners' },
-  { to: '/app/payments', icon: CreditCard, label: 'Payments' },
-  { to: '/app/contracts', icon: FileText, label: 'Contracts' },
-  { to: '/app/contracts/generate', icon: FilePlus, label: 'Generate Contract' },
-  { to: '/app/invoices', icon: Receipt, label: 'Invoices' },
-  { to: '/app/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/app/settings', icon: Settings, label: 'Settings' },
+interface NavItem {
+  to: string
+  icon: LucideIcon
+  label: string
+  end?: boolean
+}
+
+interface NavSection {
+  title: string
+  items: NavItem[]
+}
+
+const navSections: NavSection[] = [
+  {
+    title: '',
+    items: [
+      { to: '/app', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
+    ],
+  },
+  {
+    title: 'Exploitation',
+    items: [
+      { to: '/app/properties', icon: Building2, label: 'Propriétés' },
+      { to: '/app/reservations', icon: CalendarDays, label: 'Réservations' },
+      { to: '/app/calendar', icon: CalendarRange, label: 'Calendrier' },
+      { to: '/app/tasks', icon: ClipboardList, label: 'Tâches' },
+    ],
+  },
+  {
+    title: 'Expérience voyageur',
+    items: [
+      { to: '/app/guest-portal', icon: Smartphone, label: 'Portail voyageur' },
+      { to: '/app/messages', icon: MessageSquare, label: 'Messages' },
+      { to: '/app/stay-reserves', icon: Wallet, label: 'Réserve séjour' },
+      { to: '/app/services', icon: ConciergeBell, label: 'Conciergerie' },
+      { to: '/app/boutique', icon: ShoppingBag, label: 'Boutique' },
+    ],
+  },
+  {
+    title: 'Finance & documents',
+    items: [
+      { to: '/app/payments', icon: CreditCard, label: 'Paiements' },
+      { to: '/app/contracts', icon: FileText, label: 'Contrats' },
+      { to: '/app/invoices/generate', icon: Receipt, label: 'Factures' },
+      { to: '/app/reports', icon: BarChart3, label: 'Rapports' },
+    ],
+  },
+  {
+    title: 'Réseau',
+    items: [
+      { to: '/app/partners', icon: Handshake, label: 'Partenaires' },
+    ],
+  },
+  {
+    title: '',
+    items: [
+      { to: '/app/settings', icon: Settings, label: 'Paramètres' },
+    ],
+  },
 ]
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <aside className={cn(
-      'fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col transition-all duration-200 z-40',
-      collapsed ? 'w-16' : 'w-60'
-    )}>
-      <div className="h-14 flex items-center px-4 border-b border-border">
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-card transition-all duration-200',
+        collapsed ? 'w-16' : 'w-60',
+      )}
+    >
+      <div className="flex h-14 items-center border-b border-border px-4">
         {!collapsed && (
           <span className="text-base font-bold tracking-tight">butlr</span>
         )}
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className={cn('p-1.5 rounded hover:bg-muted transition-colors', collapsed ? 'mx-auto' : 'ml-auto')}
+          className={cn(
+            'rounded p-1.5 transition-colors hover:bg-muted',
+            collapsed ? 'mx-auto' : 'ml-auto',
+          )}
+          aria-label={collapsed ? 'Développer le menu' : 'Réduire le menu'}
         >
-          {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
       </div>
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/app'}
-            className={({ isActive }) => cn(
-              'flex items-center gap-3 h-10 px-3 rounded-md text-sm transition-colors relative',
-              isActive
-                ? 'bg-muted font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-5 before:bg-foreground before:rounded-r'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            )}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
+        {navSections.map((section, sectionIndex) => (
+          <div
+            key={section.title || `section-${sectionIndex}`}
+            className={cn(sectionIndex > 0 && 'mt-3 pt-3 border-t border-border/60')}
           >
-            <item.icon className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
-          </NavLink>
+            {section.title && !collapsed && (
+              <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {section.title}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    cn(
+                      'relative flex h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors',
+                      isActive
+                        ? 'bg-muted font-medium before:absolute before:left-0 before:top-1/2 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-r before:bg-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )
+                  }
+                >
+                  <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
     </aside>

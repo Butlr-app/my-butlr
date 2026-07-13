@@ -1,107 +1,158 @@
-import { useState } from 'react'
-import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Modal } from '@/components/ui/Modal'
-import { reservations } from '@/data/mockData'
-
-export function Reservations() {
-  const [selected, setSelected] = useState<typeof reservations[0] | null>(null)
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">All Reservations</p>
-        <Button size="sm">New reservation</Button>
-      </div>
-
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guest</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Arrival</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Departure</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guests</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Payment</th>
-                <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Contract</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reservations.map(r => (
-                <tr
-                  key={r.id}
-                  className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors h-14"
-                  onClick={() => setSelected(r)}
-                >
-                  <td className="px-4 text-sm font-medium">{r.guestName}</td>
-                  <td className="px-4 text-sm text-muted-foreground">{r.property}</td>
-                  <td className="px-4 text-sm font-mono">{r.arrival}</td>
-                  <td className="px-4 text-sm font-mono">{r.departure}</td>
-                  <td className="px-4 text-sm font-mono text-right">{r.guests}</td>
-                  <td className="px-4">
-                    <Badge variant={r.status === 'confirmed' ? 'success' : 'warning'}>{r.status}</Badge>
-                  </td>
-                  <td className="px-4">
-                    <Badge variant={r.paymentStatus === 'paid' ? 'success' : r.paymentStatus === 'partial' ? 'warning' : 'muted'}>
-                      {r.paymentStatus}
-                    </Badge>
-                  </td>
-                  <td className="px-4">
-                    <Badge variant={r.contractStatus === 'signed' ? 'success' : r.contractStatus === 'sent' ? 'info' : 'muted'}>
-                      {r.contractStatus}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <Modal open={!!selected} onClose={() => setSelected(null)} title="Reservation Detail">
-        {selected && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Guest</p>
-                <p className="text-sm font-medium mt-1">{selected.guestName}</p>
-              </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Property</p>
-                <p className="text-sm font-medium mt-1">{selected.property}</p>
-              </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Arrival</p>
-                <p className="text-sm font-mono mt-1">{selected.arrival}</p>
-              </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Departure</p>
-                <p className="text-sm font-mono mt-1">{selected.departure}</p>
-              </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Status</p>
-                <Badge variant={selected.status === 'confirmed' ? 'success' : 'warning'} className="mt-1">{selected.status}</Badge>
-              </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Payment</p>
-                <Badge variant={selected.paymentStatus === 'paid' ? 'success' : 'warning'} className="mt-1">{selected.paymentStatus}</Badge>
-              </div>
-            </div>
-            <div className="pt-4 border-t border-border">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Services Booked</p>
-              <p className="text-sm text-muted-foreground">Private chef dinner, Airport transfer</p>
-            </div>
-            <div className="pt-4 border-t border-border">
-              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Internal Notes</p>
-              <p className="text-sm text-muted-foreground">VIP guest, returning visitor. Prefers early check-in.</p>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </div>
-  )
-}
+import { useEffect, useState } from 'react'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { EmptyState, LoadingState } from '@/components/EmptyState'
+import { ReservationCreateModal } from '@/components/reservation/ReservationCreateModal'
+import { useAuth } from '@/lib/authContext'
+import { fetchOwnerProperties, fetchOwnerReservations } from '@/lib/data'
+import { useReservationDetail } from '@/lib/reservationDetailContext'
+import { formatDateForDisplay } from '@/lib/dateFormat'
+import type { Property, Reservation } from '@/lib/types'
+
+const contractModeLabels: Record<string, string> = {
+  to_prepare: 'À préparer',
+  already_done: 'Déjà fait',
+  concierge: 'Conciergerie',
+  none: 'Sans contrat',
+}
+
+export function Reservations() {
+  const { user, profile } = useAuth()
+  const { openReservation } = useReservationDetail()
+  const [loading, setLoading] = useState(true)
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [properties, setProperties] = useState<Property[]>([])
+  const [showCreate, setShowCreate] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!user) return
+
+    Promise.all([
+      fetchOwnerReservations(user.id),
+      fetchOwnerProperties(user.id),
+    ]).then(([reservationResult, propertyResult]) => {
+      setReservations((reservationResult.data as Reservation[]) ?? [])
+      setProperties((propertyResult.data as Property[]) ?? [])
+      setError(reservationResult.error?.message ?? propertyResult.error?.message ?? '')
+      setLoading(false)
+    })
+  }, [user])
+
+  if (loading) return <LoadingState />
+
+  const activeProperties = properties.filter(property => property.status === 'active')
+
+  const handleReservationUpdated = (updated: Reservation) => {
+    setReservations(current => current.map(reservation =>
+      reservation.id === updated.id ? { ...reservation, ...updated } : reservation
+    ))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Réservations</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {reservations.length} réservation{reservations.length > 1 ? 's' : ''}
+          </p>
+        </div>
+        <Button size="sm" onClick={() => setShowCreate(true)} disabled={activeProperties.length === 0}>
+          Nouvelle réservation
+        </Button>
+      </div>
+
+      {error && (
+        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {reservations.length === 0 ? (
+        <EmptyState
+          title="No reservations yet"
+          description="Create your first reservation to start managing guest stays."
+          action={activeProperties.length > 0 ? (
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              Créer une réservation
+            </Button>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Ajoutez d’abord une propriété.
+            </p>
+          )}
+        />
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Séjour / blocage</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Arrival</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Departure</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guests</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Payment</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Contract</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reservations.map(r => (
+                  <tr
+                    key={r.id}
+                    className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors h-14"
+                    onClick={() => openReservation(r, { onUpdated: handleReservationUpdated })}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        openReservation(r, { onUpdated: handleReservationUpdated })
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <td className="px-4 text-sm font-medium">{r.guest_name}</td>
+                    <td className="px-4 text-sm text-muted-foreground">{r.properties?.name}</td>
+                    <td className="px-4 text-sm font-mono">
+                      {formatDateForDisplay(r.arrival, profile?.date_format)}
+                    </td>
+                    <td className="px-4 text-sm font-mono">
+                      {formatDateForDisplay(r.departure, profile?.date_format)}
+                    </td>
+                    <td className="px-4 text-sm font-mono text-right">{r.guests_count}</td>
+                    <td className="px-4">
+                      <Badge variant={r.status === 'confirmed' ? 'success' : 'warning'}>{r.status}</Badge>
+                    </td>
+                    <td className="px-4">
+                      <Badge variant={r.payment_status === 'paid' ? 'success' : r.payment_status === 'partial' ? 'warning' : 'muted'}>
+                        {r.payment_status}
+                      </Badge>
+                    </td>
+                    <td className="px-4">
+                      <Badge variant={r.contract_mode === 'already_done' ? 'success' : r.contract_mode === 'concierge' ? 'info' : 'muted'}>
+                        {contractModeLabels[r.contract_mode] ?? r.contract_status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      <ReservationCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        properties={activeProperties}
+        onCreated={reservation => {
+          setReservations(current => [...current, reservation].sort((a, b) => a.arrival.localeCompare(b.arrival)))
+        }}
+      />
+    </div>
+  )
+}
+

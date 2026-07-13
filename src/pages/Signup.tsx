@@ -4,13 +4,13 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/lib/authContext'
 import { useState } from 'react'
+import type { Role } from '@/lib/roleContext'
 
 export function Signup() {
   const navigate = useNavigate()
   const { signUp } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -22,29 +22,16 @@ export function Signup() {
     const email = form.get('email') as string
     const password = form.get('password') as string
 
-    const { error } = await signUp(email, password, fullName)
+    const role = form.get('role') as Role
+
+    const { error } = await signUp(email, password, fullName, role)
     setLoading(false)
 
     if (error) {
       setError(error.message)
     } else {
-      setSuccess(true)
-      setTimeout(() => navigate('/app'), 1500)
+      navigate('/verify-email', { state: { email } })
     }
-  }
-
-  if (success) {
-    return (
-      <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-success text-lg">✓</span>
-          </div>
-          <h2 className="text-lg font-semibold mb-2">Account created</h2>
-          <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
-        </div>
-      </div>
-    )
   }
 
   return (

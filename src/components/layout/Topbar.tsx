@@ -8,18 +8,18 @@ interface TopbarProps {
   title: string
 }
 
-const roles: { value: Role; label: string }[] = [
-  { value: 'owner', label: 'Owner' },
-  { value: 'house_manager', label: 'House Manager' },
-  { value: 'concierge', label: 'Concierge' },
-  { value: 'agency', label: 'Agency' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'guest', label: 'Guest' },
-]
+const roleLabels: Record<Role, string> = {
+  owner: 'Owner',
+  house_manager: 'House Manager',
+  concierge: 'Concierge',
+  agency: 'Agency',
+  partner: 'Partner',
+  guest: 'Guest',
+}
 
 export function Topbar({ title }: TopbarProps) {
   const [dark, setDark] = useState(true)
-  const { role, setRole } = useRole()
+  const { role } = useRole()
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
 
@@ -38,15 +38,9 @@ export function Topbar({ title }: TopbarProps) {
       <h1 className="text-lg font-bold">{title}</h1>
 
       <div className="flex items-center gap-3">
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as Role)}
-          className="h-8 px-2 bg-muted border-0 rounded-md text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          {roles.map(r => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </select>
+        <span className="h-8 px-2 bg-muted rounded-md text-xs font-mono uppercase tracking-wider flex items-center">
+          {roleLabels[role]}
+        </span>
 
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

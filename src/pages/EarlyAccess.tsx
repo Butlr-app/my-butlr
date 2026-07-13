@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/Select'
 import { ArrowLeft, Check } from 'lucide-react'
 
 export function EarlyAccess() {
   const [submitted, setSubmitted] = useState(false)
+  const [phone, setPhone] = useState('')
 
   if (submitted) {
     return (
@@ -43,7 +45,7 @@ export function EarlyAccess() {
           <Input label="Full name" placeholder="Jean Dupont" required />
           <Input label="Company name" placeholder="Your company" />
           <Input label="Email" type="email" placeholder="jean@company.com" required />
-          <Input label="Phone" type="tel" placeholder="+33 6 00 00 00 00" />
+          <PhoneInput label="Phone" value={phone} onChange={setPhone} />
           <Select
             label="Profile type"
             options={[

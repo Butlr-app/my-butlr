@@ -1,10 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { DateInput } from '@/components/ui/DateInput'
+import { Select } from '@/components/ui/Select'
+import { useAuth } from '@/lib/authContext'
+import { formatDateForDisplay, localeForDateFormat } from '@/lib/dateFormat'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { uploadGeneratedContract } from '@/lib/contractFiles'
 import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import { FileDown, CheckCircle } from 'lucide-react'
+import { CalendarDays, FileDown, CheckCircle, Send } from 'lucide-react'
+import { fetchOwnerProperties } from '@/lib/data'
+import { fetchPropertyPricing } from '@/lib/propertyPricing'
+import { useReservationDetail } from '@/lib/reservationDetailContext'
+import type { Property } from '@/lib/types'
 
 interface FormData {
   tenantName: string
@@ -20,6 +31,8 @@ interface FormData {
   maxGuests: number
   bedrooms: number
   bathrooms: number
+  checkInTime: string
+  checkOutTime: string
 }
 
 const initialForm: FormData = {
@@ -36,12 +49,114 @@ const initialForm: FormData = {
   maxGuests: 16,
   bedrooms: 8,
   bathrooms: 8,
+  checkInTime: '16:00',
+  checkOutTime: '10:00',
 }
 
 export function ContractGenerate() {
+  const { profile, user } = useAuth()
+  const { openReservation } = useReservationDetail()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const reservationId = searchParams.get('reservation')
   const [form, setForm] = useState<FormData>(initialForm)
   const [toast, setToast] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [contractId, setContractId] = useState<string | null>(null)
+  const [prefillLoading, setPrefillLoading] = useState(Boolean(reservationId))
+  const [properties, setProperties] = useState<Property[]>([])
+  const [selectedPropertyId, setSelectedPropertyId] = useState('')
+  const [propertiesLoading, setPropertiesLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) return
+    let active = true
+    fetchOwnerProperties(user.id).then(({ data, error }) => {
+      if (!active) return
+      setProperties((data as Property[] | null) ?? [])
+      if (error) showToast(error.message)
+      setPropertiesLoading(false)
+    })
+    return () => { active = false }
+  }, [user])
+
+  useEffect(() => {
+    if (!selectedPropertyId) return
+    const property = properties.find(item => item.id === selectedPropertyId)
+    if (!property) return
+    let active = true
+
+    setForm(current => ({
+      ...current,
+      propertyName: property.name,
+      propertyAddress: property.address ?? property.location ?? '',
+      maxGuests: property.max_guests ?? 1,
+      bedrooms: property.bedrooms ?? 0,
+      bathrooms: property.bathrooms ?? 0,
+    }))
+
+    fetchPropertyPricing(property.id).then(result => {
+      if (!active || !result.settings) return
+      const settings = result.settings
+      setForm(current => ({
+        ...current,
+        depositAmount: settings.security_deposit,
+        checkInTime: settings.check_in_time,
+        checkOutTime: settings.check_out_time,
+      }))
+    })
+
+    return () => { active = false }
+  }, [selectedPropertyId, properties])
+
+  useEffect(() => {
+    if (!reservationId) return
+
+    const prefillFromReservation = async () => {
+      setPrefillLoading(true)
+      const [{ data: reservation, error: reservationError }, { data: contract }] = await Promise.all([
+        supabase
+          .from('reservations')
+          .select('*, properties(*)')
+          .eq('id', reservationId)
+          .single(),
+        supabase
+          .from('contracts')
+          .select('id')
+          .eq('reservation_id', reservationId)
+          .eq('type', 'rental')
+          .single(),
+      ])
+
+      if (reservationError || !reservation) {
+        showToast(reservationError?.message ?? 'Réservation introuvable.')
+        setPrefillLoading(false)
+        return
+      }
+
+      const property = reservation.properties
+      setSelectedPropertyId(reservation.property_id)
+      setForm(current => ({
+        ...current,
+        tenantName: reservation.guest_name ?? '',
+        tenantEmail: reservation.guest_email ?? '',
+        tenantPhone: reservation.guest_phone ?? '',
+        propertyName: property?.name ?? '',
+        propertyAddress: property?.address ?? property?.location ?? '',
+        rentAmount: Number(reservation.total_amount) || 0,
+        depositAmount: Math.round((Number(reservation.total_amount) || 0) * 0.3),
+        checkIn: reservation.arrival,
+        checkOut: reservation.departure,
+        maxGuests: property?.max_guests ?? reservation.guests_count ?? 1,
+        bedrooms: property?.bedrooms ?? 0,
+        bathrooms: property?.bathrooms ?? 0,
+      }))
+      setContractId(contract?.id ?? null)
+      setPrefillLoading(false)
+    }
+
+    prefillFromReservation()
+  }, [reservationId])
 
   const handleChange = (field: keyof FormData, value: string | number) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -52,7 +167,7 @@ export function ContractGenerate() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const generatePDF = () => {
+  const generatePDF = async (mode: 'download' | 'signature' = 'download') => {
     if (!form.tenantName || !form.propertyName || !form.checkIn || !form.checkOut) {
       showToast('Veuillez remplir tous les champs obligatoires (nom locataire, propriété, dates)')
       return
@@ -139,7 +254,7 @@ export function ContractGenerate() {
         },
         {
           title: '2. SÉJOUR',
-          content: `Le séjour se déroulera du ${form.checkIn} au ${form.checkOut}. Le nombre maximum d'occupants est limité à ${form.maxGuests} personnes. Le locataire déclare avoir pris connaissance de l'état des lieux à son arrivée.`
+          content: `Le séjour se déroulera du ${formatDateForDisplay(form.checkIn, profile?.date_format)} au ${formatDateForDisplay(form.checkOut, profile?.date_format)}. Le nombre maximum d'occupants est limité à ${form.maxGuests} personnes. Le locataire déclare avoir pris connaissance de l'état des lieux à son arrivée.`
         },
         {
           title: '3. MONTANT ET PAIEMENT',
@@ -171,7 +286,7 @@ export function ContractGenerate() {
         },
         {
           title: '10. CHECK-IN ET CHECK-OUT',
-          content: `Le check-in s'effectue entre 15h00 et 19h00 le jour d'arrivée. Le check-out est fixé à 10h00 le jour du départ. Tout retard sera facturé 50 euros par heure. Les clés doivent être remises au bailleur ou à son représentant désigné.`
+          content: `Le check-in s'effectue à partir de ${form.checkInTime.replace(':', 'h')} le jour d'arrivée. Le check-out est fixé à ${form.checkOutTime.replace(':', 'h')} le jour du départ. Tout retard doit être convenu au préalable avec le bailleur. Les clés doivent être remises au bailleur ou à son représentant désigné.`
         },
         {
           title: '11. SOUS-LOCATION',
@@ -234,7 +349,11 @@ export function ContractGenerate() {
       doc.text('Lu et approuvé, précédé de la mention "Lu et approuvé"', 20, y)
       y += 10
 
-      const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+      const today = new Date().toLocaleDateString(localeForDateFormat(profile?.date_format), {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      })
       doc.text(`Date : ${today}`, 20, y)
       y += 12
 
@@ -258,8 +377,28 @@ export function ContractGenerate() {
         doc.text(`Contrat de location saisonnière - ${form.propertyName} - Page ${i}/${totalPages}`, pageWidth / 2, 290, { align: 'center' })
       }
 
-      doc.save(`contrat-${form.propertyName.replace(/\s+/g, '-')}-${form.checkIn}.pdf`)
-      showToast('Contrat généré avec succès !')
+      const fileName = `contrat-${form.propertyName.replace(/\s+/g, '-')}-${form.checkIn}.pdf`
+
+      let archived = false
+      if (reservationId && contractId && user) {
+        await uploadGeneratedContract({
+          reservationId,
+          contractId,
+          userId: user.id,
+          fileName,
+          blob: doc.output('blob'),
+        })
+        archived = true
+      }
+
+      if (mode === 'download') {
+        doc.save(fileName)
+        showToast(archived
+          ? 'Contrat généré et enregistré dans le dossier.'
+          : 'Contrat généré avec succès !')
+      } else if (contractId) {
+        navigate(`/app/contracts/${contractId}?signature=1`)
+      }
     } catch (err) {
       console.error(err)
       showToast('Erreur lors de la génération du contrat.')
@@ -280,11 +419,29 @@ export function ContractGenerate() {
 
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Page Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Générateur de Contrat</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Générez un contrat de location saisonnière professionnel au format PDF.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Générateur de Contrat</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {reservationId
+                ? 'Les données de la réservation ont prérempli le modèle. Vérifiez-les avant de générer le PDF.'
+                : 'Générez un contrat de location saisonnière professionnel au format PDF.'}
+            </p>
+            {prefillLoading && (
+              <p className="mt-2 text-xs text-muted-foreground">Chargement de la réservation…</p>
+            )}
+          </div>
+          {reservationId && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => openReservation(reservationId)}
+            >
+              <CalendarDays className="mr-1.5 h-4 w-4" />
+              Voir la réservation
+            </Button>
+          )}
         </div>
 
         {/* Form */}
@@ -313,11 +470,10 @@ export function ContractGenerate() {
                   value={form.tenantEmail}
                   onChange={e => handleChange('tenantEmail', e.target.value)}
                 />
-                <Input
+                <PhoneInput
                   label="Téléphone"
-                  placeholder="+33 6 12 34 56 78"
                   value={form.tenantPhone}
-                  onChange={e => handleChange('tenantPhone', e.target.value)}
+                  onChange={value => handleChange('tenantPhone', value)}
                 />
                 <Input
                   label="Adresse"
@@ -331,6 +487,31 @@ export function ContractGenerate() {
             {/* Property Info */}
             <div>
               <h3 className="text-sm font-semibold mb-3 text-foreground/80 uppercase tracking-wide">Propriété</h3>
+              <div className="mb-4">
+                <Select
+                  label="Résidence My Butlr"
+                  value={selectedPropertyId}
+                  onChange={event => setSelectedPropertyId(event.target.value)}
+                  disabled={propertiesLoading || Boolean(reservationId)}
+                  options={[
+                    {
+                      value: '',
+                      label: propertiesLoading
+                        ? 'Chargement des résidences…'
+                        : 'Sélectionner une résidence',
+                    },
+                    ...properties.map(property => ({
+                      value: property.id,
+                      label: `${property.name}${property.location ? ` — ${property.location}` : ''}`,
+                    })),
+                  ]}
+                />
+                {reservationId && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    La résidence est verrouillée car ce contrat est rattaché à une réservation.
+                  </p>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Nom de la propriété"
@@ -370,17 +551,28 @@ export function ContractGenerate() {
             <div>
               <h3 className="text-sm font-semibold mb-3 text-foreground/80 uppercase tracking-wide">Dates</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
+                <DateInput
                   label="Check-in"
-                  type="date"
                   value={form.checkIn}
-                  onChange={e => handleChange('checkIn', e.target.value)}
+                  onChange={value => handleChange('checkIn', value)}
+                />
+                <DateInput
+                  label="Check-out"
+                  min={form.checkIn || undefined}
+                  value={form.checkOut}
+                  onChange={value => handleChange('checkOut', value)}
                 />
                 <Input
-                  label="Check-out"
-                  type="date"
-                  value={form.checkOut}
-                  onChange={e => handleChange('checkOut', e.target.value)}
+                  label="Heure d’arrivée"
+                  type="time"
+                  value={form.checkInTime}
+                  onChange={event => handleChange('checkInTime', event.target.value)}
+                />
+                <Input
+                  label="Heure de départ"
+                  type="time"
+                  value={form.checkOutTime}
+                  onChange={event => handleChange('checkOutTime', event.target.value)}
                 />
               </div>
             </div>
@@ -410,18 +602,30 @@ export function ContractGenerate() {
               </div>
             </div>
 
-            {/* Generate Button */}
-            <div className="pt-4 border-t border-border">
+            {/* Generate actions */}
+            <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
               <Button
                 size="lg"
                 variant="secondary"
-                onClick={generatePDF}
+                onClick={() => generatePDF('download')}
                 disabled={generating}
-                className="w-full"
               >
                 <FileDown className="w-4 h-4 mr-2" />
-                {generating ? 'Génération en cours...' : 'Générer le PDF'}
+                {generating ? 'Génération en cours...' : 'Enregistrer le brouillon PDF'}
               </Button>
+              <Button
+                size="lg"
+                onClick={() => generatePDF('signature')}
+                disabled={generating || !reservationId || !contractId}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Générer et envoyer en signature
+              </Button>
+              {(!reservationId || !contractId) && (
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  L’envoi en signature nécessite un contrat créé depuis une réservation.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

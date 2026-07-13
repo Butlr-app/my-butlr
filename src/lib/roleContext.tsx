@@ -1,18 +1,20 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
+import { useAuth } from './authContext'
 
 export type Role = 'owner' | 'house_manager' | 'concierge' | 'agency' | 'partner' | 'guest'
 
 interface RoleContextType {
   role: Role
-  setRole: (role: Role) => void
 }
 
-const RoleContext = createContext<RoleContextType>({ role: 'owner', setRole: () => {} })
+const RoleContext = createContext<RoleContextType>({ role: 'owner' })
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role>('owner')
+  const { profile } = useAuth()
+  const role = (profile?.role ?? 'owner') as Role
+
   return (
-    <RoleContext.Provider value={{ role, setRole }}>
+    <RoleContext.Provider value={{ role }}>
       {children}
     </RoleContext.Provider>
   )

@@ -82,7 +82,7 @@ export function InvoiceGenerate() {
     if (clientRef) doc.text(`Réf: ${clientRef}`, 14, 82)
 
     // Table
-    const tableData = items.map((item, i) => [
+    const tableData = items.map((item) => [
       item.description || '-',
       `${item.unitPrice.toFixed(2)} €`,
       `${item.vatPercent}%`,

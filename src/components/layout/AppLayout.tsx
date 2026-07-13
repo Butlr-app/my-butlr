@@ -1,20 +1,25 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { SaasAssistantChat } from '@/components/assistant/SaasAssistantChat'
+import { ReservationDetailProvider } from '@/lib/reservationDetailContext'
 
 const pageTitles: Record<string, string> = {
-  '/app': 'Overview',
-  '/app/properties': 'Properties',
-  '/app/reservations': 'Reservations',
-  '/app/guest-portal': 'Guest Portal',
-  '/app/services': 'Services',
-  '/app/tasks': 'Tasks',
-  '/app/calendar': 'Calendar',
-  '/app/partners': 'Partners',
-  '/app/payments': 'Payments',
-  '/app/contracts': 'Contracts',
-  '/app/reports': 'Reports',
-  '/app/settings': 'Settings',
+  '/app': 'Tableau de bord',
+  '/app/properties': 'Propriétés',
+  '/app/reservations': 'Réservations',
+  '/app/calendar': 'Calendrier',
+  '/app/tasks': 'Tâches',
+  '/app/guest-portal': 'Portail voyageur',
+  '/app/messages': 'Messages séjour',
+  '/app/stay-reserves': 'Réserve séjour',
+  '/app/services': 'Conciergerie',
+  '/app/boutique': 'Boutique',
+  '/app/payments': 'Paiements',
+  '/app/contracts': 'Contrats',
+  '/app/reports': 'Rapports',
+  '/app/partners': 'Partenaires',
+  '/app/settings': 'Paramètres',
 }
 
 export function AppLayout() {
@@ -22,14 +27,17 @@ export function AppLayout() {
   const title = pageTitles[location.pathname] || 'My Butlr'
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
-      <div className="ml-60">
-        <Topbar title={title} />
-        <main className="p-6">
-          <Outlet />
-        </main>
+    <ReservationDetailProvider>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        <div className="ml-60">
+          <Topbar title={title} />
+          <main className="p-6">
+            <Outlet />
+          </main>
+        </div>
+        <SaasAssistantChat />
       </div>
-    </div>
+    </ReservationDetailProvider>
   )
 }
