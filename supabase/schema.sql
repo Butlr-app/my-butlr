@@ -164,9 +164,18 @@ CREATE TABLE IF NOT EXISTS contracts (
   guest_name TEXT NOT NULL,
   property_name TEXT,
   type TEXT DEFAULT 'rental' CHECK (type IN ('rental', 'service', 'partnership')),
-  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'signed', 'expired')),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'signed', 'archived', 'expired')),
   date DATE DEFAULT CURRENT_DATE,
   document_url TEXT,
+  signing_token TEXT,
+  signing_expires_at TIMESTAMPTZ,
+  signer_email TEXT,
+  document_hash TEXT,
+  signed_document_url TEXT,
+  signed_at TIMESTAMPTZ,
+  signature_hash TEXT,
+  template_version TEXT,
+  template_snapshot JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -262,7 +271,20 @@ CREATE TABLE IF NOT EXISTS contract_templates (
 );
 
 ALTER TABLE contract_templates ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated manage contract_templates" ON contract_templates FOR ALL TO authenticated USING (true);
+DROP POLICY IF EXISTS "Authenticated manage contract_templates" ON contract_templates;
+CREATE POLICY "Users read own templates"
+  ON contract_templates FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+CREATE POLICY "Users insert own templates"
+  ON contract_templates FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users update own templates"
+  ON contract_templates FOR UPDATE TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users delete own templates"
+  ON contract_templates FOR DELETE TO authenticated
+  USING (user_id = auth.uid());
 
 -- ─── Notifications table ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notifications (

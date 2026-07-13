@@ -1,4 +1,20 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -6,19 +22,27 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useToast } from '@/components/ui/Toast'
-import { useProperties, useReservations } from '@/lib/useSupabase'
+import { useProperties, useReservations, useNotifications } from '@/lib/useSupabase'
 import { useContractTemplates } from '@/lib/useContractTemplates'
+import { uploadFile } from '@/lib/storage'
+import { supabase } from '@/lib/supabase'
+import { sha256Blob } from '@/lib/cryptoHash'
 import {
   FileText, Download, Loader2, ChevronRight, ChevronLeft, Plus, Trash2,
   GripVertical, Eye, EyeOff, Pencil, Save, Copy, Settings2, BookOpen,
   AlertTriangle, CheckCircle2, Users, Building2, CreditCard, Calendar,
 } from 'lucide-react'
-import { jsPDF } from 'jspdf'
 import {
   createDefaultTemplate,
   type ContractArticle,
   type ContractTemplate,
 } from '@/data/defaultContractTemplate'
+import {
+  generateContractPDF,
+  type TenantForm,
+  type IntermediaryForm,
+  type StayForm,
+} from '@/lib/contractPdf'
 
 // ─── Step indicator ────────────────────────────────────────────────────────
 
@@ -54,44 +78,6 @@ function StepIndicator({ current, onStep }: { current: number; onStep: (s: numbe
   )
 }
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-
-interface TenantForm {
-  name: string
-  address: string
-  phone: string
-  email: string
-  birthDate: string
-  birthPlace: string
-  nationality: string
-  idType: string
-  idNumber: string
-  idIssued: string
-  idExpiry: string
-}
-
-interface IntermediaryForm {
-  enabled: boolean
-  name: string
-  description: string
-}
-
-interface StayForm {
-  propertyId: string
-  propertyName: string
-  propertyAddress: string
-  arrivalDate: string
-  departureDate: string
-  arrivalTime: string
-  departureTime: string
-  guestsCount: string
-  maxGuests: string
-  rentAmount: string
-  depositAmount: string
-  taxesIncluded: boolean
-  reservationId: string
-}
-
 // ─── Article editor component ──────────────────────────────────────────────
 
 function ArticleEditor({
@@ -99,11 +85,13 @@ function ArticleEditor({
   onUpdate,
   onRemove,
   onToggle,
+  dragHandleProps,
 }: {
   article: ContractArticle
   onUpdate: (a: ContractArticle) => void
   onRemove: () => void
   onToggle: () => void
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>
 }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(article.title)
@@ -123,7 +111,9 @@ function ArticleEditor({
   return (
     <div className={`border rounded-md transition-colors ${article.enabled ? 'border-border bg-card' : 'border-border/50 bg-muted/30 opacity-60'}`}>
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab shrink-0" />
+        <span {...dragHandleProps} className="touch-none">
+          <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab shrink-0" />
+        </span>
         <span className="text-xs tabular-nums text-muted-foreground w-8 shrink-0">Art. {article.number}</span>
 
         {editing ? (
@@ -189,539 +179,61 @@ function ArticleEditor({
   )
 }
 
-// ─── PDF Generator ─────────────────────────────────────────────────────────
+function SortableArticleEditor({
+  article,
+  onUpdate,
+  onRemove,
+  onToggle,
+}: {
+  article: ContractArticle
+  onUpdate: (a: ContractArticle) => void
+  onRemove: () => void
+  onToggle: () => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: article.id })
 
-function generateContractPDF(
-  template: ContractTemplate,
-  tenant: TenantForm,
-  intermediary: IntermediaryForm,
-  stay: StayForm,
-) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210
-  const H = 297
-  const margin = 20
-  const cw = W - margin * 2
-  let y = 0
-
-  const headerText = `Contrat de location saisonniere — ${stay.propertyName}`
-  const footerHeight = 16
-
-  const checkPage = (needed = 6) => {
-    if (y > H - margin - footerHeight - needed) {
-      doc.addPage()
-      y = margin
-    }
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
   }
 
-  const addLine = (text: string, fontSize = 9, bold = false, align: 'left' | 'center' | 'right' = 'left') => {
-    doc.setFontSize(fontSize)
-    doc.setFont('helvetica', bold ? 'bold' : 'normal')
-    const lines = doc.splitTextToSize(text, cw)
-    for (const line of lines) {
-      checkPage(fontSize * 0.42)
-      const x = align === 'center' ? W / 2 : align === 'right' ? W - margin : margin
-      doc.text(line, x, y, { align })
-      y += fontSize * 0.42
-    }
-    y += 1.5
-  }
-
-  const addSpace = (h = 3) => { y += h }
-
-  const addSeparator = () => {
-    checkPage(4)
-    doc.setDrawColor(200)
-    doc.setLineWidth(0.3)
-    doc.line(margin, y, W - margin, y)
-    y += 4
-  }
-
-  // Replace template variables
-  const replaceVars = (text: string): string => {
-    return text
-      .replace(/\{bailleur_company\}/g, template.bailleur.company)
-      .replace(/\{bailleur_representative\}/g, template.bailleur.representative)
-      .replace(/\{tenant_name\}/g, tenant.name)
-      .replace(/\{property_name\}/g, stay.propertyName)
-      .replace(/\{property_address\}/g, stay.propertyAddress)
-      .replace(/\{rent\}/g, Number(stay.rentAmount).toLocaleString('fr-FR'))
-      .replace(/\{deposit\}/g, Number(stay.depositAmount).toLocaleString('fr-FR'))
-      .replace(/\{max_guests\}/g, stay.maxGuests || stay.guestsCount)
-      .replace(/\{surface\}/g, String(template.propertyDefaults.surface))
-      .replace(/\{bedrooms\}/g, String(template.propertyDefaults.bedrooms))
-      .replace(/\{checkin_time\}/g, stay.arrivalTime || template.propertyDefaults.checkinTime)
-      .replace(/\{checkout_time\}/g, stay.departureTime || template.propertyDefaults.checkoutTime)
-  }
-
-  // Calculate nights
-  const calcNights = () => {
-    if (!stay.arrivalDate || !stay.departureDate) return 0
-    const a = new Date(stay.arrivalDate)
-    const d = new Date(stay.departureDate)
-    return Math.max(0, Math.round((d.getTime() - a.getTime()) / 86400000))
-  }
-
-  // ─── PAGE 1: Cover ───────────────────────────────────────────────────
-
-  y = 40
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(120)
-  doc.text('C O N T R A T   D E   L O C A T I O N   S A I S O N N I E R E', W / 2, y, { align: 'center' })
-  y += 8
-  doc.setFontSize(9)
-  doc.text('T H E   F R E N C H   W A Y', W / 2, y, { align: 'center' })
-  doc.setTextColor(0)
-
-  y += 14
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.text(stay.propertyName, W / 2, y, { align: 'center' })
-  y += 6
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100)
-  doc.text(`Location saisonniere de prestige · ${stay.propertyAddress.split(',').pop()?.trim() || ''}`, W / 2, y, { align: 'center' })
-  doc.setTextColor(0)
-
-  y += 20
-  addSeparator()
-
-  // Bailleur block
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(120)
-  doc.text('L E   B A I L L E U R', margin, y)
-  doc.setTextColor(0)
-  y += 5
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text(template.bailleur.company, margin, y)
-  y += 4
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Representee par ${template.bailleur.representative}`, margin, y)
-  y += 4
-  doc.text(`RCS Montpellier ${template.bailleur.rcs}`, margin, y)
-  y += 4
-  doc.text(template.bailleur.address, margin, y)
-
-  y += 12
-  addSeparator()
-
-  // Locataire block
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  doc.text('L E   L O C A T A I R E', margin, y)
-  doc.setTextColor(0)
-  y += 5
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text(tenant.name || '[Nom du locataire]', margin, y)
-  y += 4
-  doc.setFont('helvetica', 'normal')
-  if (tenant.address) { doc.text(tenant.address, margin, y); y += 4 }
-  if (tenant.nationality) { doc.text(`Nationalite : ${tenant.nationality}`, margin, y); y += 4 }
-  if (tenant.birthDate) {
-    const bd = `Date de naissance : ${tenant.birthDate}${tenant.birthPlace ? ` a ${tenant.birthPlace}` : ''}`
-    doc.text(bd, margin, y)
-    y += 4
-  }
-  if (tenant.idType && tenant.idNumber) {
-    let idLine = `Piece d'identite : ${tenant.idType} n° ${tenant.idNumber}`
-    if (tenant.idIssued) idLine += ` (delivre le ${tenant.idIssued}`
-    if (tenant.idExpiry) idLine += `, valable jusqu'au ${tenant.idExpiry}`
-    if (tenant.idIssued) idLine += ')'
-    const idLines = doc.splitTextToSize(idLine, cw)
-    for (const l of idLines) { doc.text(l, margin, y); y += 4 }
-  }
-
-  if (intermediary.enabled && intermediary.name) {
-    y += 6
-    addSeparator()
-    doc.setFontSize(8)
-    doc.setTextColor(120)
-    doc.text('I N T E R M E D I A I R E', margin, y)
-    doc.setTextColor(0)
-    y += 5
-    doc.setFontSize(9)
-    const intText = intermediary.description || `La presente reservation est realisee par l'intermediaire de ${intermediary.name}, agissant pour le compte du Locataire.`
-    const intLines = doc.splitTextToSize(intText, cw)
-    for (const l of intLines) { doc.text(l, margin, y); y += 4 }
-  }
-
-  y += 8
-  doc.setFontSize(8)
-  doc.setTextColor(100)
-  const stayLine = `Sejour du ${stay.arrivalDate || '[date]'} au ${stay.departureDate || '[date]'} · ${stay.propertyName}, ${stay.propertyAddress}`
-  const stayLines = doc.splitTextToSize(stayLine, cw)
-  for (const l of stayLines) { doc.text(l, margin, y); y += 3.5 }
-  doc.setTextColor(0)
-
-  // ─── PAGE 2: Sommaire ────────────────────────────────────────────────
-
-  doc.addPage()
-  y = margin
-
-  const activeArticles = template.articles.filter(a => a.enabled)
-
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  doc.text('S O M M A I R E', margin, y)
-  doc.setTextColor(0)
-  y += 8
-
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.text('C O N T R A T   D E   L O C A T I O N', margin, y)
-  y += 6
-
-  for (const art of activeArticles) {
-    doc.setFont('helvetica', 'bold')
-    doc.text(`Art. ${art.number}`, margin + 4, y)
-    doc.setFont('helvetica', 'normal')
-    doc.text(art.title, margin + 20, y)
-    y += 5
-  }
-
-  // Highlighted articles summary
-  const highlighted = activeArticles.filter(a => a.isHighlighted)
-  if (highlighted.length > 0) {
-    y += 6
-    doc.setFontSize(8)
-    doc.setTextColor(120)
-    doc.text('E N C A D R E S   C L E S', margin, y)
-    doc.setTextColor(0)
-    y += 6
-    doc.setFontSize(9)
-    highlighted.forEach((h, idx) => {
-      const circleNum = String.fromCharCode(9312 + idx) // unicode circled numbers
-      doc.setFont('helvetica', 'bold')
-      doc.text(`${circleNum}`, margin + 4, y)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`${h.highlightLabel || h.title} — Art. ${h.number}`, margin + 12, y)
-      y += 5
-    })
-  }
-
-  // ─── PAGE 3+: Preamble + Articles ────────────────────────────────────
-
-  doc.addPage()
-  y = margin
-
-  // Preamble
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  doc.text(`C O N T R A T   D E   L O C A T I O N   S A I S O N N I E R E   —   ${stay.propertyName.toUpperCase().split('').join(' ')}`, margin, y)
-  doc.setTextColor(0)
-  y += 6
-
-  addLine('Le present contrat de location saisonniere est conclu entre les soussignes :', 9)
-  addSpace(4)
-
-  // Bailleur in-text
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  doc.text('L E   B A I L L E U R', margin, y)
-  doc.setTextColor(0)
-  y += 5
-  const bailleurText = `${template.bailleur.company}, representee par ${template.bailleur.representative}, dont le siege social est situe ${template.bailleur.address}, immatriculee au RCS de Montpellier sous le numero ${template.bailleur.rcs} (SIRET ${template.bailleur.siret}). Telephone : ${template.bailleur.phone} — Email : ${template.bailleur.email}. Ci-apres denommee "le Bailleur" ou "le Proprietaire".`
-  addLine(bailleurText, 9)
-  addSpace(4)
-
-  // Locataire in-text
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  doc.text('L E   L O C A T A I R E', margin, y)
-  doc.setTextColor(0)
-  y += 5
-  let locText = `Nom et prenom : ${tenant.name || '[...]'}`
-  if (tenant.address) locText += ` — Adresse : ${tenant.address}`
-  if (tenant.phone) locText += ` — Telephone : ${tenant.phone}`
-  if (tenant.email) locText += ` — Email : ${tenant.email}`
-  locText += '.'
-  if (tenant.birthDate) locText += ` Date de naissance : ${tenant.birthDate}${tenant.birthPlace ? ` a ${tenant.birthPlace}` : ''}.`
-  if (tenant.nationality) locText += ` Nationalite : ${tenant.nationality}.`
-  if (tenant.idType && tenant.idNumber) {
-    locText += ` Piece d'identite : ${tenant.idType} n° ${tenant.idNumber}`
-    if (tenant.idIssued) locText += ` (delivre le ${tenant.idIssued}`
-    if (tenant.idExpiry) locText += `, valable jusqu'au ${tenant.idExpiry}`
-    if (tenant.idIssued) locText += ')'
-    locText += '.'
-  }
-  locText += ' Ci-apres denomme "le Locataire".'
-  addLine(locText, 9)
-  addSpace(4)
-
-  // Intermediary if applicable
-  if (intermediary.enabled && intermediary.name) {
-    doc.setFontSize(8)
-    doc.setTextColor(120)
-    doc.text('I N T E R M E D I A I R E', margin, y)
-    doc.setTextColor(0)
-    y += 5
-    addLine(intermediary.description || `La presente reservation est realisee par l'intermediaire de ${intermediary.name}, agissant pour le compte du Locataire.`, 9)
-    addSpace(4)
-  }
-
-  addLine('Le Locataire certifie l\'exactitude des informations fournies et s\'engage a prevenir le Bailleur de toute modification eventuelle.', 9)
-  addSpace(2)
-  addLine('Ceci etant expose, il a ete convenu et arrete ce qui suit.', 9, true)
-  addSpace(6)
-
-  // ─── Articles ────────────────────────────────────────────────────────
-
-  let highlightIdx = 0
-
-  for (const art of activeArticles) {
-    addSeparator()
-
-    // Article header
-    doc.setFontSize(8)
-    doc.setTextColor(120)
-    checkPage(8)
-    doc.text(`Article ${art.number}`, margin, y)
-    doc.setTextColor(0)
-    y += 5
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
-    checkPage(6)
-    doc.text(art.title, margin, y)
-    doc.setFont('helvetica', 'normal')
-    y += 6
-
-    // Special content for article 2 (stay details box)
-    if (art.number === 2) {
-      doc.setFontSize(9)
-      addLine(replaceVars(art.content.split('\n')[0] || art.content), 9)
-      addSpace(2)
-
-      // Property info box
-      const boxY = y
-      doc.setFillColor(248, 248, 248)
-      doc.roundedRect(margin, boxY, cw, 32, 2, 2, 'F')
-
-      doc.setFontSize(7)
-      doc.setTextColor(120)
-      const col1 = margin + 4
-      const col2 = margin + cw / 2 + 4
-
-      y = boxY + 6
-      doc.text('V I L L A', col1, y); doc.text('A D R E S S E', col2, y)
-      y += 4
-      doc.setTextColor(0)
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text(stay.propertyName, col1, y)
-      doc.setFont('helvetica', 'normal')
-      const addrLines = doc.splitTextToSize(stay.propertyAddress, cw / 2 - 8)
-      for (const l of addrLines) { doc.text(l, col2, y); y += 4 }
-
-      y = boxY + 18
-      doc.setFontSize(7)
-      doc.setTextColor(120)
-      doc.text("D A T E   D ' A R R I V E E", col1, y)
-      doc.text('D A T E   D E   D E P A R T', col2, y)
-      y += 4
-      doc.setTextColor(0)
-      doc.setFontSize(9)
-      doc.text(`${stay.arrivalDate || '[...]'} — ${stay.arrivalTime || '14h00'}`, col1, y)
-      doc.text(`${stay.departureDate || '[...]'} — ${stay.departureTime || '11h00'}`, col2, y)
-
-      y = boxY + 36
-      const nights = calcNights()
-      doc.setFontSize(7)
-      doc.setTextColor(120)
-      doc.text('N O M B R E   D E   N U I T E E S', col1, y)
-      doc.text('N O M B R E   D E   P E R S O N N E S', col2, y)
-      y += 4
-      doc.setTextColor(0)
-      doc.setFontSize(9)
-      doc.text(`${nights} nuit${nights > 1 ? 's' : ''}`, col1, y)
-      doc.text(`${stay.guestsCount || '[...]'} (${stay.maxGuests || '16'} maximum)`, col2, y)
-
-      y = boxY + 46
-      addSpace(4)
-
-      // Remaining paragraph
-      const restLines = art.content.split('\n').slice(1)
-      if (restLines.length > 0) {
-        addLine(replaceVars(restLines.join('\n').trim()), 9)
-      }
-      continue
-    }
-
-    // Special content for article 3 (payment box)
-    if (art.number === 3) {
-      const boxY = y
-      doc.setFillColor(248, 248, 248)
-      doc.roundedRect(margin, boxY, cw, 20, 2, 2, 'F')
-
-      doc.setFontSize(7)
-      doc.setTextColor(120)
-      const col1 = margin + 4
-      const col2 = margin + cw / 3 + 4
-      const col3 = margin + (cw * 2) / 3 + 4
-
-      y = boxY + 6
-      doc.text('M O N T A N T   N E T', col1, y)
-      doc.text('A   R E G L E R', col2, y)
-      doc.text('T A X E S', col3, y)
-      y += 4
-      doc.setTextColor(0)
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`${Number(stay.rentAmount).toLocaleString('fr-FR')} EUR`, col1, y)
-      doc.setFont('helvetica', 'normal')
-      doc.text('A la signature', col2, y)
-      doc.text(stay.taxesIncluded ? 'Incluses' : 'Non incluses', col3, y)
-
-      y += 4
-      doc.setFontSize(7)
-      doc.setTextColor(120)
-      doc.text('D E P O T   D E   G A R A N T I E', col1, y)
-      y += 4
-      doc.setTextColor(0)
-      doc.setFontSize(9)
-      doc.text(`${Number(stay.depositAmount).toLocaleString('fr-FR')} EUR (voir Article 4)`, col1, y)
-
-      y = boxY + 24
-      addSpace(2)
-      addLine(replaceVars(art.content), 9)
-      continue
-    }
-
-    // Special content for article 10 (check-in/out box)
-    if (art.number === 10) {
-      // Highlighted box
-      if (art.isHighlighted) {
-        highlightIdx++
-        checkPage(16)
-        doc.setFillColor(245, 245, 245)
-        doc.roundedRect(margin, y, cw, 14, 2, 2, 'F')
-        doc.setFontSize(7)
-        doc.setTextColor(120)
-        const col1 = margin + 4
-        const col2 = margin + cw / 2 + 4
-        y += 5
-        doc.text("H E U R E   D ' A R R I V E E   ( C H E C K - I N )", col1, y)
-        doc.text('H E U R E   D E   D E P A R T   ( C H E C K - O U T )', col2, y)
-        y += 4
-        doc.setTextColor(0)
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text(stay.arrivalTime || template.propertyDefaults.checkinTime, col1, y)
-        doc.text(stay.departureTime || template.propertyDefaults.checkoutTime, col2, y)
-        doc.setFont('helvetica', 'normal')
-        y += 8
-      }
-      addLine(replaceVars(art.content), 9)
-      continue
-    }
-
-    // Highlighted box for deposit article
-    if (art.isHighlighted && art.number === 4) {
-      highlightIdx++
-      checkPage(10)
-      doc.setFillColor(245, 245, 245)
-      doc.roundedRect(margin, y, cw, 10, 2, 2, 'F')
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      y += 6
-      doc.text(`Depot de garantie : ${Number(stay.depositAmount).toLocaleString('fr-FR')} EUR — encaisse par la societe ${template.bailleur.company}.`, margin + 4, y)
-      doc.setFont('helvetica', 'normal')
-      y += 8
-    }
-
-    // Regular content
-    addLine(replaceVars(art.content), 9)
-  }
-
-  // ─── LAST PAGE: Signatures ───────────────────────────────────────────
-
-  addSpace(10)
-  addSeparator()
-
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  checkPage(40)
-  doc.text('S I G N A T U R E S   D E S   P A R T I E S', margin, y)
-  doc.setTextColor(0)
-  y += 6
-
-  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-  addLine(`Fait en deux (2) exemplaires originaux, dont un remis a chaque partie, a Saint-Aunes, le ${today}. Les parties declarent avoir pris connaissance du contrat et en accepter tous les termes, clauses et conditions, sans reserve ni restriction.`, 9)
-  addSpace(8)
-
-  // Two columns for signatures
-  const sigLeftX = margin
-  const sigRightX = W / 2 + 8
-
-  doc.setFontSize(8)
-  doc.setTextColor(120)
-  doc.text('L E   B A I L L E U R', sigLeftX, y)
-  doc.text('L E   L O C A T A I R E', sigRightX, y)
-  doc.setTextColor(0)
-  y += 5
-
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text(template.bailleur.company, sigLeftX, y)
-  doc.text(tenant.name || '[Nom du locataire]', sigRightX, y)
-  y += 4
-  doc.setFont('helvetica', 'normal')
-  doc.text(template.bailleur.representative, sigLeftX, y)
-  y += 8
-
-  doc.setFont('helvetica', 'italic')
-  doc.text('Mention manuscrite : "Lu et approuve"', sigLeftX, y)
-  doc.text('Mention manuscrite : "Lu et approuve"', sigRightX, y)
-  y += 5
-  doc.text('Nom, qualite et signature', sigLeftX, y)
-  doc.text('Nom, prenom et signature', sigRightX, y)
-  y += 12
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(100)
-  doc.text('Paraphes : a apposer en pied de chaque page du present contrat par chacune des parties.', margin, y)
-  doc.setTextColor(0)
-
-  // ─── Headers & Footers on every page ─────────────────────────────────
-
-  const totalPages = doc.getNumberOfPages()
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i)
-
-    // Header (except page 1)
-    if (i > 1) {
-      doc.setFontSize(7)
-      doc.setTextColor(150)
-      doc.text(`${i} / ${totalPages}`, margin, 10)
-      doc.text(headerText, W - margin, 10, { align: 'right' })
-      doc.setTextColor(0)
-    }
-
-    // Footer
-    doc.setFontSize(7)
-    doc.setTextColor(150)
-    doc.text(`${template.bailleur.company} — ${template.bailleur.address} — ${template.bailleur.email}`, W / 2, H - 8, { align: 'center' })
-    doc.setTextColor(0)
-  }
-
-  return doc
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <ArticleEditor
+        article={article}
+        onUpdate={onUpdate}
+        onRemove={onRemove}
+        onToggle={onToggle}
+        dragHandleProps={listeners}
+      />
+    </div>
+  )
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────
 
 export function ContractGenerator() {
   const { toast } = useToast()
+  const navigate = useNavigate()
+  const { insertNotification } = useNotifications()
   const { data: properties } = useProperties()
   const { data: reservations } = useReservations()
-  const { templates, loading: templatesLoading, saveTemplate, deleteTemplate } = useContractTemplates()
+  const { templates, loading: templatesLoading, saveTemplate, updateTemplate, deleteTemplate } = useContractTemplates()
 
   const [step, setStep] = useState(0)
   const [generating, setGenerating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
 
   // Template state
   const [template, setTemplate] = useState<ContractTemplate>(createDefaultTemplate)
@@ -812,12 +324,22 @@ export function ContractGenerator() {
   const handlePropertyChange = (id: string) => {
     const prop = properties.find(p => p.id === id)
     if (prop) {
+      const maxGuests = prop.max_guests || template.propertyDefaults.maxGuests
+      setTemplate(t => ({
+        ...t,
+        propertyDefaults: {
+          ...t.propertyDefaults,
+          surface: prop.surface_m2 ?? t.propertyDefaults.surface,
+          bedrooms: prop.bedrooms ?? t.propertyDefaults.bedrooms,
+          maxGuests,
+        },
+      }))
       setStay(s => ({
         ...s,
         propertyId: id,
         propertyName: prop.name,
         propertyAddress: prop.location ?? '',
-        maxGuests: String(prop.max_guests || template.propertyDefaults.maxGuests),
+        maxGuests: String(maxGuests),
       }))
     }
   }
@@ -844,6 +366,26 @@ export function ContractGenerator() {
     }))
   }
 
+  const handleArticleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    setTemplate(t => {
+      const oldIndex = t.articles.findIndex(a => a.id === active.id)
+      const newIndex = t.articles.findIndex(a => a.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return t
+      const reordered = arrayMove(t.articles, oldIndex, newIndex).map((a, i) => ({
+        ...a,
+        number: i + 1,
+      }))
+      return { ...t, articles: reordered }
+    })
+  }
+
+  const articleSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
+
   const addArticle = () => {
     if (!newArticleTitle.trim()) {
       toast('Titre requis', 'error')
@@ -857,6 +399,7 @@ export function ContractGenerator() {
         {
           id: crypto.randomUUID(),
           number: nextNum,
+          kind: 'generic' as const,
           title: newArticleTitle,
           content: newArticleContent || 'Contenu de l\'article...',
           enabled: true,
@@ -870,20 +413,38 @@ export function ContractGenerator() {
     toast('Article ajoute')
   }
 
-  // Save template
+  // Save template (create new, or update selected saved template)
   const handleSaveTemplate = async () => {
-    if (!templateName.trim()) {
+    const isUpdating = selectedTemplateId !== 'default'
+    const name = (templateName.trim() || (isUpdating
+      ? templates.find(t => t.id === selectedTemplateId)?.name ?? ''
+      : '')).trim()
+    if (!name) {
       toast('Nom du modele requis', 'error')
       return
     }
     try {
-      await saveTemplate(templateName, template)
-      toast('Modele sauvegarde')
+      if (isUpdating) {
+        await updateTemplate(selectedTemplateId, name, template)
+        toast('Modele mis a jour')
+      } else {
+        const created = await saveTemplate(name, template)
+        setSelectedTemplateId(created.id)
+        toast('Modele sauvegarde')
+      }
       setShowSaveModal(false)
       setTemplateName('')
     } catch (err) {
       toast((err as Error).message, 'error')
     }
+  }
+
+  const openSaveModal = () => {
+    const existing = selectedTemplateId !== 'default'
+      ? templates.find(t => t.id === selectedTemplateId)?.name ?? ''
+      : ''
+    setTemplateName(existing)
+    setShowSaveModal(true)
   }
 
   // Delete template
@@ -901,16 +462,48 @@ export function ContractGenerator() {
     setDeleteConfirm(null)
   }
 
-  // Generate
-  const handleGenerate = () => {
+  const validateContractForm = () => {
     if (!tenant.name) {
       toast('Nom du locataire requis', 'error')
-      return
+      return false
     }
     if (!stay.arrivalDate || !stay.departureDate) {
       toast('Dates du sejour requises', 'error')
-      return
+      return false
     }
+    return true
+  }
+
+  const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+    setPreviewUrl(null)
+    setPreviewOpen(false)
+  }
+
+  const handlePreviewPdf = async () => {
+    if (!validateContractForm()) return
+
+    setPreviewing(true)
+    try {
+      const doc = generateContractPDF(template, tenant, intermediary, stay)
+      const blob = doc.output('blob')
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+      const url = URL.createObjectURL(blob)
+      setPreviewUrl(url)
+      setPreviewOpen(true)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setPreviewing(false)
+  }
+
+  // Generate PDF download only
+  const handleGenerate = () => {
+    if (!validateContractForm()) return
 
     setGenerating(true)
     try {
@@ -922,6 +515,60 @@ export function ContractGenerator() {
       toast((err as Error).message, 'error')
     }
     setGenerating(false)
+  }
+
+  // Persist contract row + upload PDF so signing / guest portal can open it
+  const handleSaveAndCreate = async () => {
+    if (!validateContractForm()) return
+
+    setSaving(true)
+    try {
+      const doc = generateContractPDF(template, tenant, intermediary, stay)
+      const safeProperty = stay.propertyName.replace(/\s+/g, '-').toLowerCase() || 'propriete'
+      const safeGuest = tenant.name.replace(/\s+/g, '-').toLowerCase() || 'locataire'
+      const fileName = `contrat-${safeProperty}-${safeGuest}.pdf`
+      const blob = doc.output('blob')
+      const document_hash = await sha256Blob(blob)
+      const file = new File([blob], fileName, { type: 'application/pdf' })
+      const documentUrl = await uploadFile('contracts', file)
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: created, error } = await supabase
+        .from('contracts')
+        .insert({
+          guest_name: tenant.name,
+          property_name: stay.propertyName || null,
+          type: 'rental',
+          status: 'draft',
+          date: stay.arrivalDate || new Date().toISOString().split('T')[0],
+          reservation_id: stay.reservationId || null,
+          document_url: documentUrl,
+          document_hash,
+          template_version: template.version ?? '2026.07.1',
+          template_snapshot: template,
+        })
+        .select()
+        .single()
+
+      if (error) throw new Error(error.message)
+
+      await insertNotification({
+        user_id: user?.id ?? null,
+        type: 'system',
+        title: 'Contrat cree',
+        message: `Contrat de location pour ${tenant.name} — ${stay.propertyName}`,
+        data: { contract_id: created.id },
+        related_id: created.id,
+      })
+
+      // Also offer a local download of the same PDF
+      doc.save(fileName)
+      toast('Contrat enregistre et PDF genere')
+      navigate('/app/contracts')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+    setSaving(false)
   }
 
   // Active articles count
@@ -944,13 +591,21 @@ export function ContractGenerator() {
           Generateur de contrats
         </p>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setShowSaveModal(true)}>
+          <Button size="sm" variant="secondary" onClick={openSaveModal}>
             <Save className="w-4 h-4 mr-2" />
-            Sauvegarder modele
+            {selectedTemplateId === 'default' ? 'Sauvegarder modele' : 'Mettre a jour modele'}
           </Button>
-          <Button size="sm" onClick={handleGenerate} disabled={generating}>
+          <Button size="sm" variant="secondary" onClick={handlePreviewPdf} disabled={generating || saving || previewing}>
+            {previewing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+            Apercu PDF
+          </Button>
+          <Button size="sm" variant="secondary" onClick={handleGenerate} disabled={generating || saving || previewing}>
             {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
             Generer PDF
+          </Button>
+          <Button size="sm" onClick={handleSaveAndCreate} disabled={generating || saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Enregistrer & creer
           </Button>
         </div>
       </div>
@@ -1200,17 +855,28 @@ export function ContractGenerator() {
             </Button>
           </div>
 
-          <div className="space-y-2">
-            {template.articles.map(article => (
-              <ArticleEditor
-                key={article.id}
-                article={article}
-                onUpdate={a => updateArticle(article.id, a)}
-                onRemove={() => removeArticle(article.id)}
-                onToggle={() => toggleArticle(article.id)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={articleSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleArticleDragEnd}
+          >
+            <SortableContext
+              items={template.articles.map(a => a.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {template.articles.map(article => (
+                  <SortableArticleEditor
+                    key={article.id}
+                    article={article}
+                    onUpdate={a => updateArticle(article.id, a)}
+                    onRemove={() => removeArticle(article.id)}
+                    onToggle={() => toggleArticle(article.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
@@ -1304,11 +970,19 @@ export function ContractGenerator() {
             </div>
           </Card>
 
-          {/* Generate button */}
-          <div className="flex justify-end">
-            <Button size="lg" onClick={handleGenerate} disabled={generating}>
+          {/* Generate / save buttons */}
+          <div className="flex justify-end gap-2">
+            <Button size="lg" variant="secondary" onClick={handlePreviewPdf} disabled={generating || saving || previewing}>
+              {previewing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              Apercu PDF
+            </Button>
+            <Button size="lg" variant="secondary" onClick={handleGenerate} disabled={generating || saving || previewing}>
               {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
               Generer le PDF
+            </Button>
+            <Button size="lg" onClick={handleSaveAndCreate} disabled={generating || saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              Enregistrer & creer
             </Button>
           </div>
         </div>
@@ -1336,7 +1010,11 @@ export function ContractGenerator() {
       </div>
 
       {/* ─── Save template modal ────────────────────────────────────────── */}
-      <Modal open={showSaveModal} onClose={() => setShowSaveModal(false)} title="Sauvegarder le modele">
+      <Modal
+        open={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        title={selectedTemplateId === 'default' ? 'Sauvegarder le modele' : 'Mettre a jour le modele'}
+      >
         <div className="space-y-4">
           <Input
             label="Nom du modele"
@@ -1345,11 +1023,15 @@ export function ContractGenerator() {
             placeholder="ex: Contrat Villa Saint-Tropez"
           />
           <p className="text-xs text-muted-foreground">
-            Le modele sera sauvegarde avec les {template.articles.length} articles actuels et les informations du bailleur.
+            {selectedTemplateId === 'default'
+              ? `Le modele sera cree avec les ${template.articles.length} articles actuels et les informations du bailleur.`
+              : `Le modele selectionne sera mis a jour avec les ${template.articles.length} articles actuels et les informations du bailleur.`}
           </p>
           <div className="flex gap-3 justify-end">
             <Button size="sm" variant="secondary" onClick={() => setShowSaveModal(false)}>Annuler</Button>
-            <Button size="sm" onClick={handleSaveTemplate}>Sauvegarder</Button>
+            <Button size="sm" onClick={handleSaveTemplate}>
+              {selectedTemplateId === 'default' ? 'Sauvegarder' : 'Mettre a jour'}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -1377,6 +1059,24 @@ export function ContractGenerator() {
             <Button size="sm" onClick={addArticle}>Ajouter</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ─── PDF preview modal ─────────────────────────────────────────── */}
+      <Modal
+        open={previewOpen}
+        onClose={closePreview}
+        title="Apercu PDF"
+        className="max-w-4xl"
+      >
+        {previewUrl ? (
+          <iframe
+            src={previewUrl}
+            title="Apercu du contrat PDF"
+            className="w-full h-[70vh] border border-border rounded-md"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Aucun apercu disponible.</p>
+        )}
       </Modal>
 
       {/* ─── Delete template confirm ────────────────────────────────────── */}

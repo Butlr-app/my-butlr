@@ -159,6 +159,14 @@ export interface Contract {
   date: string
   document_url: string | null
   signing_token: string | null
+  signing_expires_at: string | null
+  signer_email: string | null
+  document_hash: string | null
+  signed_document_url: string | null
+  signed_at: string | null
+  signature_hash: string | null
+  template_version: string | null
+  template_snapshot: unknown | null
   created_at: string
 }
 
@@ -1094,12 +1102,40 @@ export async function getContractByToken(token: string) {
   return rows.length > 0 ? rows[0] : null
 }
 
-export async function signContractByToken(token: string, signerName: string, signerRole: string, signatureData: string) {
-  const { error } = await supabase.rpc('sign_contract_by_token', {
+export async function signContractByToken(
+  token: string,
+  signerName: string,
+  signerRole: string,
+  signatureData: string,
+  signatureHash?: string,
+) {
+  const { data, error } = await supabase.rpc('sign_contract_by_token', {
     p_token: token,
     p_signer_name: signerName,
     p_signer_role: signerRole,
     p_signature_data: signatureData,
+    p_signature_hash: signatureHash ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return data as Contract | null
+}
+
+export async function revokeContractSigningToken(contractId: string) {
+  const { error } = await supabase.rpc('revoke_contract_signing_token', {
+    p_contract_id: contractId,
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function attachSignedDocument(
+  token: string,
+  signedDocumentUrl: string,
+  signatureHash?: string,
+) {
+  const { error } = await supabase.rpc('attach_signed_document', {
+    p_token: token,
+    p_signed_document_url: signedDocumentUrl,
+    p_signature_hash: signatureHash ?? null,
   })
   if (error) throw new Error(error.message)
 }

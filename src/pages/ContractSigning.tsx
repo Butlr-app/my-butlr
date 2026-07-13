@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { SignatureCanvas } from '@/components/SignatureCanvas'
-import { getContractByToken, signContractByToken, type Contract } from '@/lib/useSupabase'
+import { getContractByToken, signContractByToken, attachSignedDocument, type Contract } from '@/lib/useSupabase'
+import { sha256Hex } from '@/lib/cryptoHash'
+import { generateSignatureCertificate } from '@/lib/signatureCertificate'
+import { uploadFile } from '@/lib/storage'
 import { Loader2, CheckCircle, FileText, AlertTriangle } from 'lucide-react'
 
 export function ContractSigning() {
@@ -14,12 +17,14 @@ export function ContractSigning() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [alreadySigned, setAlreadySigned] = useState(false)
+  const [expired, setExpired] = useState(false)
   const [signing, setSigning] = useState(false)
   const [signed, setSigned] = useState(false)
   const [signerName, setSignerName] = useState('')
   const [signerRole, setSignerRole] = useState('')
   const [signatureData, setSignatureData] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [certificateUrl, setCertificateUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) { setNotFound(true); setLoading(false); return }
@@ -29,6 +34,10 @@ export function ContractSigning() {
       } else if (c.status === 'signed' || c.status === 'archived') {
         setContract(c)
         setAlreadySigned(true)
+        setCertificateUrl(c.signed_document_url)
+      } else if (c.status === 'expired') {
+        setContract(c)
+        setExpired(true)
       } else {
         setContract(c)
       }
@@ -50,10 +59,64 @@ export function ContractSigning() {
     if (!validate()) return
     setSigning(true)
     try {
-      await signContractByToken(token, signerName, signerRole, signatureData)
+      const signatureHash = await sha256Hex(signatureData)
+      const signedContract = await signContractByToken(
+        token,
+        signerName,
+        signerRole,
+        signatureData,
+        signatureHash,
+      )
+
+      // Build & upload signature certificate (best-effort; signing already succeeded)
+      try {
+        const cert = generateSignatureCertificate({
+          guestName: contract.guest_name,
+          propertyName: contract.property_name ?? '',
+          contractType: contract.type,
+          contractDate: contract.date,
+          signerName,
+          signerRole,
+          signedAt: new Date().toLocaleString('fr-FR'),
+          documentHash: contract.document_hash,
+          signatureHash,
+          signatureDataUrl: signatureData,
+        })
+        const blob = cert.output('blob')
+        const file = new File(
+          [blob],
+          `signature-${contract.id}.pdf`,
+          { type: 'application/pdf' },
+        )
+        const url = await uploadFile(`contracts/signed/${contract.id}`, file)
+        try {
+          await attachSignedDocument(token, url, signatureHash)
+        } catch {
+          // RPC may not be deployed yet — keep local certificate URL
+        }
+        setCertificateUrl(url)
+      } catch {
+        const cert = generateSignatureCertificate({
+          guestName: contract.guest_name,
+          propertyName: contract.property_name ?? '',
+          contractType: contract.type,
+          contractDate: contract.date,
+          signerName,
+          signerRole,
+          signedAt: new Date().toLocaleString('fr-FR'),
+          documentHash: contract.document_hash,
+          signatureHash,
+          signatureDataUrl: signatureData,
+        })
+        setCertificateUrl(URL.createObjectURL(cert.output('blob')))
+      }
+
+      if (signedContract) setContract(signedContract)
       setSigned(true)
     } catch (err) {
-      setErrors({ submit: (err as Error).message })
+      const message = (err as Error).message
+      if (/expired/i.test(message)) setExpired(true)
+      setErrors({ submit: message })
     }
     setSigning(false)
   }
@@ -78,13 +141,35 @@ export function ContractSigning() {
     )
   }
 
-  if (signed) {
+  if (expired) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="p-8 max-w-md w-full text-center">
-          <CheckCircle className="w-10 h-10 mx-auto text-success mb-4" />
-          <h1 className="text-lg font-bold mb-2">Contract Signed</h1>
+          <AlertTriangle className="w-10 h-10 mx-auto text-warning mb-4" />
+          <h1 className="text-lg font-bold mb-2">Link Expired</h1>
+          <p className="text-sm text-muted-foreground">Ask the property manager for a new signing link.</p>
+        </Card>
+      </div>
+    )
+  }
+
+  if (signed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="p-8 max-w-md w-full text-center space-y-3">
+          <CheckCircle className="w-10 h-10 mx-auto text-success mb-2" />
+          <h1 className="text-lg font-bold">Contract Signed</h1>
           <p className="text-sm text-muted-foreground">Thank you, {signerName}. The contract has been signed successfully.</p>
+          {certificateUrl && (
+            <a href={certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline inline-block">
+              Download signature certificate
+            </a>
+          )}
+          {contract?.document_url && (
+            <a href={contract.document_url} target="_blank" rel="noopener noreferrer" className="text-sm underline block">
+              View original contract
+            </a>
+          )}
         </Card>
       </div>
     )
@@ -93,10 +178,15 @@ export function ContractSigning() {
   if (alreadySigned) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="p-8 max-w-md w-full text-center">
-          <CheckCircle className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
-          <h1 className="text-lg font-bold mb-2">Already Signed</h1>
+        <Card className="p-8 max-w-md w-full text-center space-y-3">
+          <CheckCircle className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+          <h1 className="text-lg font-bold">Already Signed</h1>
           <p className="text-sm text-muted-foreground">This contract has already been signed.</p>
+          {certificateUrl && (
+            <a href={certificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline inline-block">
+              Download signature certificate
+            </a>
+          )}
         </Card>
       </div>
     )
@@ -140,13 +230,25 @@ export function ContractSigning() {
               <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Status</p>
               <Badge variant="info">{contract?.status}</Badge>
             </div>
+            {contract?.document_hash && (
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Document hash</p>
+                <p className="font-mono text-[11px] break-all">{contract.document_hash}</p>
+              </div>
+            )}
           </div>
 
-          {contract?.document_url && (
+          {contract?.document_url ? (
             <div className="mt-4">
               <a href={contract.document_url} target="_blank" rel="noopener noreferrer" className="text-sm text-info underline">
                 View contract document
               </a>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-sm border border-border bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">
+                No PDF is attached to this contract yet. Ask the property manager to generate and save the contract before signing.
+              </p>
             </div>
           )}
         </Card>
