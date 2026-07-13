@@ -9,7 +9,7 @@ The private operating system for luxury stays. Manage villas, yachts, and chalet
 - **PDF**: jsPDF for contract and invoice generation
 - **Routing**: React Router 7 with protected routes
 - **Icons**: Lucide React
-- **Design**: Monochrome (black/white/grey), Inter + Geist Mono fonts
+- **Design**: Staff shell uses navy / violet / gold tokens; mobile guest/HM uses a light amber field UI
 
 ## Features
 
@@ -21,13 +21,19 @@ The private operating system for luxury stays. Manage villas, yachts, and chalet
 - **Calendar** with monthly event view
 - **Partners** CRM with commission tracking
 - **Payments** with metrics, CSV export, and billing history
-- **Contracts** management + French seasonal rental PDF generator
+- **Contracts** management + French seasonal rental PDF generator + e-sign
 - **Invoices** management + French invoice PDF generator (FC-YYYY-XXX)
 - **Notifications** with real-time updates via Supabase Realtime
 - **Settings** with account, team, properties, payments, and services tabs
-- **Authentication** with email/password, role selection, password reset
+- **Authentication** with email/password and password reset (public signup = Owner)
+- **Mobile shells**: Guest (`/guest`), Partner (`/partner`), House Manager field app (`/hm`)
 - **Reports** with revenue analytics and property performance
-- **Guest Portal** preview
+
+## Audits
+
+- [`docs/audit-produit.md`](docs/audit-produit.md) — platform security / ops / feature maturity
+- [`docs/audit-contrats.md`](docs/audit-contrats.md) — contract PDF + e-sign loop
+- [`docs/MIGRATIONS.md`](docs/MIGRATIONS.md) — **required** SQL apply order
 
 ## Getting Started
 
@@ -43,32 +49,22 @@ The private operating system for luxury stays. Manage villas, yachts, and chalet
 git clone https://github.com/Butlr-app/my-butlr.git
 cd my-butlr
 npm install
-```
-
-### Environment Variables
-
-Copy the example env file and fill in your Supabase credentials:
-
-```bash
 cp .env.example .env
 ```
 
-Required variables:
-- `VITE_SUPABASE_URL` — Your Supabase project URL
-- `VITE_SUPABASE_ANON_KEY` — Your Supabase anon/public key
+Fill in:
+
+- `VITE_SUPABASE_URL` — Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` — Supabase anon/public key
+
+> There are **no hardcoded fallbacks** in the client. Missing env vars throw at boot.
 
 ### Database Setup
 
-Run the SQL schema on your Supabase project:
-
-1. Go to your Supabase dashboard > SQL Editor
-2. Copy the contents of `supabase/schema.sql`
-3. Run the query to create all tables, policies, and triggers
-
-Optionally seed with demo data:
-
-1. Copy the contents of `supabase/seed.sql`
-2. Run in the SQL Editor
+1. Run `supabase/schema.sql` (baseline tables).
+2. Apply **all** migrations in order — see [`docs/MIGRATIONS.md`](docs/MIGRATIONS.md).
+   Skipping this leaves permissive `USING (true)` RLS from the baseline.
+3. Optionally run `supabase/seed.sql` for demo data.
 
 ### Development
 
@@ -76,73 +72,31 @@ Optionally seed with demo data:
 npm run dev
 ```
 
-The app runs on `http://localhost:5173` by default.
+App: `http://localhost:5173`
 
-### Build
+### Build / typecheck / tests
 
 ```bash
 npm run build
-```
-
-Output goes to `dist/`.
-
-### Type Check
-
-```bash
-npx tsc --noEmit
-```
-
-## Project Structure
-
-```
-src/
-  components/
-    layout/          # AppLayout, Sidebar, Topbar
-    ui/              # Button, Card, Input, Modal, Badge, etc.
-    ErrorBoundary.tsx
-    ProtectedRoute.tsx
-  data/
-    amenities.ts     # Amenity definitions by category
-    mockData.ts      # Legacy mock data (unused in production)
-  lib/
-    authContext.tsx   # Auth provider with Supabase Auth
-    roleContext.tsx   # Role-based access control
-    searchContext.tsx # Global search state
-    supabase.ts      # Supabase client initialization
-    useSupabase.ts   # All hooks: useTable, useProperties, useReservations, etc.
-    utils.ts         # Utility functions
-  pages/
-    app/             # All authenticated SaaS pages
-    Landing.tsx      # Public landing page
-    Login.tsx        # Auth pages
-    Signup.tsx
-    ForgotPassword.tsx
-    ResetPassword.tsx
-    NotFound.tsx     # 404 page
-supabase/
-  schema.sql         # Full database schema with RLS policies
-  seed.sql           # Demo data for development
-public/
-  sitemap.xml
-  robots.txt
-  favicon.svg
+npx tsc --noEmit -p tsconfig.app.json
+npm test
+npm run test:e2e
 ```
 
 ## Roles
 
-The platform supports multiple roles via the role selector:
-- **Owner** — Full access to all features
-- **House Manager** — Property and operations management
-- **Concierge** — Guest services and task management
-- **Agency** — Booking and partner management
-- **Partner** — Service provider view
-- **Guest** — Guest portal access
+| Role | Lands on | Notes |
+|---|---|---|
+| Owner / Agency | `/app` | Full staff dashboard |
+| House Manager / Concierge | `/hm` | Field mobile app (+ `/app` via profile) |
+| Partner | `/partner` | Partner portal |
+| Guest | `/guest` | Guest mobile app |
+
+Public signup always creates an **Owner**. Other roles are invited / linked.
 
 ## Deployment
 
-Build the project and deploy the `dist/` folder to any static hosting (Vercel, Netlify, Cloudflare Pages, etc.).
-
-Ensure your Supabase project URL and anon key are set as environment variables in your hosting provider.
+Build `dist/` and host statically (Vercel, Netlify, Cloudflare Pages…). Set the Vite env vars on the host. Deploy Edge Functions + secrets separately (`send-contract-email`, `send-push`).
 
 ## License
 

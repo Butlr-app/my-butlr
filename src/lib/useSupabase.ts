@@ -924,9 +924,11 @@ export function useProfile() {
 
   const updateProfile = async (changes: Partial<Profile>) => {
     if (!profile) return
+    // Never allow role escalation via client updates (DB trigger is the backstop).
+    const { role: _ignoredRole, ...safeChanges } = changes
     const { data: updated, error } = await supabase
       .from('profiles')
-      .update(changes)
+      .update(safeChanges)
       .eq('id', profile.id)
       .select()
       .single()

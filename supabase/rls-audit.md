@@ -1,11 +1,19 @@
 # RLS (Row Level Security) Audit — My Butlr
 
-**Date:** 2024-06-24
+> **⚠️ SUPERSEDED (2026-07-13)**  
+> This document (2024-06-24) describes the **baseline `schema.sql` permissive policies**.  
+> Production posture is now defined by `migration_phase1_2_rls.sql` + module migrations +  
+> `migration_phase11_1_auth_hardening.sql`. See **`docs/audit-produit.md`** and **`docs/MIGRATIONS.md`**.  
+> Do **not** apply `rls-production-policies.sql` (fully commented / obsolete).
+
+---
+
+**Date:** 2024-06-24 (historical)  
 **Auditor:** Automated Phase 4 review
 
 ---
 
-## Current State
+## Historical note (pre–phase 1.2)
 
 All tables have RLS **enabled**. However, most operational tables use permissive `USING (true)` policies for authenticated users, which means any logged-in user can read/write all rows. This is acceptable for a single-tenant prototype but **must be tightened before production**.
 

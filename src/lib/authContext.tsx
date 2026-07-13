@@ -41,12 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email: string, password: string, fullName: string, role?: string) => {
+  const signUp = async (email: string, password: string, fullName: string, _role?: string) => {
+    // Public signup is always Owner — staff/partners/guests are invited.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role: role || 'owner' },
+        data: { full_name: fullName, role: 'owner' },
       },
     })
     return { error: error as Error | null, needsConfirmation: !error && !data?.session }

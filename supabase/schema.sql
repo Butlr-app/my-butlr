@@ -417,16 +417,24 @@ CREATE POLICY "Owner and agency manage payouts" ON payouts FOR ALL TO authentica
     )
   );
 
--- Function to handle new user registration
+-- Function to handle new user registration (public signup = owner only)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  requested_role TEXT;
 BEGIN
+  requested_role := lower(coalesce(new.raw_user_meta_data->>'role', 'owner'));
+  -- Never accept elevated/staff roles from client metadata
+  IF requested_role IS DISTINCT FROM 'owner' THEN
+    requested_role := 'owner';
+  END IF;
+
   INSERT INTO public.profiles (id, full_name, email, role)
   VALUES (
     new.id,
     new.raw_user_meta_data->>'full_name',
     new.email,
-    COALESCE(new.raw_user_meta_data->>'role', 'owner')
+    requested_role
   );
   RETURN new;
 END;

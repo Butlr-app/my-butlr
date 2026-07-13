@@ -1,11 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/lib/authContext'
 import { useState } from 'react'
 import { Mail } from 'lucide-react'
 
+/**
+ * Public signup always creates an Owner tenant account.
+ * Staff / partners / guests must be invited (Settings / linking) — see docs/audit-produit.md.
+ */
 export function Signup() {
   const navigate = useNavigate()
   const { signUp } = useAuth()
@@ -24,7 +27,6 @@ export function Signup() {
     const fullName = form.get('fullName') as string
     const email = form.get('email') as string
     const password = form.get('password') as string
-    const role = form.get('role') as string
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
@@ -32,7 +34,7 @@ export function Signup() {
       return
     }
 
-    const { error, needsConfirmation } = await signUp(email, password, fullName, role)
+    const { error, needsConfirmation } = await signUp(email, password, fullName, 'owner')
     setLoading(false)
 
     if (error) {
@@ -85,24 +87,17 @@ export function Signup() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-xl font-bold tracking-tight">butlr</span>
-          <p className="text-sm text-muted-foreground mt-2">Create your account</p>
+          <p className="text-sm text-muted-foreground mt-2">Create your owner account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Full name" name="fullName" placeholder="Jean Dupont" required />
           <Input label="Email" name="email" type="email" placeholder="you@company.com" required />
           <Input label="Password" name="password" type="password" placeholder="••••••••" required />
-          <Select
-            label="Role"
-            name="role"
-            options={[
-              { value: 'owner', label: 'Owner' },
-              { value: 'house_manager', label: 'House Manager' },
-              { value: 'concierge', label: 'Concierge' },
-              { value: 'agency', label: 'Agency' },
-              { value: 'partner', label: 'Partner' },
-            ]}
-          />
+          <p className="text-xs text-muted-foreground">
+            New accounts are created as <span className="text-foreground font-medium">Owner</span>.
+            House managers, concierges, partners and guests are added by invitation from Settings.
+          </p>
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}
