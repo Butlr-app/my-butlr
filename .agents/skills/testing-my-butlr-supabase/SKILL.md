@@ -7,13 +7,14 @@ description: Test the My Butlr SaaS dashboard pages end-to-end against a live Su
 
 ## Prerequisites
 
-- Dev server running: `cd /home/ubuntu/my-butlr && npx vite --port 5176`
+- Dev server running: `cd /workspace && npm run dev`
 - Supabase project must be accessible (project ID: `kpcahtliadmsaoespwpv`)
-- Seed data loaded via `supabase/seed.sql`
+- Seed data loaded via `supabase/seed.sql` (apply migrations first — see `supabase/MIGRATIONS.md`)
 
-## Devin Secrets Needed
+## Cursor Secrets
 
 - `SUPABASE_ACCESS_TOKEN` — Supabase Management API token (org-scoped, permanent)
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — required for build and runtime
 
 ## Test Account
 
@@ -23,8 +24,8 @@ description: Test the My Butlr SaaS dashboard pages end-to-end against a live Su
 
 ## How to Run Tests
 
-1. Start the dev server in a background shell
-2. Open Chrome to `http://localhost:5176/login`
+1. Start the dev server: `cd /workspace && npm run dev`
+2. Open browser to `http://localhost:5173/login`
 3. Log in with test account credentials
 4. Navigate through dashboard pages via sidebar links
 

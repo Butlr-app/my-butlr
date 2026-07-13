@@ -1,5 +1,5 @@
 ---
-name: testing-my-butlr-dashboard
+name: testing-my-butlr
 description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. Use when verifying CRUD, search, metrics, responsive layout, profile settings, PDF generators, auth flows, notifications, or SEO changes.
 ---
 
@@ -7,14 +7,15 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 
 ## Prerequisites
 
-- Dev server running: `cd /home/ubuntu/my-butlr && npx vite --port 5177`
+- Dev server running: `cd /workspace && npm run dev` (default port 5173)
 - Supabase project accessible (project ID: `kpcahtliadmsaoespwpv`)
-- Seed data loaded via `supabase/seed.sql`
-- Chrome browser running with CDP at `http://localhost:29229`
+- Seed data loaded via `supabase/seed.sql` (see `supabase/MIGRATIONS.md` for full migration order)
+- Playwright for browser automation (`npx playwright install --with-deps chromium`)
 
-## Devin Secrets Needed
+## Cursor Secrets
 
 - `SUPABASE_ACCESS_TOKEN` — Supabase Management API token (org-scoped, permanent)
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — required for build and runtime
 
 ## Test Account
 
@@ -23,9 +24,9 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 
 ## How to Run Tests
 
-1. Start dev server: `cd /home/ubuntu/my-butlr && npx vite --port 5177 &`
-2. Open Chrome to `http://localhost:5177/login`
-3. Log in with test credentials via computer tool or Playwright CDP
+1. Start dev server: `cd /workspace && npm run dev &`
+2. Open browser to `http://localhost:5173/login`
+3. Log in with test credentials via Playwright or browser tools
 4. Navigate through dashboard pages via sidebar links
 
 ## Key Test Scenarios

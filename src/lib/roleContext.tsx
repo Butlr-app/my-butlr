@@ -25,8 +25,8 @@ interface RoleContextType {
 }
 
 const RoleContext = createContext<RoleContextType>({
-  role: 'owner',
-  actualRole: 'owner',
+  role: 'guest',
+  actualRole: 'guest',
   canPreviewRoles: false,
   roleLoading: true,
   setRole: () => {},
@@ -34,7 +34,7 @@ const RoleContext = createContext<RoleContextType>({
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
-  const [actualRole, setActualRole] = useState<Role>('owner')
+  const [actualRole, setActualRole] = useState<Role>('guest')
   const [previewRole, setPreviewRole] = useState<Role | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
 
@@ -42,7 +42,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     async function loadRole() {
       if (!user) {
-        setActualRole('owner')
+        setActualRole('guest')
         setPreviewRole(null)
         setRoleLoading(false)
         return
@@ -61,7 +61,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       } else if (dbRole) {
         try { localStorage.setItem(cacheKey, dbRole) } catch { /* best-effort */ }
       }
-      setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : 'owner')
+      setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : 'guest')
       setPreviewRole(null)
       setRoleLoading(false)
     }
