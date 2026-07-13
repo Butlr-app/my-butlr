@@ -1,3 +1,5 @@
+export type ContractArticleKind = 'generic' | 'stay' | 'payment' | 'deposit' | 'checkinout'
+
 export interface ContractArticle {
   id: string
   number: number
@@ -6,12 +8,15 @@ export interface ContractArticle {
   enabled: boolean
   isHighlighted: boolean
   highlightLabel?: string
+  /** Controls special PDF layout boxes. Prefer this over hardcoded article numbers. */
+  kind?: ContractArticleKind
 }
 
 export interface ContractTemplate {
   id: string
   name: string
   description: string
+  version: string
   articles: ContractArticle[]
   bailleur: {
     company: string
@@ -66,104 +71,113 @@ export function createDefaultArticles(): ContractArticle[] {
     {
       id: uid(),
       number: 1,
+      kind: 'generic',
       title: 'Parties au contrat',
-      content: `Le present contrat est conclu entre le Bailleur, la {bailleur_company} representee par {bailleur_representative}, et le Locataire identifie au preambule des presentes. Le contrat est conclu intuitu personae avec le Locataire signataire.`,
+      content: `Le présent contrat est conclu entre le Bailleur, la {bailleur_company} représentée par {bailleur_representative}, et le Locataire identifié au préambule des présentes. Le contrat est conclu intuitu personae avec le Locataire signataire.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 2,
-      title: 'Le sejour',
-      content: `Le Bailleur donne en location saisonniere la villa de prestige designee ci-apres, pour la duree et aux conditions definies au present contrat.
+      kind: 'stay',
+      title: 'Le séjour',
+      content: `Le Bailleur donne en location saisonnière la villa de prestige désignée ci-après, pour la durée et aux conditions définies au présent contrat.
 
-La location est consentie pour {max_guests} personnes maximum. Le groupe de voyageurs ne pourra en aucun cas depasser la capacite d'accueil prevue sans accord ecrit prealable du Bailleur.`,
+La location est consentie pour {max_guests} personnes maximum. Le groupe de voyageurs ne pourra en aucun cas dépasser la capacité d'accueil prévue sans accord écrit préalable du Bailleur.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 3,
-      title: 'Montant et modalites de paiement',
-      content: `Le present accord de reservation est conditionne a la reception de l'integralite des paiements. Le Locataire sera notifie des leur reception et la reservation sera alors confirmee.`,
+      kind: 'payment',
+      title: 'Montant et modalités de paiement',
+      content: `Le présent accord de réservation est conditionné à la réception de l'intégralité des paiements. Le Locataire sera notifié dès leur réception et la réservation sera alors confirmée.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 4,
-      title: 'Depot de garantie',
-      content: `La caution sera encaissee a l'arrivee et conservee sous sequestre pendant une duree maximale de sept (7) jours apres le depart.
+      kind: 'deposit',
+      title: 'Dépôt de garantie',
+      content: `La caution sera encaissée à l'arrivée et conservée sous séquestre pendant une durée maximale de sept (7) jours après le départ.
 
-Elle sera restituee sous sept (7) jours maximum, sous reserve d'un etat des lieux de sortie conforme. En cas de degradation, casse ou perte imputable au Locataire ou a ses invites, le Bailleur pourra prelever les montants correspondants sur le depot de garantie, au cout reel et sur presentation des justificatifs (facture du professionnel). Si le depot s'avere insuffisant, le Locataire s'engage a regler le solde sur presentation des justificatifs.`,
+Elle sera restituée sous sept (7) jours maximum, sous réserve d'un état des lieux de sortie conforme. En cas de dégradation, casse ou perte imputable au Locataire ou à ses invités, le Bailleur pourra prélever les montants correspondants sur le dépôt de garantie, au coût réel et sur présentation des justificatifs (facture du professionnel). Si le dépôt s'avère insuffisant, le Locataire s'engage à régler le solde sur présentation des justificatifs.`,
       enabled: true,
       isHighlighted: true,
-      highlightLabel: 'Depot de garantie',
+      highlightLabel: 'Dépôt de garantie',
     },
     {
       id: uid(),
       number: 5,
-      title: 'Details de la propriete',
-      content: `Superficie : environ {surface} m2 de surface habitable.
-Capacite d'accueil : jusqu'a {max_guests} personnes ({bedrooms} chambres doubles, chacune pourvue de sa salle de bain attenante).
-Equipements principaux : piscine exterieure a debordement, piscine interieure chauffee, salle de sport, salle de jeux, salle de cinema, salon TV, hammam, jacuzzi, sauna, climatisation integrale ete/hiver, Wi-Fi haut debit et autres equipements haut de gamme assurant un sejour de luxe.`,
+      kind: 'generic',
+      title: 'Détails de la propriété',
+      content: `Superficie : environ {surface} m² de surface habitable.
+Capacité d'accueil : jusqu'à {max_guests} personnes ({bedrooms} chambres doubles, chacune pourvue de sa salle de bain attenante).
+Équipements principaux : piscine extérieure à débordement, piscine intérieure chauffée, salle de sport, salle de jeux, salle de cinéma, salon TV, hammam, jacuzzi, sauna, climatisation intégrale été/hiver, Wi-Fi haut débit et autres équipements haut de gamme assurant un séjour de luxe.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 6,
+      kind: 'generic',
       title: 'Services inclus',
-      content: `Petit-dejeuner a la francaise tous les jours de 8h a 11h, sous forme de buffet.
-Menage courant quotidien inclus (4 heures par jour selon le nombre d'intervenants).
+      content: `Petit-déjeuner à la française tous les jours de 8h à 11h, sous forme de buffet.
+Ménage courant quotidien inclus (4 heures par jour selon le nombre d'intervenants).
 Changement des draps et serviettes une fois par semaine.
 House manager disponible sur place.
-Cocktail d'arrivee de bienvenue.
+Cocktail d'arrivée de bienvenue.
 Fonds de cuisine et produits de toilette inclus.
-Service Butler : en supplement, nous consulter.
+Service Butler : en supplément, nous consulter.
 
-Toute heure de service supplementaire demandee sera facturee directement sur place par le prestataire, en accord avec le Locataire. Toute demande de changement de draps ou de serviettes supplementaire sera facturee sur place.`,
+Toute heure de service supplémentaire demandée sera facturée directement sur place par le prestataire, en accord avec le Locataire. Toute demande de changement de draps ou de serviettes supplémentaire sera facturée sur place.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 7,
-      title: 'Regles de comportement et usage des lieux',
-      content: `Le Locataire (et ses occupants) est responsable de tous les dommages, pertes ou troubles causes par lui-meme ou par les personnes hebergees sous sa responsabilite, tant a l'interieur de la villa qu'au sein de la propriete (jardin, piscines, dependances). Le Locataire est invite a signaler sans delai au Bailleur ou a son representant sur place tout dommage constate afin de convenir des mesures a prendre.
+      kind: 'generic',
+      title: 'Règles de comportement et usage des lieux',
+      content: `Le Locataire (et ses occupants) est responsable de tous les dommages, pertes ou troubles causés par lui-même ou par les personnes hébergées sous sa responsabilité, tant à l'intérieur de la villa qu'au sein de la propriété (jardin, piscines, dépendances). Le Locataire est invité à signaler sans délai au Bailleur ou à son représentant sur place tout dommage constaté afin de convenir des mesures à prendre.
 
-Fetes et evenements : toute fete ou evenement doit etre autorise au prealable et par ecrit par le Bailleur.
-Respect des lieux : la villa devra etre restituee dans son etat initial. Le Locataire s'engage a utiliser le bien de maniere paisible et respectueuse.
-Nuisances : en cas de nuisance excessive ou de non-respect du reglement de la maison et du voisinage, le Bailleur ou son representant se reserve le droit d'intervenir, voire de mettre fin a la location de maniere anticipee sans remboursement.
-Tabac : il est strictement interdit de fumer a l'interieur de la villa (sauf espace fumeur designe).
-Drogues et stupefiants : toute consommation, detention ou usage de drogue et de stupefiants est strictement interdit dans la villa et au sein de la propriete.
-Musique exterieure : la diffusion de musique a fort volume en exterieur est autorisee jusqu'a 22h00 maximum, dans le respect du voisinage.
-Capacite : le nombre d'occupants ne peut depasser {max_guests} personnes sans accord ecrit prealable.`,
+Fêtes et événements : toute fête ou événement doit être autorisé au préalable et par écrit par le Bailleur.
+Respect des lieux : la villa devra être restituée dans son état initial. Le Locataire s'engage à utiliser le bien de manière paisible et respectueuse.
+Nuisances : en cas de nuisance excessive ou de non-respect du règlement de la maison et du voisinage, le Bailleur ou son représentant se réserve le droit d'intervenir, voire de mettre fin à la location de manière anticipée sans remboursement.
+Tabac : il est strictement interdit de fumer à l'intérieur de la villa (sauf espace fumeur désigné).
+Drogues et stupéfiants : toute consommation, détention ou usage de drogue et de stupéfiants est strictement interdit dans la villa et au sein de la propriété.
+Musique extérieure : la diffusion de musique à fort volume en extérieur est autorisée jusqu'à 22h00 maximum, dans le respect du voisinage.
+Capacité : le nombre d'occupants ne peut dépasser {max_guests} personnes sans accord écrit préalable.`,
       enabled: true,
       isHighlighted: true,
-      highlightLabel: 'Regles de comportement',
+      highlightLabel: 'Règles de comportement',
     },
     {
       id: uid(),
       number: 8,
-      title: 'Securite et usage des installations',
-      content: `Le Locataire est pleinement responsable de la securite des occupants au sein de la propriete. La villa disposant d'une piscine exterieure et d'une piscine interieure, une surveillance accrue des enfants et des personnes vulnerables est obligatoire aux abords des bassins et dans les zones a risque.
+      kind: 'generic',
+      title: 'Sécurité et usage des installations',
+      content: `Le Locataire est pleinement responsable de la sécurité des occupants au sein de la propriété. La villa disposant d'une piscine extérieure et d'une piscine intérieure, une surveillance accrue des enfants et des personnes vulnérables est obligatoire aux abords des bassins et dans les zones à risque.
 
-Le Locataire reconnait avoir ete informe des consignes d'utilisation des piscines (absence de plongeon depuis les bords, interdiction d'acces non surveille pour les mineurs, utilisation des alarmes ou barrieres de securite lorsqu'elles sont installees) et plus generalement des equipements (hammam, jacuzzi, salle de sport). L'utilisation de ces installations se fait aux risques et perils des occupants. Le Bailleur decline toute responsabilite en cas d'accident du a une negligence du Locataire.
+Le Locataire reconnaît avoir été informé des consignes d'utilisation des piscines (absence de plongeon depuis les bords, interdiction d'accès non surveillé pour les mineurs, utilisation des alarmes ou barrières de sécurité lorsqu'elles sont installées) et plus généralement des équipements (hammam, jacuzzi, salle de sport). L'utilisation de ces installations se fait aux risques et périls des occupants. Le Bailleur décline toute responsabilité en cas d'accident dû à une négligence du Locataire.
 
-Il est strictement interdit d'utiliser les equipements de facon non prevue. Le non-respect de ces regles engagera la responsabilite du Locataire.`,
+Il est strictement interdit d'utiliser les équipements de façon non prévue. Le non-respect de ces règles engagera la responsabilité du Locataire.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 9,
+      kind: 'generic',
       title: "Conditions d'annulation et remboursement",
-      content: `Annulation du fait du Locataire : toutes les sommes deja versees (acompte et paiements intermediaires) restent acquises au Bailleur et ne seront pas remboursees. Aucune annulation ne donnera lieu a restitution, sauf accord ecrit exceptionnel du Bailleur (par exemple en cas de relocation reussie de la villa aux memes dates, ou de relogement du Locataire dans des conditions acceptees par les deux parties).
+      content: `Annulation du fait du Locataire : toutes les sommes déjà versées (acompte et paiements intermédiaires) restent acquises au Bailleur et ne seront pas remboursées. Aucune annulation ne donnera lieu à restitution, sauf accord écrit exceptionnel du Bailleur (par exemple en cas de relocation réussie de la villa aux mêmes dates, ou de relogement du Locataire dans des conditions acceptées par les deux parties).
 
-Annulation du fait du Bailleur (hors force majeure) : le Bailleur s'engage a rembourser l'integralite des sommes versees par le Locataire.
+Annulation du fait du Bailleur (hors force majeure) : le Bailleur s'engage à rembourser l'intégralité des sommes versées par le Locataire.
 
-Toute demande d'annulation devra etre formulee par ecrit.`,
+Toute demande d'annulation devra être formulée par écrit.`,
       enabled: true,
       isHighlighted: true,
       highlightLabel: 'Annulation & remboursement',
@@ -171,10 +185,11 @@ Toute demande d'annulation devra etre formulee par ecrit.`,
     {
       id: uid(),
       number: 10,
+      kind: 'checkinout',
       title: 'Check-in / Check-out',
-      content: `Le late check-out sera facture en supplement, selon la disponibilite de la villa et au prorata temporis.
+      content: `Le late check-out sera facturé en supplément, selon la disponibilité de la villa et au prorata temporis.
 
-Un etat des lieux d'entree et de sortie sera realise en presence du house manager ou du representant du Bailleur. La remise des cles et l'acces a la villa sont conditionnes a la confirmation de la reservation et au reglement integral du sejour et du depot de garantie.`,
+Un état des lieux d'entrée et de sortie sera réalisé en présence du house manager ou du représentant du Bailleur. La remise des clés et l'accès à la villa sont conditionnés à la confirmation de la réservation et au règlement intégral du séjour et du dépôt de garantie.`,
       enabled: true,
       isHighlighted: true,
       highlightLabel: 'Check-in / Check-out',
@@ -182,46 +197,51 @@ Un etat des lieux d'entree et de sortie sera realise en presence du house manage
     {
       id: uid(),
       number: 11,
+      kind: 'generic',
       title: 'Sous-location et cession',
-      content: `Le Locataire n'a pas le droit de sous-louer la villa, ni d'en ceder le benefice a un tiers, meme a titre gratuit, sans l'accord ecrit prealable du Bailleur. Le contrat de location est conclu intuitu personae avec le Locataire signataire et ne peut etre transfere. Toute violation de cette clause pourra entrainer la resiliation immediate du contrat aux torts exclusifs du Locataire, le montant total du loyer restant du au Bailleur.`,
+      content: `Le Locataire n'a pas le droit de sous-louer la villa, ni d'en céder le bénéfice à un tiers, même à titre gratuit, sans l'accord écrit préalable du Bailleur. Le contrat de location est conclu intuitu personae avec le Locataire signataire et ne peut être transféré. Toute violation de cette clause pourra entraîner la résiliation immédiate du contrat aux torts exclusifs du Locataire, le montant total du loyer restant dû au Bailleur.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 12,
+      kind: 'generic',
       title: 'Force majeure',
-      content: `Les parties ne pourront etre tenues responsables de l'inexecution de tout ou partie de leurs obligations en cas de force majeure, au sens de l'article 1218 du Code civil : tout evenement exterieur, imprevisible et irresistible rendant impossible l'execution du contrat (catastrophe naturelle, pandemie, acte de gouvernement, guerre, menace terroriste, ou tout evenement independant de la volonte des parties).
+      content: `Les parties ne pourront être tenues responsables de l'inexécution de tout ou partie de leurs obligations en cas de force majeure, au sens de l'article 1218 du Code civil : tout événement extérieur, imprévisible et irrésistible rendant impossible l'exécution du contrat (catastrophe naturelle, pandémie, acte de gouvernement, guerre, menace terroriste, ou tout événement indépendant de la volonté des parties).
 
-En cas de force majeure dument reconnue : si l'empechement est temporaire, l'execution du contrat est suspendue pendant sa duree ; si l'empechement rend le sejour impossible, le contrat pourra etre resilie de plein droit sans indemnite. Les sommes versees seront remboursees ou le sejour pourra etre reprogramme a des dates ulterieures, selon un accord amiable.`,
+En cas de force majeure dûment reconnue : si l'empêchement est temporaire, l'exécution du contrat est suspendue pendant sa durée ; si l'empêchement rend le séjour impossible, le contrat pourra être résilié de plein droit sans indemnité. Les sommes versées seront remboursées ou le séjour pourra être reprogrammé à des dates ultérieures, selon un accord amiable.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 13,
-      title: 'Confidentialite',
-      content: `Le Locataire et le Bailleur conviennent de garder strictement confidentielles les informations reciproques obtenues dans le cadre de la presente location. Les termes du contrat (prix de location, coordonnees des parties, details specifiques convenus) ne devront pas etre divulgues a des tiers, sauf accord ecrit prealable de l'autre partie ou obligation legale.
+      kind: 'generic',
+      title: 'Confidentialité',
+      content: `Le Locataire et le Bailleur conviennent de garder strictement confidentielles les informations réciproques obtenues dans le cadre de la présente location. Les termes du contrat (prix de location, coordonnées des parties, détails spécifiques convenus) ne devront pas être divulgués à des tiers, sauf accord écrit préalable de l'autre partie ou obligation légale.
 
-Le Locataire s'engage a respecter la vie privee du voisinage et a n'organiser aucune visite de la propriete a des fins mediatiques ou commerciales sans autorisation. Cette clause de confidentialite est primordiale compte tenu de la nature exclusive et haut de gamme de la location.`,
+Le Locataire s'engage à respecter la vie privée du voisinage et à n'organiser aucune visite de la propriété à des fins médiatiques ou commerciales sans autorisation. Cette clause de confidentialité est primordiale compte tenu de la nature exclusive et haut de gamme de la location.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 14,
+      kind: 'generic',
       title: 'Prises de vue et usage commercial',
-      content: `Toute prise de vue, captation video, tournage ou production photographique a des fins commerciales, promotionnelles, publicitaires ou editoriales realisee dans les espaces de la villa doit faire l'objet d'un accord ecrit prealable du Bailleur.
+      content: `Toute prise de vue, captation vidéo, tournage ou production photographique à des fins commerciales, promotionnelles, publicitaires ou éditoriales réalisée dans les espaces de la villa doit faire l'objet d'un accord écrit préalable du Bailleur.
 
-En cas d'autorisation expresse, le Locataire s'engage a mentionner explicitement le nom du bien ainsi que sa localisation dans toute diffusion publique des contenus produits. Le non-respect de cette clause pourra entrainer des poursuites pour atteinte aux droits patrimoniaux lies a l'image du bien, ainsi qu'un recours en indemnisation.`,
+En cas d'autorisation expresse, le Locataire s'engage à mentionner explicitement le nom du bien ainsi que sa localisation dans toute diffusion publique des contenus produits. Le non-respect de cette clause pourra entraîner des poursuites pour atteinte aux droits patrimoniaux liés à l'image du bien, ainsi qu'un recours en indemnisation.`,
       enabled: true,
       isHighlighted: false,
     },
     {
       id: uid(),
       number: 15,
+      kind: 'generic',
       title: 'Droit applicable et juridiction',
-      content: `Le present contrat est soumis au droit francais, tant pour son interpretation que pour son execution. En cas de litige non resolu a l'amiable, les tribunaux du ressort de Draguignan (France) seront seuls competents. Cette attribution de juridiction s'applique y compris en cas de refere, de pluralite de defendeurs ou d'appel en garantie, et nonobstant toute clause contraire du Locataire si celui-ci contracte en tant que consommateur non-resident.`,
+      content: `Le présent contrat est soumis au droit français, tant pour son interprétation que pour son exécution. En cas de litige non résolu à l'amiable, les tribunaux du ressort de Draguignan (France) seront seuls compétents. Cette attribution de juridiction s'applique y compris en cas de référé, de pluralité de défendeurs ou d'appel en garantie, et nonobstant toute clause contraire du Locataire si celui-ci contracte en tant que consommateur non-résident.`,
       enabled: true,
       isHighlighted: false,
     },
@@ -231,10 +251,21 @@ En cas d'autorisation expresse, le Locataire s'engage a mentionner explicitement
 export function createDefaultTemplate(): ContractTemplate {
   return {
     id: 'default',
-    name: 'Contrat de location saisonniere — The French Way',
-    description: 'Contrat de location saisonniere de prestige pour villas et proprietes haut de gamme',
+    name: 'Contrat de location saisonnière — The French Way',
+    description: 'Contrat de location saisonnière de prestige pour villas et propriétés haut de gamme',
+    version: '2026.07.1',
     articles: createDefaultArticles(),
     bailleur: { ...DEFAULT_BAILLEUR },
     propertyDefaults: { ...DEFAULT_PROPERTY },
   }
+}
+
+/** Resolve PDF layout kind with backward compatibility for old saved templates. */
+export function resolveArticleKind(article: ContractArticle): ContractArticleKind {
+  if (article.kind) return article.kind
+  if (article.number === 2) return 'stay'
+  if (article.number === 3) return 'payment'
+  if (article.number === 4) return 'deposit'
+  if (article.number === 10) return 'checkinout'
+  return 'generic'
 }

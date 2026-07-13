@@ -7,14 +7,22 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { useContracts, useNotifications, type Contract } from '@/lib/useSupabase'
+import {
+  useContracts,
+  useNotifications,
+  useReservations,
+  revokeContractSigningToken,
+  type Contract,
+} from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { supabase } from '@/lib/supabase'
-import { Plus, Loader2, Trash2, FileText, Pencil, Download, Send, Link2, Copy, Archive, FilePlus } from 'lucide-react'
+import { sendContractEmail } from '@/lib/sendContractEmail'
+import { Plus, Loader2, Trash2, FileText, Pencil, Download, Send, Link2, Copy, Archive, FilePlus, Ban } from 'lucide-react'
 import { useRoleFilter } from '@/lib/useRoleFilter'
 
 const PAGE_SIZE = 20
+const TOKEN_TTL_DAYS = 14
 
 const emptyForm = {
   guest_name: '',
@@ -24,9 +32,14 @@ const emptyForm = {
   date: '',
 }
 
+function expiryIso(days = TOKEN_TTL_DAYS) {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+}
+
 export function Contracts() {
   const navigate = useNavigate()
-  const { data: contracts, loading, insert, update, remove } = useContracts()
+  const { data: contracts, loading, insert, update, remove, refetch } = useContracts()
+  const { data: reservations } = useReservations()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
@@ -40,6 +53,9 @@ export function Contracts() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [page, setPage] = useState(0)
+  const [emailTarget, setEmailTarget] = useState<Contract | null>(null)
+  const [emailTo, setEmailTo] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
 
   useEffect(() => { setPage(0) }, [query])
 
@@ -117,43 +133,88 @@ export function Contracts() {
     }
   }
 
+  const ensureToken = async (contract: Contract) => {
+    let token = contract.signing_token
+    const expires = expiryIso()
+    if (!token) {
+      token = crypto.randomUUID()
+      await update(contract.id, { signing_token: token, signing_expires_at: expires })
+    } else if (!contract.signing_expires_at || new Date(contract.signing_expires_at) < new Date()) {
+      await update(contract.id, { signing_expires_at: expires })
+    }
+    return token
+  }
+
   const generateSigningLink = async (contract: Contract) => {
     try {
-      let token = contract.signing_token
-      if (!token) {
-        token = crypto.randomUUID()
-        await update(contract.id, { signing_token: token })
-      }
-      const link = `${window.location.origin}/sign/${token}`
-      setSigningLink(link)
+      const token = await ensureToken(contract)
+      setSigningLink(`${window.location.origin}/sign/${token}`)
     } catch (err) {
       toast((err as Error).message, 'error')
     }
   }
 
-  const sendForSignature = async (contract: Contract) => {
+  const openSendEmail = (contract: Contract) => {
+    const fromReservation = reservations.find(r => r.id === contract.reservation_id)
+    setEmailTarget(contract)
+    setEmailTo(contract.signer_email || fromReservation?.guest_email || '')
+  }
+
+  const sendForSignature = async (contract: Contract, toEmail?: string) => {
     try {
-      let token = contract.signing_token
-      if (!token) {
-        token = crypto.randomUUID()
-        await update(contract.id, { signing_token: token, status: 'sent' })
-      } else {
-        await update(contract.id, { status: 'sent' })
-      }
+      const token = await ensureToken(contract)
       const link = `${window.location.origin}/sign/${token}`
-      const { data: { user } } = await supabase.auth.getUser()
-      await insertNotification({
-        user_id: user?.id ?? null,
-        type: 'system',
-        title: `Contract sent for signature`,
-        message: `Contract for ${contract.guest_name} is ready to sign. Share the signing link.`,
-        data: { contract_id: contract.id, signing_link: link },
-        related_id: null,
-      })
-      setSigningLink(link)
-      toast('Contract marked as sent — copy the signing link to share')
+      await update(contract.id, { status: 'sent', signer_email: toEmail || contract.signer_email })
+
+      if (toEmail) {
+        setEmailSending(true)
+        try {
+          const result = await sendContractEmail({
+            contractId: contract.id,
+            toEmail,
+            guestName: contract.guest_name,
+            propertyName: contract.property_name ?? undefined,
+            signingLink: link,
+          })
+          setSigningLink(result.signing_link || link)
+          toast(result.sent
+            ? `Email sent to ${toEmail}`
+            : `Link ready — email not configured (${result.reason || 'copy manually'})`)
+          await refetch()
+        } finally {
+          setEmailSending(false)
+        }
+      } else {
+        const { data: { user } } = await supabase.auth.getUser()
+        await insertNotification({
+          user_id: user?.id ?? null,
+          type: 'system',
+          title: 'Contract sent for signature',
+          message: `Contract for ${contract.guest_name} is ready to sign. Share the signing link.`,
+          data: { contract_id: contract.id, signing_link: link },
+          related_id: null,
+        })
+        setSigningLink(link)
+        toast('Contract marked as sent — copy the signing link to share')
+      }
+      setEmailTarget(null)
     } catch (err) {
       toast((err as Error).message, 'error')
+    }
+  }
+
+  const revokeLink = async (contract: Contract) => {
+    try {
+      await revokeContractSigningToken(contract.id)
+      toast('Signing link revoked')
+      await refetch()
+    } catch (err) {
+      try {
+        await update(contract.id, { signing_token: null, signing_expires_at: null })
+        toast('Signing link revoked')
+      } catch (e2) {
+        toast((e2 as Error).message, 'error')
+      }
     }
   }
 
@@ -188,6 +249,50 @@ export function Contracts() {
     URL.revokeObjectURL(url)
     toast('CSV exported')
   }
+
+  const actionButtons = (c: Contract) => (
+    <>
+      {c.status === 'draft' && (
+        <button onClick={() => openSendEmail(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send for signature">
+          <Send className="w-4 h-4" />
+        </button>
+      )}
+      {(c.status === 'draft' || c.status === 'sent') && (
+        <>
+          <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Get signing link">
+            <Link2 className="w-4 h-4" />
+          </button>
+          {c.signing_token && (
+            <button onClick={() => revokeLink(c)} className="text-muted-foreground hover:text-destructive transition-colors p-1" title="Revoke signing link">
+              <Ban className="w-4 h-4" />
+            </button>
+          )}
+        </>
+      )}
+      {c.status === 'signed' && (
+        <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Archive">
+          <Archive className="w-4 h-4" />
+        </button>
+      )}
+      {(c.document_url || c.signed_document_url) && (
+        <a
+          href={c.signed_document_url || c.document_url || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          title="Open document"
+        >
+          <Download className="w-4 h-4" />
+        </a>
+      )}
+      <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+        <Pencil className="w-4 h-4" />
+      </button>
+      <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </>
+  )
 
   if (loading) {
     return (
@@ -252,8 +357,7 @@ export function Contracts() {
                       <Badge variant={
                         c.status === 'signed' ? 'success' :
                         c.status === 'sent' ? 'info' :
-                        c.status === 'archived' ? 'muted' :
-                        c.status === 'expired' ? 'muted' : 'warning'
+                        c.status === 'archived' || c.status === 'expired' ? 'muted' : 'warning'
                       }>
                         {c.status}
                       </Badge>
@@ -262,8 +366,7 @@ export function Contracts() {
                     <Badge variant={
                       c.status === 'signed' ? 'success' :
                       c.status === 'sent' ? 'info' :
-                      c.status === 'archived' ? 'muted' :
-                      c.status === 'expired' ? 'muted' : 'warning'
+                      c.status === 'archived' || c.status === 'expired' ? 'muted' : 'warning'
                     }>
                       {c.status}
                     </Badge>
@@ -276,27 +379,7 @@ export function Contracts() {
                 </div>
                 {editable && (
                   <div className="flex items-center justify-end gap-1 pt-1 border-t border-border">
-                    {c.status === 'draft' && (
-                      <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Send for signature">
-                        <Send className="w-4 h-4" />
-                      </button>
-                    )}
-                    {(c.status === 'draft' || c.status === 'sent') && (
-                      <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Get signing link">
-                        <Link2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    {c.status === 'signed' && (
-                      <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5" title="Archive">
-                        <Archive className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1.5">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1.5">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {actionButtons(c)}
                   </div>
                 )}
               </Card>
@@ -334,8 +417,7 @@ export function Contracts() {
                             <Badge variant={
                               c.status === 'signed' ? 'success' :
                               c.status === 'sent' ? 'info' :
-                              c.status === 'archived' ? 'muted' :
-                              c.status === 'expired' ? 'muted' : 'warning'
+                              c.status === 'archived' || c.status === 'expired' ? 'muted' : 'warning'
                             }>
                               {c.status}
                             </Badge>
@@ -344,8 +426,7 @@ export function Contracts() {
                           <Badge variant={
                             c.status === 'signed' ? 'success' :
                             c.status === 'sent' ? 'info' :
-                            c.status === 'archived' ? 'muted' :
-                            c.status === 'expired' ? 'muted' : 'warning'
+                            c.status === 'archived' || c.status === 'expired' ? 'muted' : 'warning'
                           }>
                             {c.status}
                           </Badge>
@@ -354,27 +435,7 @@ export function Contracts() {
                       {editable && (
                         <td className="px-4 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {c.status === 'draft' && (
-                              <button onClick={() => sendForSignature(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Send for signature">
-                                <Send className="w-4 h-4" />
-                              </button>
-                            )}
-                            {(c.status === 'draft' || c.status === 'sent') && (
-                              <button onClick={() => generateSigningLink(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Get signing link">
-                                <Link2 className="w-4 h-4" />
-                              </button>
-                            )}
-                            {c.status === 'signed' && (
-                              <button onClick={() => advanceStatus(c.id, c.status)} className="text-muted-foreground hover:text-foreground transition-colors p-1" title="Archive">
-                                <Archive className="w-4 h-4" />
-                              </button>
-                            )}
-                            <button onClick={() => openEdit(c)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteTarget({ id: c.id, name: c.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {actionButtons(c)}
                           </div>
                         </td>
                       )}
@@ -444,12 +505,36 @@ export function Contracts() {
         </form>
       </Modal>
 
-      {/* Signing Link Modal */}
+      <Modal open={!!emailTarget} onClose={() => setEmailTarget(null)} title="Send for signature">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Email the signing link to the guest. If Resend is not configured, the link is still generated for manual sharing.
+          </p>
+          <Input
+            label="Recipient email"
+            type="email"
+            value={emailTo}
+            onChange={e => setEmailTo(e.target.value)}
+            placeholder="guest@example.com"
+            required
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setEmailTarget(null)}>Cancel</Button>
+            <Button
+              disabled={emailSending || !emailTo.trim()}
+              onClick={() => emailTarget && sendForSignature(emailTarget, emailTo.trim())}
+            >
+              {emailSending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
+              Send
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={!!signingLink} onClose={() => setSigningLink(null)} title="Signing Link">
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Share this link with the signer. They can sign without logging in.
-            Email delivery is not configured yet — copy and send the link manually.
+            Share this link with the signer. Links expire after {TOKEN_TTL_DAYS} days and can be revoked.
           </p>
           <div className="flex items-center gap-2">
             <input
