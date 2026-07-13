@@ -189,7 +189,7 @@ export function GuestHomePanel({
         <MenuCardRow
           icon={ShoppingBag}
           title="Boutique"
-          subtitle="Produits et packs pour la villa"
+          subtitle="Objets physiques livrés à la villa"
           onClick={onOpenBoutique}
         />
       )}

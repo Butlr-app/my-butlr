@@ -285,7 +285,7 @@ export function PropertyGuestPortalPanel({
             checked={settings.show_boutique ?? true}
             onCheckedChange={show_boutique => setSettings(current => ({ ...current, show_boutique }))}
             label="Afficher la Boutique"
-            description="Produits et packs commandables au panier (courses, champagne, arrivée)."
+            description="Objets physiques commandables par quantité (paniers, boissons, fleurs, cadeaux)."
           />
           <SwitchField
             checked={settings.show_messaging ?? true}

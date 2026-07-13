@@ -6,6 +6,7 @@ import { EmptyState, LoadingState } from '@/components/EmptyState'
 import { useAuth } from '@/lib/authContext'
 import { fetchOwnerPayments } from '@/lib/data'
 import { formatDateForDisplay } from '@/lib/dateFormat'
+import { computeOwnerCollectedTotal } from '@/lib/reservationPayments'
 import type { Payment } from '@/lib/types'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 
@@ -26,8 +27,10 @@ export function Payments() {
 
   if (loading) return <LoadingState />
 
-  const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
-  const totalPending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + Number(p.amount), 0)
+  const totalPaid = computeOwnerCollectedTotal(payments)
+  const totalPending = payments
+    .filter(p => p.status === 'pending' && p.type !== 'booking')
+    .reduce((sum, p) => sum + Number(p.amount), 0)
   const deposits = payments.filter(p => p.type === 'deposit' && p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
   const commissions = payments.filter(p => p.type === 'commission' && p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
 

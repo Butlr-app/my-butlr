@@ -11,7 +11,7 @@ import { formatDateForDisplay } from '@/lib/dateFormat'
 import { createContractFileSignedUrl } from '@/lib/contractFiles'
 import type { Contract } from '@/lib/types'
 import { Link } from 'react-router-dom'
-import { FileSignature } from 'lucide-react'
+import { FileSignature, Layers3 } from 'lucide-react'
 import { signatureStatusLabels } from '@/lib/signatureWorkflow'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 import { CalendarDays } from 'lucide-react'
@@ -51,11 +51,19 @@ export function Contracts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Contracts</p>
-        <Link to="/app/contracts/generate">
-          <Button size="sm">New contract</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/app/contracts/templates">
+            <Button size="sm" variant="secondary">
+              <Layers3 className="mr-2 h-4 w-4" />
+              Modèles
+            </Button>
+          </Link>
+          <Link to="/app/contracts/generate">
+            <Button size="sm">Nouveau contrat</Button>
+          </Link>
+        </div>
       </div>
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

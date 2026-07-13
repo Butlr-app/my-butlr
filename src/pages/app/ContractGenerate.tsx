@@ -10,6 +10,13 @@ import { formatDateForDisplay, localeForDateFormat } from '@/lib/dateFormat'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { uploadGeneratedContract } from '@/lib/contractFiles'
+import {
+  BLANK_CONTRACT_BLOCKS,
+  fetchContractTemplates,
+  replaceContractVariables,
+  selectContractTemplate,
+  type ContractTemplate,
+} from '@/lib/contractTemplates'
 import { jsPDF } from 'jspdf'
 import { CalendarDays, FileDown, CheckCircle, Send } from 'lucide-react'
 import { fetchOwnerProperties } from '@/lib/data'
@@ -67,6 +74,9 @@ export function ContractGenerate() {
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [propertiesLoading, setPropertiesLoading] = useState(true)
+  const [templates, setTemplates] = useState<ContractTemplate[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [templatesLoading, setTemplatesLoading] = useState(true)
 
   useEffect(() => {
     if (!user) return
@@ -79,6 +89,24 @@ export function ContractGenerate() {
     })
     return () => { active = false }
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    let active = true
+    setTemplatesLoading(true)
+    fetchContractTemplates().then(({ data, error }) => {
+      if (!active) return
+      setTemplates(data)
+      if (error) showToast(error.message)
+      setTemplatesLoading(false)
+    })
+    return () => { active = false }
+  }, [user])
+
+  useEffect(() => {
+    const selected = selectContractTemplate(templates, selectedPropertyId)
+    setSelectedTemplateId(selected?.id ?? '')
+  }, [selectedPropertyId, templates])
 
   useEffect(() => {
     if (!selectedPropertyId) return
@@ -193,6 +221,105 @@ export function ContractGenerate() {
       doc.line(20, y, pageWidth - 20, y)
       y += 10
 
+      const selectedTemplate = templates.find(template => template.id === selectedTemplateId)
+      const activeBlocks = selectedTemplate?.blocks?.length
+        ? selectedTemplate.blocks
+        : BLANK_CONTRACT_BLOCKS
+      const nights = Math.max(0, Math.round(
+        (new Date(`${form.checkOut}T12:00:00`).getTime() - new Date(`${form.checkIn}T12:00:00`).getTime())
+        / 86_400_000,
+      ))
+      const money = new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        maximumFractionDigits: 0,
+      })
+      const today = new Date().toLocaleDateString(localeForDateFormat(profile?.date_format), {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      })
+      const templateValues = {
+        'owner.company': profile?.company,
+        'owner.name': profile?.full_name,
+        'owner.email': profile?.email ?? user?.email,
+        'owner.phone': profile?.phone,
+        'tenant.name': form.tenantName,
+        'tenant.address': form.tenantAddress,
+        'tenant.email': form.tenantEmail,
+        'tenant.phone': form.tenantPhone,
+        'property.name': form.propertyName,
+        'property.address': form.propertyAddress,
+        'property.max_guests': form.maxGuests,
+        'property.bedrooms': form.bedrooms,
+        'property.bathrooms': form.bathrooms,
+        'stay.arrival': formatDateForDisplay(form.checkIn, profile?.date_format),
+        'stay.departure': formatDateForDisplay(form.checkOut, profile?.date_format),
+        'stay.nights': nights,
+        'stay.check_in_time': form.checkInTime.replace(':', 'h'),
+        'stay.check_out_time': form.checkOutTime.replace(':', 'h'),
+        'financial.rent': money.format(form.rentAmount),
+        'financial.deposit': money.format(form.depositAmount),
+        'contract.date': today,
+      }
+
+      if (activeBlocks.length > 0) {
+        const contentWidth = pageWidth - 40
+        const ensureRoom = (height: number) => {
+          if (y + height > 278) {
+            doc.addPage()
+            y = 20
+          }
+        }
+        const writeContent = (content: string) => {
+          const paragraphs = content.split(/\n{2,}/)
+          for (const paragraph of paragraphs) {
+            const lines = doc.splitTextToSize(paragraph.replace(/\n/g, ' '), contentWidth)
+            for (const line of lines) {
+              ensureRoom(5)
+              doc.text(line, 20, y)
+              y += 4.7
+            }
+            y += 2.5
+          }
+        }
+
+        for (const block of activeBlocks) {
+          ensureRoom(block.type === 'signatures' ? 56 : 24)
+          doc.setTextColor(30)
+          doc.setFontSize(block.type === 'preamble' ? 13 : 11)
+          doc.setFont('helvetica', 'bold')
+          doc.text(block.title.toUpperCase(), 20, y)
+          y += 7
+
+          if (block.type === 'callout') {
+            doc.setDrawColor(70, 110, 145)
+            doc.setLineWidth(0.8)
+            doc.line(20, y - 5, 20, Math.min(278, y + 12))
+          }
+
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'normal')
+          writeContent(replaceContractVariables(block.content, templateValues))
+          y += 3
+
+          if (block.type === 'signatures') {
+            ensureRoom(36)
+            const signatureCol2X = pageWidth / 2 + 10
+            doc.setFont('helvetica', 'bold')
+            doc.text('LE BAILLEUR', 20, y)
+            doc.text('LE LOCATAIRE', signatureCol2X, y)
+            y += 6
+            doc.setFont('helvetica', 'normal')
+            doc.text(profile?.company || profile?.full_name || '[Bailleur]', 20, y)
+            doc.text(form.tenantName, signatureCol2X, y)
+            y += 22
+            doc.text('Signature : ______________________', 20, y)
+            doc.text('Signature : ______________________', signatureCol2X, y)
+            y += 10
+          }
+        }
+      } else {
       // Parties section
       doc.setFontSize(13)
       doc.setFont('helvetica', 'bold')
@@ -367,6 +494,7 @@ export function ContractGenerate() {
       doc.setFont('helvetica', 'normal')
       doc.text('Signature : ________________________', 20, y)
       doc.text('Signature : ________________________', col2X, y)
+      }
 
       // Footer
       const totalPages = doc.getNumberOfPages()
@@ -381,6 +509,20 @@ export function ContractGenerate() {
 
       let archived = false
       if (reservationId && contractId && user) {
+        const { error: snapshotError } = await supabase
+          .from('contracts')
+          .update({
+            contract_template_id: selectedTemplate?.id ?? null,
+            template_snapshot: {
+              name: selectedTemplate?.name ?? 'Modèle standard',
+              version: selectedTemplate?.version ?? 1,
+              blocks: activeBlocks,
+              generated_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', contractId)
+        if (snapshotError) throw snapshotError
+
         await uploadGeneratedContract({
           reservationId,
           contractId,
@@ -453,6 +595,49 @@ export function ContractGenerate() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div>
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground/80">
+                  Modèle
+                </h3>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigate('/app/contracts/templates')}
+                >
+                  Gérer les modèles
+                </Button>
+              </div>
+              <Select
+                label="Modèle de contrat"
+                value={selectedTemplateId}
+                onChange={event => setSelectedTemplateId(event.target.value)}
+                disabled={templatesLoading}
+                options={[
+                  {
+                    value: '',
+                    label: templatesLoading
+                      ? 'Chargement des modèles…'
+                      : templates.length === 0
+                        ? 'Modèle standard'
+                        : 'Sélectionner un modèle',
+                  },
+                  ...templates
+                    .filter(template =>
+                      !template.property_id || template.property_id === selectedPropertyId
+                    )
+                    .map(template => ({
+                      value: template.id,
+                      label: `${template.name}${template.is_default ? ' — Par défaut' : ''}`,
+                    })),
+                ]}
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Le PDF conserve un instantané du modèle et de sa version au moment de la génération.
+              </p>
+            </div>
+
             {/* Tenant Info */}
             <div>
               <h3 className="text-sm font-semibold mb-3 text-foreground/80 uppercase tracking-wide">Locataire</h3>

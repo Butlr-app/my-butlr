@@ -40,10 +40,50 @@ export function paymentStatusLabel(status: PaymentStatus | string) {
   }
 }
 
-export function computePaidTotal(payments: ReservationPayment[]): number {
-  return payments
-    .filter(payment => payment.status === 'paid')
+/** Cash-like payment lines (excludes the auto-synced booking total row). */
+export function isCashPaymentType(type: string): boolean {
+  return type !== 'booking'
+}
+
+/**
+ * Sum actually collected amounts without double-counting the booking reference line.
+ * Versements/acomptes take priority; booking is only counted when it is the sole paid line.
+ */
+export function computePaidTotal(
+  payments: Array<Pick<ReservationPayment, 'type' | 'amount' | 'status'>>,
+): number {
+  const paid = payments.filter(payment => payment.status === 'paid')
+  const cashPaid = paid
+    .filter(payment => isCashPaymentType(payment.type))
     .reduce((sum, payment) => sum + Number(payment.amount), 0)
+
+  if (cashPaid > 0) return cashPaid
+
+  const booking = paid.find(payment => payment.type === 'booking')
+  return booking ? Number(booking.amount) : 0
+}
+
+/** Aggregate collected amounts across reservations without cross-reservation booking bleed. */
+export function computeOwnerCollectedTotal(
+  payments: Array<
+    Pick<ReservationPayment, 'id' | 'type' | 'amount' | 'status'>
+    & { reservation_id?: string | null }
+  >,
+): number {
+  const groups = new Map<string, typeof payments>()
+
+  for (const payment of payments) {
+    const key = payment.reservation_id ?? `orphan:${payment.id}`
+    const group = groups.get(key) ?? []
+    group.push(payment)
+    groups.set(key, group)
+  }
+
+  let total = 0
+  for (const group of groups.values()) {
+    total += computePaidTotal(group)
+  }
+  return total
 }
 
 export function derivePaymentStatus(
@@ -138,43 +178,62 @@ export async function markReservationFullyPaid(
   if (fetchError) throw fetchError
 
   const payments = (existingPayments ?? []) as ReservationPayment[]
-  const paidTotal = computePaidTotal(payments)
+  const booking = payments.find(payment => payment.type === 'booking')
+  const paidFromCash = payments
+    .filter(payment => payment.status === 'paid' && isCashPaymentType(payment.type))
+    .reduce((sum, payment) => sum + Number(payment.amount), 0)
   const totalAmount = Number(reservation.total_amount)
-  const remaining = computeRemainingAmount(paidTotal, totalAmount)
+  const remaining = computeRemainingAmount(paidFromCash, totalAmount)
 
   if (remaining > 0) {
-    await insertPaidPayment({
-      reservation,
-      amount: remaining,
-      date,
-      kind: 'balance',
-      notes: 'Solde final',
-    }, 'installment')
+    const singleShotViaBooking = booking
+      && booking.status !== 'paid'
+      && paidFromCash === 0
+      && Number(booking.amount) >= totalAmount
+
+    if (singleShotViaBooking) {
+      const { error: bookingError } = await supabase
+        .from('payments')
+        .update({ status: 'paid', date })
+        .eq('id', booking.id)
+      if (bookingError) throw bookingError
+    } else {
+      await insertPaidPayment({
+        reservation,
+        amount: remaining,
+        date,
+        kind: 'balance',
+        notes: 'Solde final',
+      }, 'installment')
+    }
   }
 
-  const booking = payments.find(payment => payment.type === 'booking')
-  if (booking) {
+  let { data: refreshedPayments, error: refreshError } = await fetchReservationPayments(reservation.id)
+  if (refreshError) throw refreshError
+
+  let paymentsAfterUpdate = (refreshedPayments ?? []) as ReservationPayment[]
+  const bookingRow = paymentsAfterUpdate.find(payment => payment.type === 'booking')
+  const paidTotal = computePaidTotal(paymentsAfterUpdate)
+
+  if (bookingRow && bookingRow.status !== 'paid' && paidTotal >= totalAmount) {
     const { error: bookingError } = await supabase
       .from('payments')
       .update({ status: 'paid', date })
-      .eq('id', booking.id)
+      .eq('id', bookingRow.id)
     if (bookingError) throw bookingError
+
+    const refreshed = await fetchReservationPayments(reservation.id)
+    if (refreshed.error) throw refreshed.error
+    paymentsAfterUpdate = (refreshed.data ?? []) as ReservationPayment[]
   }
 
-  const { data, error } = await supabase
-    .from('reservations')
-    .update({ payment_status: 'paid' })
-    .eq('id', reservation.id)
-    .select('*')
-    .single()
-
-  if (error || !data) throw error ?? new Error('Impossible de marquer la réservation comme payée.')
-
-  const { data: refreshedPayments, error: refreshError } = await fetchReservationPayments(reservation.id)
-  if (refreshError) throw refreshError
+  const syncedReservation = await syncReservationPaymentStatus(
+    reservation,
+    paymentsAfterUpdate,
+  )
 
   return {
-    reservation: data as Reservation,
-    payments: (refreshedPayments ?? []) as ReservationPayment[],
+    reservation: syncedReservation,
+    payments: paymentsAfterUpdate,
   }
 }

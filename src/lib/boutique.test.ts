@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   cartEstimatedTotal,
+  isBoutiqueCatalogItem,
   formatCatalogPrice,
   resolveCatalogPrice,
   type BoutiqueCartLine,
@@ -35,8 +36,17 @@ describe('formatCatalogPrice', () => {
     expect(formatCatalogPrice(sampleItem, null)).toContain('250')
   })
 
-  it('shows sur devis for quote items', () => {
-    expect(formatCatalogPrice({ ...sampleItem, requires_quote: true, base_price: null }, null)).toBe('Sur devis')
+  it('signale un produit sans prix au lieu de créer un devis', () => {
+    expect(formatCatalogPrice({ ...sampleItem, base_price: null }, null)).toBe('Prix indisponible')
+  })
+})
+
+describe('isBoutiqueCatalogItem', () => {
+  it('réserve la Boutique aux produits physiques', () => {
+    expect(isBoutiqueCatalogItem('product')).toBe(true)
+    expect(isBoutiqueCatalogItem('experience')).toBe(false)
+    expect(isBoutiqueCatalogItem('service')).toBe(false)
+    expect(isBoutiqueCatalogItem('custom_request')).toBe(false)
   })
 })
 
@@ -48,7 +58,7 @@ describe('cartEstimatedTotal', () => {
       category: { id: 'c1', slug: 'groceries', name: 'Courses', description: null, icon: null, sort_order: 0, is_active: true },
     }]
     const lines: BoutiqueCartLine[] = [{ catalogItemId: '1', quantity: 2 }]
-    expect(cartEstimatedTotal(lines, catalog)).toEqual({ total: 500, hasQuote: false })
+    expect(cartEstimatedTotal(lines, catalog)).toEqual({ total: 500 })
   })
 })
 

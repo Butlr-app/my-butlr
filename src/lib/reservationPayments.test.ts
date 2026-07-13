@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  computeOwnerCollectedTotal,
   computePaidTotal,
   computeRemainingAmount,
   derivePaymentStatus,
@@ -44,6 +45,28 @@ describe('reservationPayments', () => {
     ]
     expect(computePaidTotal(payments)).toBe(10000)
     expect(derivePaymentStatus(10000, 60000)).toBe('partial')
+  })
+
+  it('ne double pas la ligne booking et un versement', () => {
+    const payments = [
+      payment({ amount: 60000, type: 'booking', status: 'paid' }),
+      payment({ id: 'pay-2', amount: 60000, type: 'installment', status: 'paid', notes: 'Solde final' }),
+    ]
+    expect(computePaidTotal(payments)).toBe(60000)
+    expect(derivePaymentStatus(computePaidTotal(payments), 60000)).toBe('paid')
+  })
+
+  it('compte la ligne booking seule si paiement en une fois', () => {
+    const payments = [payment({ amount: 60000, type: 'booking', status: 'paid' })]
+    expect(computePaidTotal(payments)).toBe(60000)
+  })
+
+  it('agrège plusieurs réservations sans fusionner les lignes booking', () => {
+    const payments = [
+      payment({ id: 'pay-1', reservation_id: 'res-1', amount: 60000, type: 'booking', status: 'paid' }),
+      payment({ id: 'pay-2', reservation_id: 'res-2', amount: 40000, type: 'booking', status: 'paid' }),
+    ]
+    expect(computeOwnerCollectedTotal(payments)).toBe(100000)
   })
 
   it('traduit les statuts', () => {

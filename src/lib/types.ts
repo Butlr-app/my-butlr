@@ -89,6 +89,8 @@ export interface Payment {
 export interface Contract {
   id: string
   reservation_id?: string | null
+  contract_template_id?: string | null
+  template_snapshot?: Record<string, unknown> | null
   guest_name: string
   property_name: string | null
   type: string

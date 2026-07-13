@@ -26,9 +26,14 @@ export function BoutiqueCatalogPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {items.length} article{items.length > 1 ? 's' : ''} dans le catalogue global.
-        </p>
+        <div>
+          <p className="text-sm font-medium">
+            Produits physiques
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {items.length} article{items.length > 1 ? 's' : ''} commandable{items.length > 1 ? 's' : ''} par quantité.
+          </p>
+        </div>
         <Link
           to="/app/boutique/products/new"
           className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
@@ -41,7 +46,7 @@ export function BoutiqueCatalogPage() {
       {items.length === 0 ? (
         <EmptyState
           title="Catalogue vide"
-          description="Ajoutez votre premier produit ou service pour l'afficher dans la Boutique du portail voyageur."
+          description="Ajoutez un objet physique — panier, boisson, fleurs, cadeau ou accessoire — pour l’afficher dans la Boutique."
           action={
             <Link
               to="/app/boutique/products/new"
@@ -85,7 +90,7 @@ export function BoutiqueCatalogPage() {
               <p className="mt-2 text-sm font-semibold">
                 {formatCatalogPrice(item, null)}
               </p>
-              <p className="mt-1 text-xs capitalize text-muted-foreground">{item.type}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Produit physique</p>
               <Link
                 to={`/app/boutique/products/${item.id}/edit`}
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"

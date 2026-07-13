@@ -5,6 +5,10 @@ import { ProtectedRoute, OnboardingRoute } from './components/ProtectedRoute'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
 import { Login } from './pages/Login'
+import { ForgotPassword } from './pages/ForgotPassword'
+import { MagicLink } from './pages/MagicLink'
+import { AuthCallback } from './pages/AuthCallback'
+import { ResetPassword } from './pages/ResetPassword'
 import { Signup } from './pages/Signup'
 import { VerifyEmail } from './pages/VerifyEmail'
 import { OwnerOnboarding } from './pages/OwnerOnboarding'
@@ -23,6 +27,7 @@ import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
 import { ContractGenerate } from './pages/app/ContractGenerate'
 import { ContractDetail } from './pages/app/ContractDetail'
+import { ContractTemplates } from './pages/app/ContractTemplates'
 import { InvoiceGenerate } from './pages/app/InvoiceGenerate'
 import { Reports } from './pages/app/Reports'
 import { Settings } from './pages/app/Settings'
@@ -35,17 +40,23 @@ import { StayMessagesPage } from './pages/app/StayMessagesPage'
 import { SignContract } from './pages/SignContract'
 import { GuestPortalPreviewPage } from './pages/GuestPortalPreviewPage'
 import { GuestStayPortalPage } from './pages/GuestStayPortalPage'
+import { AuthCallbackRedirect } from './components/AuthCallbackRedirect'
 
 export default function App() {
   return (
     <AuthProvider>
     <RoleProvider>
     <BrowserRouter>
+      <AuthCallbackRedirect />
       <Routes>
         {/* Public pages */}
         <Route path="/" element={<Landing />} />
         <Route path="/early-access" element={<EarlyAccess />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/magic-link" element={<MagicLink />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/sign/:token" element={<SignContract />} />
@@ -75,6 +86,7 @@ export default function App() {
           <Route path="partners" element={<Partners />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />
+          <Route path="contracts/templates" element={<ContractTemplates />} />
           <Route path="contracts/generate" element={<ContractGenerate />} />
           <Route path="contracts/:id" element={<ContractDetail />} />
           <Route path="invoices/generate" element={<InvoiceGenerate />} />

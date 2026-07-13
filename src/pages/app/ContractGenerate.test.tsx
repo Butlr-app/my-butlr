@@ -68,6 +68,18 @@ vi.mock('@/lib/contractFiles', () => ({
   uploadGeneratedContract: vi.fn(),
 }))
 
+vi.mock('@/lib/contractTemplates', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/lib/contractTemplates')>()
+  return {
+    ...actual,
+    fetchContractTemplates: vi.fn().mockResolvedValue({ data: [], error: null }),
+  }
+})
+
+vi.mock('@/lib/reservationDetailContext', () => ({
+  useReservationDetail: () => ({ openReservation: vi.fn() }),
+}))
+
 describe('ContractGenerate', () => {
   it('préremplit le contrat depuis une résidence du propriétaire', async () => {
     mocks.fetchProperties.mockResolvedValue({ data: [villa], error: null })

@@ -10,40 +10,19 @@ import { CatalogImagesEditor } from '@/components/boutique/CatalogImagesEditor'
 import { useAuth } from '@/lib/authContext'
 import { fetchOwnerProperties } from '@/lib/data'
 import {
-  catalogPriceTypeLabels,
   createCatalogItem,
   fetchCatalogCategories,
   fetchCatalogItemById,
   fetchCatalogItemPropertyIds,
   updateCatalogItem,
-  type CatalogItemType,
-  type CatalogPriceType,
 } from '@/lib/boutique'
 
-const typeOptions: { value: CatalogItemType; label: string }[] = [
-  { value: 'product', label: 'Produit' },
-  { value: 'experience', label: 'Expérience packagée' },
-]
-
-const priceTypeOptions: { value: CatalogPriceType; label: string }[] = [
-  { value: 'fixed_price', label: 'Prix fixe' },
-  { value: 'starting_from', label: 'À partir de' },
-  { value: 'per_person', label: 'Par personne' },
-  { value: 'per_hour', label: 'Par heure' },
-  { value: 'per_day', label: 'Par jour' },
-  { value: 'custom_quote', label: 'Sur devis' },
-]
-
 const defaultForm = {
-  type: 'product' as CatalogItemType,
   category_id: '',
   title: '',
   short_description: '',
   long_description: '',
   base_price: '',
-  price_type: 'fixed_price' as CatalogPriceType,
-  provider_name: '',
-  requires_quote: false,
   is_featured: false,
   is_active: true,
   max_quantity: '99',
@@ -96,15 +75,11 @@ export function BoutiqueProductFormPage() {
         return
       }
       setForm({
-        type: item.type as CatalogItemType,
         category_id: item.category_id,
         title: item.title,
         short_description: item.short_description ?? '',
         long_description: item.long_description ?? '',
         base_price: item.base_price != null ? String(item.base_price) : '',
-        price_type: item.price_type as CatalogPriceType,
-        provider_name: item.provider_name ?? '',
-        requires_quote: item.requires_quote,
         is_featured: item.is_featured,
         is_active: item.is_active,
         max_quantity: String(item.max_quantity),
@@ -131,8 +106,8 @@ export function BoutiqueProductFormPage() {
       setError('Le titre et la catégorie sont obligatoires.')
       return
     }
-    if (!form.requires_quote && !form.base_price.trim()) {
-      setError('Indiquez un prix ou activez « Sur devis ».')
+    if (!form.base_price.trim() || Number(form.base_price) < 0) {
+      setError('Indiquez le prix unitaire du produit.')
       return
     }
 
@@ -140,15 +115,11 @@ export function BoutiqueProductFormPage() {
     setError('')
 
     const payload = {
-      type: form.type,
       category_id: form.category_id,
       title: form.title,
       short_description: form.short_description || null,
       long_description: form.long_description || null,
-      base_price: form.base_price ? Number(form.base_price) : null,
-      price_type: form.price_type,
-      provider_name: form.provider_name || null,
-      requires_quote: form.requires_quote,
+      base_price: Number(form.base_price),
       is_featured: form.is_featured,
       is_active: form.is_active,
       max_quantity: Number(form.max_quantity) || 99,
@@ -191,25 +162,18 @@ export function BoutiqueProductFormPage() {
           {isEdit ? 'Modifier l\'article' : 'Nouvel article Boutique'}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Produits et packs commandables via panier dans le portail voyageur.
-          Pour chef, transport ou bien-être, utilisez le catalogue Conciergerie (Settings → Conciergerie).
+          La Boutique contient uniquement des objets physiques commandables par quantité :
+          paniers, boissons, fleurs, cadeaux ou accessoires. Les services et expériences
+          se créent dans la Conciergerie.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Type"
-              value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value as CatalogItemType }))}
-              options={typeOptions}
-            />
-            <Select
-              label="Catégorie"
-              value={form.category_id}
-              onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-              options={categories.length > 0 ? categories : [{ value: '', label: 'Aucune catégorie' }]}
-            />
-          </div>
+          <Select
+            label="Catégorie de produits"
+            value={form.category_id}
+            onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+            options={categories.length > 0 ? categories : [{ value: '', label: 'Aucune catégorie' }]}
+          />
 
           <Input
             label="Titre"
@@ -244,47 +208,20 @@ export function BoutiqueProductFormPage() {
               rows={4}
               value={form.long_description}
               onChange={e => setForm(f => ({ ...f, long_description: e.target.value }))}
-              placeholder="Conditions, détails de la prestation…"
+              placeholder="Composition, dimensions, marque, conditions de livraison…"
               className="w-full rounded-sm border border-input bg-card px-3 py-2 text-sm focus:border-info focus:outline-none focus:ring-1 focus:ring-info/20"
             />
           </div>
 
-          <SwitchField
-            label="Sur devis"
-            description="Le client envoie une demande — vous fixez le prix ensuite."
-            checked={form.requires_quote}
-            onCheckedChange={requires_quote => setForm(f => ({
-              ...f,
-              requires_quote,
-              price_type: requires_quote ? 'custom_quote' : f.price_type,
-            }))}
-          />
-
-          {!form.requires_quote && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Select
-                label="Type de prix"
-                value={form.price_type}
-                onChange={e => setForm(f => ({ ...f, price_type: e.target.value as CatalogPriceType }))}
-                options={priceTypeOptions.filter(o => o.value !== 'custom_quote')}
-              />
-              <Input
-                label="Prix (€)"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.base_price}
-                onChange={e => setForm(f => ({ ...f, base_price: e.target.value }))}
-                placeholder="250"
-              />
-            </div>
-          )}
-
           <Input
-            label="Prestataire (optionnel)"
-            value={form.provider_name}
-            onChange={e => setForm(f => ({ ...f, provider_name: e.target.value }))}
-            placeholder="Ex. Chef Antoine Dubois"
+            label="Prix unitaire (€)"
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.base_price}
+            onChange={e => setForm(f => ({ ...f, base_price: e.target.value }))}
+            placeholder="95"
+            required
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -355,12 +292,6 @@ export function BoutiqueProductFormPage() {
           </div>
         </form>
       </Card>
-
-      {!form.requires_quote && form.base_price && form.price_type !== 'fixed_price' && (
-        <p className="text-xs text-muted-foreground">
-          Affichage portail : {catalogPriceTypeLabels[form.price_type]} {form.base_price} €
-        </p>
-      )}
     </div>
   )
 }

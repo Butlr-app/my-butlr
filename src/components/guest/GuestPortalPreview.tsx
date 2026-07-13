@@ -364,10 +364,8 @@ export function GuestPortalPreview({
           <BoutiqueGuestPanel
             categories={boutiqueCategoriesProducts}
             catalog={boutiqueCatalogProducts}
-            orderItems={storeOrderItems}
             reserve={stayReserve.reserve}
             welcomeText={settings.boutique_welcome_text}
-            dateFormat={reservationContext?.dateFormat}
             loading={boutiqueOverride?.loading ?? boutiqueLoading}
             readOnly={!reserveInteractive}
             cartStorageKey={cartStorageKey ?? settings.property_id}

@@ -17,6 +17,7 @@ const pageTitles: Record<string, string> = {
   '/app/boutique': 'Boutique',
   '/app/payments': 'Paiements',
   '/app/contracts': 'Contrats',
+  '/app/contracts/templates': 'Modèles de contrats',
   '/app/reports': 'Rapports',
   '/app/partners': 'Partenaires',
   '/app/settings': 'Paramètres',

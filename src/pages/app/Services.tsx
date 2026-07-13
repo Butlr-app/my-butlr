@@ -254,7 +254,7 @@ export function Services() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Conciergerie</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Catalogue des prestations proposées aux voyageurs (chef, transport, bien-être…).
+            Services et expériences organisés pour les voyageurs : chef, transport, bien-être, activités…
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -266,8 +266,8 @@ export function Services() {
       <Card className="flex flex-wrap items-center justify-between gap-3 border-dashed p-4">
         <p className="text-xs text-muted-foreground">
           <ConciergeBell className="mr-1.5 inline h-3.5 w-3.5 align-text-bottom" />
-          <strong className="text-foreground">Conciergerie</strong> = prestations sur mesure &amp; devis.
-          Pour les produits et packs au panier, gérez la&nbsp;
+          <strong className="text-foreground">Conciergerie</strong> = services, expériences, dates et devis.
+          Pour les objets physiques commandés par quantité, utilisez la&nbsp;
           <strong className="text-foreground">Boutique</strong>.
         </p>
         <Link to="/app/boutique/catalog">

@@ -2,17 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2,
   ClipboardList,
-  Compass,
   Gem,
   Home,
   Minus,
-  PartyPopper,
   Plus,
   ShoppingBag,
-  Sparkles,
   Trash2,
-  Utensils,
-  Car,
   ShoppingBasket,
 } from 'lucide-react'
 import {
@@ -37,10 +32,8 @@ import {
   type BoutiqueCartLine,
   type BoutiqueCatalogEntry,
   type CatalogCategory,
-  type StoreOrderItem,
 } from '@/lib/boutique'
 import { formatReserveAmount, type StayReserve } from '@/lib/stayReserve'
-import { formatDateForDisplay } from '@/lib/dateFormat'
 import {
   clearBoutiqueCart,
   loadBoutiqueCart,
@@ -59,38 +52,21 @@ type BoutiqueView =
 
 const categoryIcons: Record<string, typeof ShoppingBag> = {
   'groceries-arrival': ShoppingBasket,
-  'chef-dining': Utensils,
-  transport: Car,
-  wellness: Sparkles,
-  experiences: Compass,
   'home-comfort': Home,
-  events: PartyPopper,
   'premium-shopping': Gem,
 }
 
 const categoryFeatures: Record<string, string[]> = {
   'groceries-arrival': ['Livraison à la villa', 'Produits frais sélectionnés', 'Préparation avant votre arrivée'],
-  'chef-dining': ['Cuisine sur-mesure', 'Produits frais et locaux', 'Service discret et attentif'],
-  transport: ['Chauffeurs professionnels', 'Véhicules premium', 'Suivi en temps réel'],
-  wellness: ['Prestataires certifiés', 'Intervention à domicile', 'Discrétion garantie'],
-  experiences: ['Sélection locale premium', 'Réservation simplifiée', 'Accompagnement dédié'],
-  'home-comfort': ['Équipe villa réactive', 'Intervention rapide', 'Qualité garantie'],
-  events: ['Organisation sur-mesure', 'Coordination complète', 'Expérience mémorable'],
-  'premium-shopping': ['Sélection personnalisée', 'Livraison villa', 'Produits d\'exception'],
-}
-
-function formatScheduledLabel(date: string | undefined | null, dateFormat?: string | null): string {
-  if (!date) return ''
-  return formatDateForDisplay(date, dateFormat)
+  'home-comfort': ['Livraison à la villa', 'Sélection adaptée au séjour', 'Qualité contrôlée'],
+  'premium-shopping': ['Produits d’exception', 'Livraison à la villa', 'Sélection locale premium'],
 }
 
 interface BoutiqueGuestPanelProps {
   categories: CatalogCategory[]
   catalog: BoutiqueCatalogEntry[]
-  orderItems?: StoreOrderItem[]
   reserve: StayReserve | null
   welcomeText?: string | null
-  dateFormat?: string | null
   readOnly?: boolean
   loading?: boolean
   cartStorageKey?: string
@@ -106,10 +82,8 @@ interface BoutiqueGuestPanelProps {
 export function BoutiqueGuestPanel({
   categories,
   catalog,
-  orderItems = [],
   reserve,
   welcomeText,
-  dateFormat,
   readOnly = false,
   loading = false,
   cartStorageKey,
@@ -128,8 +102,6 @@ export function BoutiqueGuestPanel({
   const [cart, setCart] = useState<BoutiqueCartLine[]>([])
   const [search, setSearch] = useState('')
   const [quantity, setQuantity] = useState(1)
-  const [scheduledDate, setScheduledDate] = useState('')
-  const [scheduledTime, setScheduledTime] = useState('19:30')
   const [clientNotes, setClientNotes] = useState('')
   const [lastOrderTotal, setLastOrderTotal] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -187,17 +159,10 @@ export function BoutiqueGuestPanel({
   }, [productCatalog, activeCategory, search])
 
   const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0)
-  const { total: cartTotal, hasQuote: cartHasQuote } = cartEstimatedTotal(cart, productCatalog)
-
-  const pendingQuotes = useMemo(
-    () => orderItems.filter(i => i.status === 'waiting_client_approval'),
-    [orderItems],
-  )
+  const { total: cartTotal } = cartEstimatedTotal(cart, productCatalog)
 
   const resetItemForm = () => {
     setQuantity(1)
-    setScheduledDate('')
-    setScheduledTime('19:30')
     setClientNotes('')
   }
 
@@ -209,9 +174,7 @@ export function BoutiqueGuestPanel({
   }
 
   const addToCart = (entry: BoutiqueCatalogEntry, qty = quantity) => {
-    const notes = [clientNotes, scheduledTime && scheduledDate ? `Heure: ${scheduledTime}` : '']
-      .filter(Boolean)
-      .join('\n')
+    const notes = clientNotes.trim()
     setCart(current => {
       const existing = current.find(l => l.catalogItemId === entry.item.id)
       if (existing) {
@@ -219,7 +182,6 @@ export function BoutiqueGuestPanel({
           ? {
             ...l,
             quantity: l.quantity + qty,
-            scheduledDate: scheduledDate || l.scheduledDate,
             clientNotes: notes || l.clientNotes,
           }
           : l)
@@ -227,7 +189,6 @@ export function BoutiqueGuestPanel({
       return [...current, {
         catalogItemId: entry.item.id,
         quantity: qty,
-        scheduledDate: scheduledDate || undefined,
         clientNotes: notes || undefined,
       }]
     })
@@ -323,9 +284,7 @@ export function BoutiqueGuestPanel({
               {cart.map(line => {
                 const entry = productCatalog.find(e => e.item.id === line.catalogItemId)
                 if (!entry) return null
-                const lineTotal = entry.item.requires_quote
-                  ? null
-                  : (entry.assignment.custom_price ?? entry.item.base_price ?? 0) * line.quantity
+                const lineTotal = (entry.assignment.custom_price ?? entry.item.base_price ?? 0) * line.quantity
                 const maxQty = entry.item.max_quantity || 99
                 return (
                   <div key={line.catalogItemId} className="flex gap-3 py-4">
@@ -336,12 +295,6 @@ export function BoutiqueGuestPanel({
                     />
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-[#1A1614]">{entry.item.title}</p>
-                      {line.scheduledDate && (
-                        <p className={`mt-0.5 ${boutiqueMobile.subtitle}`}>
-                          {formatScheduledLabel(line.scheduledDate, dateFormat)}
-                          {line.clientNotes?.includes('Heure:') ? ` — ${line.clientNotes.match(/Heure: (\d{2}:\d{2})/)?.[1] ?? ''}` : ''}
-                        </p>
-                      )}
                       {readOnly ? (
                         line.quantity > 1 && <p className={boutiqueMobile.subtitle}>{line.quantity} ×</p>
                       ) : (
@@ -378,7 +331,7 @@ export function BoutiqueGuestPanel({
                       )}
                     </div>
                     <p className="shrink-0 font-semibold text-[#1A1614]">
-                      {lineTotal != null ? formatReserveAmount(lineTotal) : 'Sur devis'}
+                      {formatReserveAmount(lineTotal)}
                     </p>
                   </div>
                 )
@@ -390,12 +343,6 @@ export function BoutiqueGuestPanel({
                 label="Solde Réserve séjour disponible"
                 amount={formatReserveAmount(reserve.current_balance, reserve.currency)}
               />
-            )}
-
-            {cartHasQuote && (
-              <p className={`mb-3 text-center text-[13px] ${boutiqueMobile.subtitle}`}>
-                Certains articles nécessitent un devis. Les articles à prix fixe seront débités immédiatement.
-              </p>
             )}
 
             <StickyFooter>
@@ -416,7 +363,7 @@ export function BoutiqueGuestPanel({
                     setView('confirm')
                   })}
                 >
-                  {cartTotal > 0 ? 'Commander' : 'Envoyer la demande'}
+                  Commander
                 </GoldButton>
               )}
               {!reserve && cartTotal > 0 && !readOnly && onTopUpReserve && (
@@ -438,38 +385,25 @@ export function BoutiqueGuestPanel({
 
   // ── Récapitulatif ──
   if (view === 'summary' && activeEntry) {
-    const isQuote = activeEntry.item.requires_quote
-    const price = formatCatalogPrice(activeEntry.item, activeEntry.assignment)
+    const unitPrice = activeEntry.assignment.custom_price ?? activeEntry.item.base_price ?? 0
+    const total = unitPrice * quantity
     return (
       <MobileScreen className="flex min-h-[480px] flex-col">
         <MobileHeader title="Récapitulatif" step="Étape 3/3" onBack={() => setView('configure')} />
 
         <div className="space-y-3 py-2">
           <p className="text-[17px] font-semibold">{activeEntry.item.title}</p>
-          {scheduledDate && (
-            <p className={boutiqueMobile.body}>
-              {formatScheduledLabel(scheduledDate, dateFormat)} à {scheduledTime}
-            </p>
-          )}
-          {quantity > 1 && (
-            <p className={boutiqueMobile.body}>
-              {activeEntry.item.type === 'product' ? `Quantité : ${quantity}` : `${quantity} personnes`}
-            </p>
-          )}
+          <p className={boutiqueMobile.body}>Quantité : {quantity}</p>
           {clientNotes && <p className={boutiqueMobile.body}>{clientNotes}</p>}
         </div>
 
-        {!isQuote && (
-          <div className={`mt-4 flex items-center justify-between border-y border-[#E5E5EA] py-4`}>
-            <span className={boutiqueMobile.subtitle}>Total estimé</span>
-            <span className="text-[22px] font-bold">{price}</span>
-          </div>
-        )}
+        <div className="mt-4 flex items-center justify-between border-y border-[#E5E5EA] py-4">
+          <span className={boutiqueMobile.subtitle}>Total</span>
+          <span className="text-[22px] font-bold">{formatReserveAmount(total)}</span>
+        </div>
 
         <p className={`mt-4 text-center text-[13px] ${boutiqueMobile.subtitle}`}>
-          {isQuote
-            ? 'Une confirmation vous sera envoyée sous 24h.'
-            : 'Votre commande sera débitée de votre Réserve séjour.'}
+          Votre commande sera débitée de votre Réserve séjour.
         </p>
 
         <StickyFooter>
@@ -477,14 +411,10 @@ export function BoutiqueGuestPanel({
             <GoldButton
               onClick={() => {
                 addToCart(activeEntry, quantity)
-                if (isQuote) {
-                  setView('cart')
-                } else {
-                  setView('cart')
-                }
+                setView('cart')
               }}
             >
-              {isQuote ? 'Confirmer la demande' : 'Ajouter au panier'}
+              Ajouter au panier
             </GoldButton>
           )}
         </StickyFooter>
@@ -494,71 +424,38 @@ export function BoutiqueGuestPanel({
 
   // ── Configuration (formulaire) ──
   if (view === 'configure' && activeEntry) {
-    const isProduct = activeEntry.item.type === 'product'
     return (
       <MobileScreen className="flex min-h-[480px] flex-col">
         <MobileHeader
-          title={isProduct ? 'Commande' : 'Commande de service'}
+          title="Commande"
           step="Étape 1/3"
           onBack={() => setView('item')}
         />
 
         <p className="mb-4 text-[17px] font-semibold">{activeEntry.item.title}</p>
 
-        {!isProduct && (
-          <>
-            <label htmlFor="boutique-date" className={`block cursor-pointer py-4 ${boutiqueMobile.divider}`}>
-              <p className={boutiqueMobile.label}>Date</p>
-              <p className={`mt-1 ${boutiqueMobile.value}`}>
-                {scheduledDate ? formatScheduledLabel(scheduledDate, dateFormat) : 'Choisir une date'}
-              </p>
-              <input
-                type="date"
-                value={scheduledDate}
-                onChange={e => setScheduledDate(e.target.value)}
-                className="sr-only"
-                id="boutique-date"
-              />
-            </label>
-            <label className="block" htmlFor="boutique-time">
-              <span className={`block py-4 ${boutiqueMobile.divider}`}>
-                <span className={boutiqueMobile.label}>Heure</span>
-                <input
-                  id="boutique-time"
-                  type="time"
-                  value={scheduledTime}
-                  onChange={e => setScheduledTime(e.target.value)}
-                  className={`mt-1 block w-full bg-transparent ${boutiqueMobile.value}`}
-                />
-              </span>
-            </label>
-          </>
-        )}
-
-        {isProduct && (
-          <div className={`flex items-center justify-between py-4 ${boutiqueMobile.divider}`}>
-            <span className={boutiqueMobile.label}>Quantité</span>
-            <div className="flex items-center gap-4">
-              <button type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="text-[20px]">−</button>
-              <span className={boutiqueMobile.value}>{quantity}</span>
-              <button
-                type="button"
-                onClick={() => setQuantity(q => Math.min(activeEntry.item.max_quantity, q + 1))}
-                className="text-[20px]"
-              >
-                +
-              </button>
-            </div>
+        <div className={`flex items-center justify-between py-4 ${boutiqueMobile.divider}`}>
+          <span className={boutiqueMobile.label}>Quantité</span>
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="text-[20px]">−</button>
+            <span className={boutiqueMobile.value}>{quantity}</span>
+            <button
+              type="button"
+              onClick={() => setQuantity(q => Math.min(activeEntry.item.max_quantity, q + 1))}
+              className="text-[20px]"
+            >
+              +
+            </button>
           </div>
-        )}
+        </div>
 
         <label className={`block py-4 ${boutiqueMobile.divider}`}>
-          <span className={boutiqueMobile.label}>Demandes spéciales</span>
+          <span className={boutiqueMobile.label}>Instructions de livraison</span>
           <textarea
             rows={2}
             value={clientNotes}
             onChange={e => setClientNotes(e.target.value)}
-            placeholder="Anniversaire, allergies…"
+            placeholder="Ex. déposer dans la cuisine, emballage cadeau…"
             className={`mt-2 w-full resize-none bg-transparent ${boutiqueMobile.value} placeholder:text-[#C7C7CC]`}
           />
         </label>
@@ -576,7 +473,6 @@ export function BoutiqueGuestPanel({
   if (view === 'item' && activeEntry) {
     const gradient = itemPlaceholderGradient(activeEntry.category.slug)
     const price = formatCatalogPrice(activeEntry.item, activeEntry.assignment)
-    const isQuote = activeEntry.item.requires_quote
 
     return (
       <MobileScreen className="flex min-h-[520px] flex-col pb-24">
@@ -602,26 +498,27 @@ export function BoutiqueGuestPanel({
           {activeEntry.item.short_description && (
             <p className={boutiqueMobile.body}>{activeEntry.item.short_description}</p>
           )}
-          <p className="text-[17px] font-bold">{price}{!isQuote && activeEntry.item.price_type === 'fixed_price' ? '' : ''}</p>
-          {activeEntry.item.provider_name && (
-            <p className={boutiqueMobile.subtitle}>Par {activeEntry.item.provider_name}</p>
-          )}
+          <p className="text-[17px] font-bold">{price}</p>
 
           <ul className="mt-2">
-            {(categoryFeatures[activeEntry.category.slug] ?? categoryFeatures['chef-dining']).map(f => (
+            {(categoryFeatures[activeEntry.category.slug] ?? [
+              'Produit physique',
+              'Livraison à la villa',
+              'Commande par quantité',
+            ]).map(f => (
               <FeatureBullet key={f}>{f}</FeatureBullet>
             ))}
           </ul>
 
           <p className={`pt-2 text-[13px] ${boutiqueMobile.subtitle}`}>
-            Les articles à prix fixe sont débités immédiatement de votre Réserve séjour. Les articles sur devis seront confirmés avant paiement.
+            Ce produit physique sera préparé puis livré à la villa. Le montant est débité de votre Réserve séjour à la commande.
           </p>
         </div>
 
         {!readOnly && (
           <StickyFooter>
             <GoldButton onClick={() => setView('configure')}>
-              {isQuote ? 'Demander un devis' : 'Ajouter au panier'}
+              Ajouter au panier
             </GoldButton>
           </StickyFooter>
         )}
@@ -667,17 +564,8 @@ export function BoutiqueGuestPanel({
       )}
 
       <p className={`mb-5 ${boutiqueMobile.body}`}>
-        {welcomeText ?? 'Commandez produits et packs pour votre villa — livraison et préparation avant votre arrivée.'}
+        {welcomeText ?? 'Commandez des produits physiques pour votre villa — paniers, boissons, fleurs, cadeaux et accessoires.'}
       </p>
-
-      {pendingQuotes.length > 0 && (
-        <MenuCardRow
-          icon={ClipboardList}
-          title={`${pendingQuotes.length} devis à valider`}
-          subtitle="Consultez et confirmez vos commandes"
-          onClick={() => onOpenRequests?.()}
-        />
-      )}
 
       <MobileSearch value={search} onChange={setSearch} placeholder="Rechercher un article" />
 
@@ -726,7 +614,7 @@ export function BoutiqueGuestPanel({
         <MenuCardRow
           icon={ClipboardList}
           title="Suivi des commandes"
-          subtitle="Historique et devis en cours"
+          subtitle="Préparation, livraison et historique"
           onClick={onOpenRequests}
         />
       )}

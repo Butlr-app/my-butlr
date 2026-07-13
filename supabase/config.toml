@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.saas-assistant]
 verify_jwt = true
+
+[functions.password-reset]
+verify_jwt = false

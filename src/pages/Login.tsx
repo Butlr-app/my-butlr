@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useAuth } from '@/lib/authContext'
 import { useState } from 'react'
+import { formatAuthError } from '@/lib/authErrors'
 
 export function Login() {
   const navigate = useNavigate()
@@ -23,7 +24,7 @@ export function Login() {
     setLoading(false)
 
     if (error) {
-      setError(error.message)
+      setError(formatAuthError(error.message))
     } else {
       navigate('/app')
     }
@@ -34,23 +35,52 @@ export function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-xl font-bold tracking-tight">butlr</span>
-          <p className="text-sm text-muted-foreground mt-2">Sign in to your account</p>
+          <p className="text-sm text-muted-foreground mt-2">Connectez-vous à votre compte</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Email" name="email" type="email" placeholder="you@company.com" required />
-          <Input label="Password" name="password" type="password" placeholder="••••••••" required />
+          <div className="space-y-1.5">
+            <Input label="Password" name="password" type="password" placeholder="••••••••" required />
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+          </div>
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}
           <Button type="submit" size="md" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
 
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">ou</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          size="md"
+          className="w-full"
+          onClick={() => navigate('/magic-link')}
+        >
+          Se connecter avec un lien magique
+        </Button>
+
         <p className="text-center text-sm text-muted-foreground mt-6">
-          No account?{' '}
-          <Link to="/signup" className="text-foreground hover:underline">Create one</Link>
+          Pas de compte ?{' '}
+          <Link to="/signup" className="text-foreground hover:underline">Créer un compte</Link>
         </p>
       </div>
     </div>

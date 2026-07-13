@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import type { User, Session } from '@supabase/supabase-js'
 import type { Profile } from './types'
 import type { Role } from './roleContext'
+import { formatAuthError, isEmailRateLimitError } from './authErrors'
 
 interface AuthContextType {
   user: User | null
@@ -12,6 +13,9 @@ interface AuthContextType {
   profileLoading: boolean
   signUp: (email: string, password: string, fullName: string, role: Role) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInWithMagicLink: (email: string) => Promise<{ error: Error | null; rateLimited?: boolean }>
+  requestPasswordReset: (email: string) => Promise<{ error: Error | null; rateLimited?: boolean }>
+  updatePassword: (password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resendVerificationEmail: (email: string) => Promise<{ error: Error | null }>
   refreshProfile: (options?: { silent?: boolean }) => Promise<void>
@@ -25,6 +29,9 @@ const AuthContext = createContext<AuthContextType>({
   profileLoading: true,
   signUp: async () => ({ error: null }),
   signIn: async () => ({ error: null }),
+  signInWithMagicLink: async () => ({ error: null }),
+  requestPasswordReset: async () => ({ error: null }),
+  updatePassword: async () => ({ error: null }),
   signOut: async () => {},
   resendVerificationEmail: async () => ({ error: null }),
   refreshProfile: async () => {},
@@ -132,6 +139,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return {
+      error: error ? new Error(formatAuthError(error.message)) : null,
+    }
+  }
+
+  const signInWithMagicLink = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: false,
+      },
+    })
+
+    if (!error) return { error: null }
+
+    const message = formatAuthError(error.message)
+    return {
+      error: new Error(message),
+      rateLimited: isEmailRateLimitError(error.message),
+    }
+  }
+
+  const requestPasswordReset = async (email: string) => {
+    const redirectTo = `${window.location.origin}/reset-password`
+    const trimmedEmail = email.trim()
+
+    const { data, error: functionError } = await supabase.functions.invoke('password-reset', {
+      body: { email: trimmedEmail, redirectTo },
+    })
+
+    if (!functionError && data?.ok) {
+      return { error: null }
+    }
+
+    let useFallback = Boolean(data?.fallback)
+    if (functionError?.context && typeof functionError.context.json === 'function') {
+      try {
+        const body = await functionError.context.json() as { fallback?: boolean }
+        useFallback = useFallback || Boolean(body?.fallback)
+      } catch {
+        useFallback = true
+      }
+    }
+
+    if (!useFallback && functionError) {
+      return { error: functionError as Error }
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, { redirectTo })
+    if (!error) return { error: null }
+
+    const message = formatAuthError(error.message)
+    return {
+      error: new Error(message),
+      rateLimited: isEmailRateLimitError(error.message),
+    }
+  }
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
     return { error: error as Error | null }
   }
 
@@ -143,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, profile, loading, profileLoading,
-      signUp, signIn, signOut, resendVerificationEmail, refreshProfile,
+      signUp, signIn, signInWithMagicLink, requestPasswordReset, updatePassword, signOut, resendVerificationEmail, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

@@ -14,7 +14,7 @@ export function BoutiqueLayout() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Boutique</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Gérez le catalogue produits, ajoutez des articles et suivez les commandes clients.
+          Objets physiques uniquement : gérez les produits, leur prix unitaire et les commandes par quantité.
         </p>
       </div>
 

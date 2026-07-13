@@ -1,10 +1,16 @@
 import { supabase } from './supabase'
 import { formatReserveAmount, computeRevenueSplit } from './stayReserve'
 
-export type CatalogItemType = 'product' | 'service' | 'experience' | 'custom_request'
+export type CatalogItemType = 'product'
+export type LegacyOrderItemType =
+  | CatalogItemType
+  | 'service'
+  | 'experience'
+  | 'custom_request'
 
-export type CatalogPriceType =
-  | 'fixed_price'
+export type CatalogPriceType = 'fixed_price'
+export type LegacyCatalogPriceType =
+  | CatalogPriceType
   | 'starting_from'
   | 'per_person'
   | 'per_hour'
@@ -99,13 +105,13 @@ export interface StoreOrderItem {
   id: string
   order_id: string
   catalog_item_id: string | null
-  type: CatalogItemType
+  type: LegacyOrderItemType
   title_snapshot: string
   description_snapshot: string | null
   quantity: number
   unit_price: number | null
   total_price: number | null
-  price_type: CatalogPriceType
+  price_type: LegacyCatalogPriceType
   provider_name: string | null
   scheduled_date: string | null
   status: string
@@ -118,7 +124,6 @@ export interface StoreOrderItem {
 export interface BoutiqueCartLine {
   catalogItemId: string
   quantity: number
-  scheduledDate?: string
   clientNotes?: string
 }
 
@@ -141,16 +146,6 @@ export const storeOrderStatusLabels: Record<StoreOrderStatus, string> = {
   disputed: 'Litige',
 }
 
-export const catalogPriceTypeLabels: Record<CatalogPriceType, string> = {
-  fixed_price: '',
-  starting_from: 'À partir de',
-  per_person: 'Par personne',
-  per_hour: 'Par heure',
-  per_day: 'Par jour',
-  custom_quote: 'Sur devis',
-  market_price: 'Prix marché',
-}
-
 export function resolveCatalogPrice(
   item: CatalogItem,
   assignment: PropertyCatalogAssignment | null | undefined,
@@ -164,25 +159,19 @@ export function formatCatalogPrice(
   currency = 'EUR',
 ): string {
   const amount = resolveCatalogPrice(item, assignment)
-  if (item.requires_quote || item.price_type === 'custom_quote' || amount == null) {
-    return 'Sur devis'
-  }
-  const prefix = catalogPriceTypeLabels[item.price_type]
-  const formatted = formatReserveAmount(amount, currency)
-  return prefix ? `${prefix} ${formatted}` : formatted
+  if (amount == null) return 'Prix indisponible'
+  return formatReserveAmount(amount, currency)
 }
 
 export function isInstantPurchase(item: CatalogItem): boolean {
-  return !item.requires_quote
-    && item.price_type !== 'custom_quote'
-    && item.type === 'product'
+  return item.type === 'product' && item.base_price != null
 }
 
-/** Types vendus via panier Boutique (hors prestations conciergerie). */
-export const BOUTIQUE_CATALOG_TYPES: CatalogItemType[] = ['product', 'experience']
+/** La Boutique vend exclusivement des objets physiques. */
+export const BOUTIQUE_CATALOG_TYPES: CatalogItemType[] = ['product']
 
-export function isBoutiqueCatalogItem(type: CatalogItemType): boolean {
-  return BOUTIQUE_CATALOG_TYPES.includes(type)
+export function isBoutiqueCatalogItem(type: LegacyOrderItemType): boolean {
+  return type === 'product'
 }
 
 export function filterBoutiqueCatalogEntries(entries: BoutiqueCatalogEntry[]): BoutiqueCatalogEntry[] {
@@ -258,7 +247,6 @@ export async function guestCheckoutBoutique(
     p_items: items.map(line => ({
       catalog_item_id: line.catalogItemId,
       quantity: line.quantity,
-      scheduled_date: line.scheduledDate ?? null,
       client_notes: line.clientNotes ?? null,
     })),
     p_payment_method: paymentMethod,
@@ -311,6 +299,7 @@ export async function fetchCatalogItems(includeInactive = false) {
   let query = supabase
     .from('catalog_items')
     .select('*, catalog_categories(name, slug)')
+    .eq('type', 'product')
     .order('title')
   if (!includeInactive) query = query.eq('is_active', true)
   return query
@@ -321,6 +310,7 @@ export async function fetchCatalogItemById(id: string) {
     .from('catalog_items')
     .select('*, catalog_categories(name, slug)')
     .eq('id', id)
+    .eq('type', 'product')
     .maybeSingle()
 }
 
@@ -333,15 +323,11 @@ export async function fetchCatalogItemPropertyIds(catalogItemId: string) {
 }
 
 export interface CatalogItemInput {
-  type: CatalogItemType
   category_id: string
   title: string
   short_description?: string | null
   long_description?: string | null
   base_price?: number | null
-  price_type: CatalogPriceType
-  provider_name?: string | null
-  requires_quote: boolean
   is_featured: boolean
   is_active: boolean
   max_quantity?: number
@@ -352,16 +338,16 @@ export interface CatalogItemInput {
 
 function catalogItemPayload(input: Omit<CatalogItemInput, 'property_ids'>) {
   return {
-    type: input.type,
+    type: 'product' as const,
     category_id: input.category_id,
     title: input.title.trim(),
     short_description: input.short_description?.trim() || null,
     long_description: input.long_description?.trim() || null,
     images: input.images ?? [],
-    base_price: input.requires_quote ? null : (input.base_price ?? null),
-    price_type: input.requires_quote ? 'custom_quote' as const : input.price_type,
-    provider_name: input.provider_name?.trim() || null,
-    requires_quote: input.requires_quote,
+    base_price: input.base_price ?? null,
+    price_type: 'fixed_price' as const,
+    provider_name: null,
+    requires_quote: false,
     is_featured: input.is_featured,
     is_active: input.is_active,
     max_quantity: input.max_quantity ?? 99,
@@ -463,20 +449,15 @@ export function cartLineTotal(
 export function cartEstimatedTotal(
   lines: BoutiqueCartLine[],
   catalog: BoutiqueCatalogEntry[],
-): { total: number; hasQuote: boolean } {
+): { total: number } {
   let total = 0
-  let hasQuote = false
   for (const line of lines) {
     const entry = catalog.find(e => e.item.id === line.catalogItemId)
     if (!entry) continue
     const lineTotal = cartLineTotal(entry, line.quantity)
-    if (lineTotal == null) {
-      hasQuote = true
-    } else {
-      total += lineTotal
-    }
+    if (lineTotal != null) total += lineTotal
   }
-  return { total, hasQuote }
+  return { total }
 }
 
 export { computeRevenueSplit }

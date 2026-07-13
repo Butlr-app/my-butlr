@@ -57,8 +57,8 @@ const navSections: NavSection[] = [
       { to: '/app/guest-portal', icon: Smartphone, label: 'Portail voyageur' },
       { to: '/app/messages', icon: MessageSquare, label: 'Messages' },
       { to: '/app/stay-reserves', icon: Wallet, label: 'Réserve séjour' },
-      { to: '/app/services', icon: ConciergeBell, label: 'Conciergerie' },
-      { to: '/app/boutique', icon: ShoppingBag, label: 'Boutique' },
+      { to: '/app/services', icon: ConciergeBell, label: 'Services conciergerie' },
+      { to: '/app/boutique', icon: ShoppingBag, label: 'Boutique produits' },
     ],
   },
   {

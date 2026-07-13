@@ -5,6 +5,7 @@ import { EmptyState, LoadingState } from '@/components/EmptyState'
 import { useAuth } from '@/lib/authContext'
 import { fetchOwnerPayments, fetchOwnerReservations } from '@/lib/data'
 import { isCommercialReservation } from '@/lib/reservationWorkflow'
+import { computeOwnerCollectedTotal } from '@/lib/reservationPayments'
 
 export function Reports() {
   const { user } = useAuth()
@@ -23,9 +24,8 @@ export function Reports() {
         fetchOwnerReservations(userId),
       ])
 
-      const paid = (payments ?? []).filter(p => p.status === 'paid')
-      setMonthlyRevenue(paid.reduce((sum, p) => sum + Number(p.amount), 0))
-      setServiceRevenue(paid.filter(p => p.type === 'service').reduce((sum, p) => sum + Number(p.amount), 0))
+      setMonthlyRevenue(computeOwnerCollectedTotal(payments ?? []))
+      setServiceRevenue((payments ?? []).filter(p => p.type === 'service' && p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0))
       setReservationCount((reservations ?? []).filter(isCommercialReservation).length)
       setLoading(false)
     }
