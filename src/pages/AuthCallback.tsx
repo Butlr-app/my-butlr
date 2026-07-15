@@ -8,6 +8,7 @@ import {
   getAuthCallbackType,
 } from '@/lib/authCallback'
 import { supabase } from '@/lib/supabase'
+import { formatAuthError } from '@/lib/authErrors'
 
 type CallbackStatus = 'checking' | 'error'
 
@@ -50,7 +51,7 @@ export function AuthCallback() {
       }
 
       setStatus('error')
-      setError(result.error ?? 'Ce lien magique est invalide ou a expiré.')
+      setError(result.error ? formatAuthError(result.error) : 'Ce lien magique est invalide ou a expiré.')
     }
 
     void verify()

@@ -57,8 +57,8 @@ export function GuestPortal() {
           description="Créez une propriété pour configurer son portail voyageur."
         />
       ) : (
-        <>
-          <Card className="p-4 max-w-xl">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+          <Card className="h-fit p-4 lg:sticky lg:top-6">
             <Select
               label="Propriété à configurer"
               value={selectedPropertyId}
@@ -68,6 +68,9 @@ export function GuestPortal() {
                 label: property.name,
               }))}
             />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Choisissez une villa, puis configurez chaque section du portail invité.
+            </p>
           </Card>
 
           {selectedProperty && (
@@ -77,7 +80,7 @@ export function GuestPortal() {
               propertyImageUrl={selectedProperty.image_url}
             />
           )}
-        </>
+        </div>
       )}
     </div>
   )

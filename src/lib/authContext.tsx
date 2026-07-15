@@ -145,10 +145,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signInWithMagicLink = async (email: string) => {
+    const redirectTo = `${window.location.origin}/auth/callback`
+    const trimmedEmail = email.trim()
+
+    const { data, error: functionError } = await supabase.functions.invoke('magic-link', {
+      body: { email: trimmedEmail, redirectTo },
+    })
+
+    if (!functionError && data?.ok) {
+      return { error: null }
+    }
+
+    let useFallback = Boolean(data?.fallback)
+    if (functionError?.context && typeof functionError.context.json === 'function') {
+      try {
+        const body = await functionError.context.json() as { fallback?: boolean }
+        useFallback = useFallback || Boolean(body?.fallback)
+      } catch {
+        useFallback = true
+      }
+    }
+
+    if (!useFallback && functionError) {
+      return {
+        error: new Error(formatAuthError(functionError.message)),
+        rateLimited: isEmailRateLimitError(functionError.message),
+      }
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
+      email: trimmedEmail,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectTo,
         shouldCreateUser: false,
       },
     })

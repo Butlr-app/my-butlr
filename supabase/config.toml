@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.password-reset]
 verify_jwt = false
+
+[functions.magic-link]
+verify_jwt = false

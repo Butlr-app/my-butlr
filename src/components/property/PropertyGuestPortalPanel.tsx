@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  BookOpen,
+  Eye,
+  EyeOff,
+  Home,
+  KeyRound,
+  Pencil,
+  Plus,
+  Settings2,
+  ShieldAlert,
+  Trash2,
+} from 'lucide-react'
 import { GuestPortalPreviewModal } from '@/components/guest/GuestPortalPreviewModal'
 import { GuideBlockEditor } from '@/components/guide/GuideBlockEditor'
 import { EmergencyContactsEditor } from '@/components/property/EmergencyContactsEditor'
@@ -40,6 +51,46 @@ interface PropertyGuestPortalPanelProps {
   propertyImageUrl?: string | null
 }
 
+type PortalSectionId = 'activation' | 'welcome' | 'stay' | 'rules' | 'guides'
+
+const portalSections: Array<{
+  id: PortalSectionId
+  label: string
+  description: string
+  icon: typeof Settings2
+}> = [
+  {
+    id: 'activation',
+    label: 'Activation',
+    description: 'Modules visibles dans le portail',
+    icon: Settings2,
+  },
+  {
+    id: 'welcome',
+    label: 'Accueil & Wi-Fi',
+    description: 'Message de bienvenue et connexion',
+    icon: Home,
+  },
+  {
+    id: 'stay',
+    label: 'Arrivée & départ',
+    description: 'Consignes check-in / check-out',
+    icon: KeyRound,
+  },
+  {
+    id: 'rules',
+    label: 'Règlement & urgences',
+    description: 'Règles du séjour et contacts',
+    icon: ShieldAlert,
+  },
+  {
+    id: 'guides',
+    label: 'Guides & infos',
+    description: 'Contenus pratiques publiés',
+    icon: BookOpen,
+  },
+]
+
 function TextArea({
   label,
   value,
@@ -61,8 +112,17 @@ function TextArea({
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info focus:ring-1 focus:ring-info/20"
+        className="w-full rounded-sm border border-input bg-card px-3 py-2 text-sm focus:border-info focus:outline-none focus:ring-1 focus:ring-info/20"
       />
+    </div>
+  )
+}
+
+function SectionHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="border-b border-border pb-4">
+      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
     </div>
   )
 }
@@ -82,6 +142,7 @@ export function PropertyGuestPortalPanel({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [activeSection, setActiveSection] = useState<PortalSectionId>('activation')
   const [settings, setSettings] = useState<GuestPortalSettings>(() =>
     defaultGuestPortalSettings(propertyId),
   )
@@ -103,6 +164,8 @@ export function PropertyGuestPortalPanel({
     blocks: [createEmptyGuideBlock('text')],
     published: true,
   })
+
+  const activeMeta = portalSections.find(section => section.id === activeSection) ?? portalSections[0]
 
   useEffect(() => {
     if (!previewOpen) return
@@ -228,11 +291,11 @@ export function PropertyGuestPortalPanel({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
         <div>
-          <p className="text-sm font-medium">{propertyName}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm font-semibold">{propertyName}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             {settings.enabled ? 'Portail actif' : 'Portail désactivé'}
             {' · '}
             {countPublishedGuides(guides)} guide{countPublishedGuides(guides) > 1 ? 's' : ''} publié{countPublishedGuides(guides) > 1 ? 's' : ''}
@@ -260,223 +323,274 @@ export function PropertyGuestPortalPanel({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5 space-y-1 divide-y divide-border">
-          <p className="pb-3 text-xs font-mono uppercase tracking-wider text-muted-foreground">Activation</p>
-          <SwitchField
-            checked={settings.enabled}
-            onCheckedChange={enabled => setSettings(current => ({ ...current, enabled }))}
-            label="Portail voyageur activé"
-            description="Les voyageurs pourront accéder au contenu de cette propriété."
-          />
-          <SwitchField
-            checked={settings.require_online_checkin}
-            onCheckedChange={require_online_checkin => setSettings(current => ({ ...current, require_online_checkin }))}
-            label="Check-in en ligne obligatoire"
-            description="Demande les informations voyageur avant l’arrivée."
-          />
-          <SwitchField
-            checked={settings.show_services}
-            onCheckedChange={show_services => setSettings(current => ({ ...current, show_services }))}
-            label="Afficher la Conciergerie"
-            description="Prestations sur mesure (chef, transport, bien-être) — demandes via devis."
-          />
-          <SwitchField
-            checked={settings.show_boutique ?? true}
-            onCheckedChange={show_boutique => setSettings(current => ({ ...current, show_boutique }))}
-            label="Afficher la Boutique"
-            description="Objets physiques commandables par quantité (paniers, boissons, fleurs, cadeaux)."
-          />
-          <SwitchField
-            checked={settings.show_messaging ?? true}
-            onCheckedChange={show_messaging => setSettings(current => ({ ...current, show_messaging }))}
-            label="Messagerie séjour"
-            description="Permet au voyageur d'écrire à l'équipe depuis le portail."
-          />
-          {(settings.show_messaging ?? true) && (
-            <Select
-              label="Contact messagerie"
-              value={settings.message_contact_role ?? 'house_manager'}
-              onChange={event => setSettings(current => ({
-                ...current,
-                message_contact_role: event.target.value as 'house_manager' | 'concierge',
-              }))}
-              options={[
-                { value: 'house_manager', label: 'House manager' },
-                { value: 'concierge', label: 'Conciergerie' },
-              ]}
-            />
-          )}
-        </Card>
-
-        <Card className="p-5 space-y-4">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Accueil</p>
-          <Input
-            label="Titre de bienvenue"
-            value={settings.welcome_title ?? ''}
-            onChange={event => setSettings(current => ({ ...current, welcome_title: event.target.value }))}
-            placeholder="Bienvenue"
-          />
-          <TextArea
-            label="Message de bienvenue"
-            value={settings.welcome_message ?? ''}
-            onChange={value => setSettings(current => ({ ...current, welcome_message: value }))}
-            placeholder="Nous sommes ravis de vous accueillir…"
-          />
-        </Card>
-
-        <Card className="p-5 space-y-4">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Wi-Fi</p>
-          <Input
-            label="Nom du réseau"
-            value={settings.wifi_name ?? ''}
-            onChange={event => setSettings(current => ({ ...current, wifi_name: event.target.value }))}
-            placeholder="VillaGuest"
-          />
-          <div className="relative">
-            <Input
-              label="Mot de passe"
-              type={showWifiPassword ? 'text' : 'password'}
-              value={settings.wifi_password ?? ''}
-              onChange={event => setSettings(current => ({ ...current, wifi_password: event.target.value }))}
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-9 text-muted-foreground"
-              onClick={() => setShowWifiPassword(current => !current)}
-              aria-label={showWifiPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-            >
-              {showWifiPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <nav
+          aria-label="Sections du portail invité"
+          className="lg:w-60 lg:shrink-0"
+        >
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {portalSections.map(section => {
+              const Icon = section.icon
+              const isActive = activeSection === section.id
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={`flex min-w-[11rem] shrink-0 cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors lg:min-w-0 lg:w-full ${
+                    isActive
+                      ? 'border-foreground/20 bg-foreground text-background shadow-sm'
+                      : 'border-border bg-card text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${isActive ? 'text-background' : 'text-muted-foreground'}`} />
+                  <span>
+                    <span className="block text-sm font-medium">{section.label}</span>
+                    <span className={`mt-0.5 block text-xs ${isActive ? 'text-background/80' : 'text-muted-foreground'}`}>
+                      {section.description}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
-        </Card>
-      </div>
+        </nav>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5 space-y-4">
-          <div>
-            <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Arrivée</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Instructions check-in avec texte, étapes, listes, images et vidéos.
-            </p>
-          </div>
-          <GuideBlockEditor
-            blocks={parseGuideContent(settings.check_in_instructions ?? '')}
-            onChange={blocks => setSettings(current => ({
-              ...current,
-              check_in_instructions: serializeGuideContent(blocks),
-            }))}
-            propertyId={propertyId}
-            userId={user?.id}
-          />
-        </Card>
-        <Card className="p-5 space-y-4">
-          <div>
-            <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Départ</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Instructions check-out avec texte, étapes, listes, images et vidéos.
-            </p>
-          </div>
-          <GuideBlockEditor
-            blocks={parseGuideContent(settings.check_out_instructions ?? '')}
-            onChange={blocks => setSettings(current => ({
-              ...current,
-              check_out_instructions: serializeGuideContent(blocks),
-            }))}
-            propertyId={propertyId}
-            userId={user?.id}
-          />
-        </Card>
-      </div>
+        <div className="min-w-0 flex-1 space-y-5">
+          <SectionHeader title={activeMeta.label} description={activeMeta.description} />
 
-      <Card className="p-5 space-y-4">
-        <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Urgences</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Contacts utiles et consignes en cas d’urgence.
-          </p>
-        </div>
-        <EmergencyContactsEditor
-          value={settings.emergency_contact}
-          onChange={emergency_contact => setSettings(current => ({ ...current, emergency_contact }))}
-          propertyId={propertyId}
-          userId={user?.id}
-        />
-      </Card>
-
-      <Card className="p-5 space-y-4">
-        <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Règlement intérieur</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Règles du séjour avec texte, étapes, listes, images et vidéos.
-          </p>
-        </div>
-        <GuideBlockEditor
-          blocks={parseGuideContent(settings.house_rules ?? '')}
-          onChange={blocks => setSettings(current => ({
-            ...current,
-            house_rules: serializeGuideContent(blocks),
-          }))}
-          propertyId={propertyId}
-          userId={user?.id}
-        />
-      </Card>
-
-      <Card className="p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Guides & infos</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Contenus affichés dans le portail (piscine, parking, adresses locales…).
-            </p>
-          </div>
-          <Button size="sm" variant="secondary" onClick={() => openGuideModal()}>
-            <Plus className="mr-1 h-4 w-4" />
-            Ajouter un guide
-          </Button>
-        </div>
-
-        {guides.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun guide pour l’instant.</p>
-        ) : (
-          <div className="space-y-2">
-            {guides.map(guide => (
-              <div
-                key={guide.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-3 py-3"
-              >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium">{guide.title}</p>
-                    <Badge variant="muted">
-                      {guestGuideCategoryLabels[guide.category as GuestGuideCategory] ?? guide.category}
-                    </Badge>
-                    <Badge variant={guide.published ? 'success' : 'warning'}>
-                      {guide.published ? 'Publié' : 'Brouillon'}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {guideContentSummary(guide.content)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => openGuideModal(guide)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleDeleteGuide(guide.id)}
-                    disabled={saving}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+          {activeSection === 'activation' && (
+            <Card className="divide-y divide-border p-0">
+              <div className="space-y-1 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Portail</p>
+                <SwitchField
+                  checked={settings.enabled}
+                  onCheckedChange={enabled => setSettings(current => ({ ...current, enabled }))}
+                  label="Portail voyageur activé"
+                  description="Les voyageurs pourront accéder au contenu de cette propriété."
+                />
+                <SwitchField
+                  checked={settings.require_online_checkin}
+                  onCheckedChange={require_online_checkin => setSettings(current => ({ ...current, require_online_checkin }))}
+                  label="Check-in en ligne obligatoire"
+                  description="Demande les informations voyageur avant l’arrivée."
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+
+              <div className="space-y-1 p-5">
+                <p className="pb-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">Modules invité</p>
+                <SwitchField
+                  checked={settings.show_services}
+                  onCheckedChange={show_services => setSettings(current => ({ ...current, show_services }))}
+                  label="Conciergerie"
+                  description="Prestations sur mesure — chef, transport, bien-être, devis."
+                />
+                <SwitchField
+                  checked={settings.show_boutique ?? true}
+                  onCheckedChange={show_boutique => setSettings(current => ({ ...current, show_boutique }))}
+                  label="Boutique"
+                  description="Produits commandables par quantité — paniers, boissons, cadeaux."
+                />
+                {(settings.show_boutique ?? true) && (
+                  <div className="pt-3">
+                    <TextArea
+                      label="Message d’accueil boutique"
+                      value={settings.boutique_welcome_text ?? ''}
+                      onChange={value => setSettings(current => ({ ...current, boutique_welcome_text: value }))}
+                      rows={3}
+                      placeholder="Commandez des produits pour votre villa…"
+                    />
+                  </div>
+                )}
+                <SwitchField
+                  checked={settings.show_messaging ?? true}
+                  onCheckedChange={show_messaging => setSettings(current => ({ ...current, show_messaging }))}
+                  label="Messagerie séjour"
+                  description="Permet au voyageur d’écrire à l’équipe depuis le portail."
+                />
+                {(settings.show_messaging ?? true) && (
+                  <div className="pt-3">
+                    <Select
+                      label="Contact messagerie"
+                      value={settings.message_contact_role ?? 'house_manager'}
+                      onChange={event => setSettings(current => ({
+                        ...current,
+                        message_contact_role: event.target.value as 'house_manager' | 'concierge',
+                      }))}
+                      options={[
+                        { value: 'house_manager', label: 'House manager' },
+                        { value: 'concierge', label: 'Conciergerie' },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {activeSection === 'welcome' && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="space-y-4 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Message d’accueil</p>
+                <Input
+                  label="Titre de bienvenue"
+                  value={settings.welcome_title ?? ''}
+                  onChange={event => setSettings(current => ({ ...current, welcome_title: event.target.value }))}
+                  placeholder="Bienvenue"
+                />
+                <TextArea
+                  label="Message de bienvenue"
+                  value={settings.welcome_message ?? ''}
+                  onChange={value => setSettings(current => ({ ...current, welcome_message: value }))}
+                  placeholder="Nous sommes ravis de vous accueillir…"
+                />
+              </Card>
+
+              <Card className="space-y-4 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Connexion Wi-Fi</p>
+                <Input
+                  label="Nom du réseau"
+                  value={settings.wifi_name ?? ''}
+                  onChange={event => setSettings(current => ({ ...current, wifi_name: event.target.value }))}
+                  placeholder="VillaGuest"
+                />
+                <div className="relative">
+                  <Input
+                    label="Mot de passe"
+                    type={showWifiPassword ? 'text' : 'password'}
+                    value={settings.wifi_password ?? ''}
+                    onChange={event => setSettings(current => ({ ...current, wifi_password: event.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-9 text-muted-foreground"
+                    onClick={() => setShowWifiPassword(current => !current)}
+                    aria-label={showWifiPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  >
+                    {showWifiPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeSection === 'stay' && (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card className="space-y-4 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Arrivée</p>
+                <p className="text-sm text-muted-foreground">
+                  Instructions check-in : texte, étapes, listes, images et vidéos.
+                </p>
+                <GuideBlockEditor
+                  blocks={parseGuideContent(settings.check_in_instructions ?? '')}
+                  onChange={blocks => setSettings(current => ({
+                    ...current,
+                    check_in_instructions: serializeGuideContent(blocks),
+                  }))}
+                  propertyId={propertyId}
+                  userId={user?.id}
+                />
+              </Card>
+              <Card className="space-y-4 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Départ</p>
+                <p className="text-sm text-muted-foreground">
+                  Instructions check-out : texte, étapes, listes, images et vidéos.
+                </p>
+                <GuideBlockEditor
+                  blocks={parseGuideContent(settings.check_out_instructions ?? '')}
+                  onChange={blocks => setSettings(current => ({
+                    ...current,
+                    check_out_instructions: serializeGuideContent(blocks),
+                  }))}
+                  propertyId={propertyId}
+                  userId={user?.id}
+                />
+              </Card>
+            </div>
+          )}
+
+          {activeSection === 'rules' && (
+            <div className="space-y-4">
+              <Card className="space-y-4 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Règlement intérieur</p>
+                <GuideBlockEditor
+                  blocks={parseGuideContent(settings.house_rules ?? '')}
+                  onChange={blocks => setSettings(current => ({
+                    ...current,
+                    house_rules: serializeGuideContent(blocks),
+                  }))}
+                  propertyId={propertyId}
+                  userId={user?.id}
+                />
+              </Card>
+              <Card className="space-y-4 p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Contacts d’urgence</p>
+                <EmergencyContactsEditor
+                  value={settings.emergency_contact}
+                  onChange={emergency_contact => setSettings(current => ({ ...current, emergency_contact }))}
+                  propertyId={propertyId}
+                  userId={user?.id}
+                />
+              </Card>
+            </div>
+          )}
+
+          {activeSection === 'guides' && (
+            <Card className="space-y-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Contenus affichés dans le portail : piscine, parking, adresses locales…
+                </p>
+                <Button size="sm" variant="secondary" onClick={() => openGuideModal()}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Ajouter un guide
+                </Button>
+              </div>
+
+              {guides.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucun guide pour l’instant.</p>
+              ) : (
+                <div className="space-y-2">
+                  {guides.map(guide => (
+                    <div
+                      key={guide.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-3 py-3"
+                    >
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">{guide.title}</p>
+                          <Badge variant="muted">
+                            {guestGuideCategoryLabels[guide.category as GuestGuideCategory] ?? guide.category}
+                          </Badge>
+                          <Badge variant={guide.published ? 'success' : 'warning'}>
+                            {guide.published ? 'Publié' : 'Brouillon'}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {guideContentSummary(guide.content)}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => openGuideModal(guide)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleDeleteGuide(guide.id)}
+                          disabled={saving}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+      </div>
 
       <Modal
         open={guideModalOpen}
