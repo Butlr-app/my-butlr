@@ -46,7 +46,7 @@ export function ForgotPassword() {
 
   if (sent) {
     return (
-      <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-16">
+      <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm text-center">
           <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-info-soft">
             <Mail className="h-6 w-6 text-info" />
@@ -93,7 +93,7 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6">
+    <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <span className="text-xl font-bold tracking-tight">butlr</span>

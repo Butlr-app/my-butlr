@@ -17,8 +17,10 @@ const roleLabels: Record<Role, string> = {
   guest: 'Guest',
 }
 
+const THEME_KEY = 'my-butlr-theme'
+
 export function Topbar({ title }: TopbarProps) {
-  const [dark, setDark] = useState(true)
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
   const { role } = useRole()
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
@@ -29,8 +31,10 @@ export function Topbar({ title }: TopbarProps) {
   }
 
   const toggleTheme = () => {
-    setDark(!dark)
-    document.documentElement.classList.toggle('dark')
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem(THEME_KEY, next ? 'dark' : 'light')
   }
 
   return (

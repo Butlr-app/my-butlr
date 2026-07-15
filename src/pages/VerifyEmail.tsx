@@ -31,7 +31,7 @@ export function VerifyEmail() {
   }
 
   return (
-    <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6 py-16">
+    <div className="bg-background text-foreground min-h-screen flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm text-center">
         <div className="w-14 h-14 rounded-full bg-info-soft flex items-center justify-center mx-auto mb-6">
           <Mail className="w-6 h-6 text-info" />

@@ -12,7 +12,7 @@ export function EarlyAccess() {
 
   if (submitted) {
     return (
-      <div className="dark bg-background text-foreground min-h-screen flex items-center justify-center px-6">
+      <div className="bg-background text-foreground min-h-screen flex items-center justify-center px-6">
         <div className="text-center max-w-md">
           <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
             <Check className="w-6 h-6 text-success" />
@@ -28,7 +28,7 @@ export function EarlyAccess() {
   }
 
   return (
-    <div className="dark bg-background text-foreground min-h-screen py-16 px-6">
+    <div className="bg-background text-foreground min-h-screen py-16 px-6">
       <div className="max-w-lg mx-auto">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" />

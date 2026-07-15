@@ -63,14 +63,14 @@ export function AuthCallback() {
 
   if (status === 'checking') {
     return (
-      <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6">
+      <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6">
         <p className="text-sm text-muted-foreground">Connexion en cours…</p>
       </div>
     )
   }
 
   return (
-    <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-16">
+    <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm text-center">
         <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
           <Sparkles className="h-6 w-6 text-destructive" />

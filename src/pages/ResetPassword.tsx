@@ -90,7 +90,7 @@ export function ResetPassword() {
 
   if (status === 'checking') {
     return (
-      <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6">
+      <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6">
         <p className="text-sm text-muted-foreground">Vérification du lien…</p>
       </div>
     )
@@ -98,7 +98,7 @@ export function ResetPassword() {
 
   if (status === 'invalid') {
     return (
-      <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-16">
+      <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm text-center">
           <h1 className="text-lg font-semibold">Lien invalide ou expiré</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -126,7 +126,7 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="dark bg-background text-foreground flex min-h-screen items-center justify-center px-6">
+    <div className="bg-background text-foreground flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-info-soft">
