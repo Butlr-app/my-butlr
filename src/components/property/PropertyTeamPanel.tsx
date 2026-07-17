@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Mail, RefreshCw, Shield, Trash2, UserPlus, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -26,6 +27,7 @@ import {
   type PropertyTeamRole,
 } from '@/lib/propertyTeam'
 import { formatDateForDisplay } from '@/lib/dateFormat'
+import { usePermissions } from '@/lib/permissionsContext'
 
 interface PropertyTeamPanelProps {
   propertyId: string
@@ -58,6 +60,8 @@ export function PropertyTeamPanel({
   userId,
   dateFormat,
 }: PropertyTeamPanelProps) {
+  const { can } = usePermissions()
+  const canManageTeam = can('team_manage')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -70,7 +74,7 @@ export function PropertyTeamPanel({
   const [inviteForm, setInviteForm] = useState({
     fullName: '',
     email: '',
-    role: 'concierge' as PropertyTeamRole,
+    role: 'house_manager' as PropertyTeamRole,
     message: '',
   })
 
@@ -158,7 +162,7 @@ export function PropertyTeamPanel({
       setSuccess(`Invitation envoyée à ${result.data.email}.`)
     }
 
-    setInviteForm({ fullName: '', email: '', role: 'concierge', message: '' })
+    setInviteForm({ fullName: '', email: '', role: 'house_manager', message: '' })
     setShowInvite(false)
   }
 
@@ -268,12 +272,20 @@ export function PropertyTeamPanel({
             <Shield className="w-4 h-4 mr-1.5" />
             Permissions
           </Button>
-          <Button size="sm" onClick={() => setShowInvite(true)}>
-            <UserPlus className="w-4 h-4 mr-1.5" />
-            Inviter
-          </Button>
+          {canManageTeam && (
+            <Button size="sm" onClick={() => setShowInvite(true)}>
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              Inviter
+            </Button>
+          )}
         </div>
       </div>
+
+      {!canManageTeam && (
+        <p className="rounded-md border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          Seul le propriétaire peut inviter ou modifier les membres de l’équipe.
+        </p>
+      )}
 
       {(error || success) && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${
@@ -311,12 +323,16 @@ export function PropertyTeamPanel({
         {members.length === 0 ? (
           <EmptyState
             title="Aucun membre pour l’instant"
-            description="Invitez un house manager, concierge, maintenance ou prestataire pour cette propriété."
-            action={(
+            description={
+              canManageTeam
+                ? 'Invitez un house manager, concierge, maintenance ou prestataire pour cette propriété.'
+                : 'Aucun membre actif sur cette propriété pour le moment.'
+            }
+            action={canManageTeam ? (
               <Button size="sm" onClick={() => setShowInvite(true)}>
                 Inviter un membre
               </Button>
-            )}
+            ) : undefined}
           />
         ) : (
           <div className="divide-y divide-border">
@@ -336,22 +352,28 @@ export function PropertyTeamPanel({
                   </div>
 
                   <div className="flex items-center gap-2 sm:shrink-0">
-                    <Select
-                      value={member.role}
-                      onChange={event => handleRoleChange(member, event.target.value as PropertyTeamRole)}
-                      options={roleOptions}
-                      disabled={saving}
-                      className="min-w-[180px]"
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleRemoveMember(member)}
-                      disabled={saving}
-                      aria-label={`Retirer ${name}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canManageTeam ? (
+                      <>
+                        <Select
+                          value={member.role}
+                          onChange={event => handleRoleChange(member, event.target.value as PropertyTeamRole)}
+                          options={roleOptions}
+                          disabled={saving}
+                          className="min-w-[180px]"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member)}
+                          disabled={saving}
+                          aria-label={`Retirer ${name}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <Badge variant="muted">{propertyTeamRoleLabel(member.role)}</Badge>
+                    )}
                   </div>
                 </div>
               )
@@ -360,7 +382,7 @@ export function PropertyTeamPanel({
         )}
       </Card>
 
-      {invitations.length > 0 && (
+      {canManageTeam && invitations.length > 0 && (
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <Mail className="w-4 h-4 text-muted-foreground" />
@@ -469,6 +491,11 @@ export function PropertyTeamPanel({
       >
         <p className="text-sm text-muted-foreground mb-4">
           Droits par rôle pour cette propriété. Le propriétaire conserve tous les accès.
+          Pour le house manager, les droits détaillés se configurent dans{' '}
+          <Link to="/app/settings?tab=Roles" className="font-medium text-foreground underline">
+            Paramètres → Rôles
+          </Link>
+          {' '}(par défaut : comme le propriétaire, sans montants ni contrats, sans suppression de propriété).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

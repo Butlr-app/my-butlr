@@ -1,4 +1,8 @@
 import { supabase } from './supabase'
+import {
+  sanitizeAssistantTaskDraft,
+  type AssistantDraft,
+} from './assistantDraft'
 
 export interface SaasAssistantMessage {
   id: string
@@ -37,6 +41,7 @@ interface SaasAssistantResponse {
   reply: string
   quickReplies?: string[]
   actions?: SaasAssistantAction[]
+  draft?: AssistantDraft | null
   source?: 'ai' | 'data' | 'fallback'
   snapshot?: SaasSnapshotSummary | null
 }
@@ -60,7 +65,11 @@ export async function sendSaasAssistantMessage(
   if (!data?.reply) {
     throw new Error('Réponse assistant vide.')
   }
-  return data
+
+  return {
+    ...data,
+    draft: sanitizeAssistantTaskDraft(data.draft),
+  }
 }
 
 export const SAAS_ASSISTANT_STARTERS = [

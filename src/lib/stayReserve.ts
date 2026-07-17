@@ -55,6 +55,13 @@ export interface StayReserve {
   closed_at: string | null
 }
 
+export interface StayServiceSelectedOption {
+  id: string
+  label: string
+  group_label?: string
+  price?: number
+}
+
 export interface StayServiceRequest {
   id: string
   reservation_id: string
@@ -70,10 +77,43 @@ export interface StayServiceRequest {
   final_amount: number | null
   provider_name: string | null
   property_service_id: string | null
+  /** Snapshot des options choisies par le voyageur (achat direct) */
+  selected_options?: Record<string, StayServiceSelectedOption> | null
   approved_at: string | null
   completed_at: string | null
   created_at: string
   updated_at: string
+}
+
+export function formatStayServiceSelectedOptions(
+  selected: StayServiceRequest['selected_options'] | null | undefined,
+): string {
+  if (!selected || typeof selected !== 'object') return ''
+  return Object.values(selected)
+    .map(choice => {
+      if (!choice || typeof choice !== 'object') return ''
+      const group = choice.group_label?.trim()
+      const label = choice.label?.trim()
+      if (!label) return ''
+      return group ? `${group} : ${label}` : label
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Affiche options + notes sans doubler si la description contient déjà les options. */
+export function formatStayServiceRequestDetails(
+  request: Pick<StayServiceRequest, 'description' | 'selected_options'>,
+): string {
+  const optionsText = formatStayServiceSelectedOptions(request.selected_options)
+  const description = request.description?.trim() ?? ''
+  if (!optionsText) return description
+  if (!description) return optionsText
+  const alreadyEmbedded = optionsText
+    .split('\n')
+    .every(line => line && description.includes(line))
+  if (alreadyEmbedded) return description
+  return `${optionsText}\n\n${description}`
 }
 
 export interface ReserveTransaction {
@@ -104,13 +144,47 @@ export const DEFAULT_REVENUE_SPLIT: RevenueSplitRates = {
 
 export const stayReserveStatusLabels: Record<StayReserveStatus, string> = {
   pending_payment: 'En attente de versement',
-  funded: 'Active',
+  funded: 'Activée',
   partially_used: 'Partiellement utilisée',
   low_balance: 'Solde bas',
   exhausted: 'Épuisée',
   closed: 'Clôturée',
   refunded: 'Remboursée',
   cancelled: 'Annulée',
+}
+
+export const reserveTransactionTypeLabels: Record<ReserveTransactionType, string> = {
+  top_up: 'Versement',
+  authorization: 'Réservation de fonds',
+  capture: 'Débit confirmé',
+  refund: 'Remboursement',
+  release: 'Libération de fonds',
+  adjustment: 'Ajustement',
+  payout: 'Versement prestataire',
+  commission: 'Commission plateforme',
+}
+
+export const stayApprovalModeLabels: Record<StayApprovalMode, string> = {
+  manual: 'Validation manuelle',
+  auto_under_limit: 'Auto sous plafond',
+}
+
+export function formatTransactionLabel(transaction: ReserveTransaction): string {
+  return transaction.description ?? reserveTransactionTypeLabels[transaction.type] ?? transaction.type
+}
+
+export function isReserveTransactionCredit(type: ReserveTransactionType): boolean {
+  return type === 'top_up' || type === 'refund' || type === 'release'
+}
+
+export function countPendingOwnerActions(requests: StayServiceRequest[]): number {
+  return requests.filter(request =>
+    ['submitted', 'reviewing', 'quoted', 'approved'].includes(request.status),
+  ).length
+}
+
+export function countPendingGuestApprovals(requests: StayServiceRequest[]): number {
+  return requests.filter(request => request.status === 'waiting_client_approval').length
 }
 
 export const stayServiceStatusLabels: Record<StayServiceRequestStatus, string> = {
@@ -212,6 +286,52 @@ export function shouldAutoApprove(
   return amount <= Number(reserve.auto_approval_limit)
 }
 
+export async function updateStayReserveSettings(
+  reserveId: string,
+  settings: {
+    approvalMode?: StayApprovalMode
+    autoApprovalLimit?: number
+  },
+) {
+  const payload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+  if (settings.approvalMode) payload.approval_mode = settings.approvalMode
+  if (settings.autoApprovalLimit != null) payload.auto_approval_limit = settings.autoApprovalLimit
+
+  return supabase
+    .from('stay_reserves')
+    .update(payload)
+    .eq('id', reserveId)
+    .select('*')
+    .single()
+}
+
+export async function countPendingGuestApprovalsForReserves(reserveIds: string[]) {
+  if (reserveIds.length === 0) return { count: 0, error: null }
+
+  const { count, error } = await supabase
+    .from('stay_service_requests')
+    .select('id', { count: 'exact', head: true })
+    .in('stay_reserve_id', reserveIds)
+    .eq('status', 'waiting_client_approval')
+
+  return { count: count ?? 0, error }
+}
+
+export async function markStayServiceInProgress(requestId: string) {
+  return supabase
+    .from('stay_service_requests')
+    .update({
+      status: 'in_progress',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', requestId)
+    .in('status', ['approved', 'assigned_to_provider'])
+    .select('*')
+    .single()
+}
+
 export async function fetchStayReserveByReservation(reservationId: string) {
   return supabase
     .from('stay_reserves')
@@ -247,6 +367,49 @@ export async function fetchReserveTransactions(stayReserveId: string) {
     .select('*')
     .eq('stay_reserve_id', stayReserveId)
     .order('created_at', { ascending: false })
+}
+
+export async function fetchPendingReserveTopUps(propertyIds: string[]) {
+  if (propertyIds.length === 0) return { data: [] as ReserveTransaction[], error: null }
+
+  const { data: reserves, error: reservesError } = await supabase
+    .from('stay_reserves')
+    .select('id')
+    .in('property_id', propertyIds)
+
+  if (reservesError) return { data: [] as ReserveTransaction[], error: reservesError }
+  const reserveIds = (reserves ?? []).map(row => row.id)
+  if (reserveIds.length === 0) return { data: [] as ReserveTransaction[], error: null }
+
+  return supabase
+    .from('reserve_transactions')
+    .select('*, stay_reserves(id, reservation_id, property_id, currency, reservations(guest_name, properties(name)))')
+    .in('stay_reserve_id', reserveIds)
+    .eq('type', 'top_up')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+}
+
+export async function staffConfirmReserveTopUp(transactionId: string) {
+  const { data, error } = await supabase.rpc('staff_confirm_reserve_top_up', {
+    p_transaction_id: transactionId,
+  })
+  if (error) return { data: null, error }
+  if ((data as { error?: string })?.error) {
+    return { data: null, error: new Error('Validation du crédit impossible.') }
+  }
+  return { data, error: null }
+}
+
+export async function staffRejectReserveTopUp(transactionId: string) {
+  const { data, error } = await supabase.rpc('staff_reject_reserve_top_up', {
+    p_transaction_id: transactionId,
+  })
+  if (error) return { data: null, error }
+  if ((data as { error?: string })?.error) {
+    return { data: null, error: new Error('Refus du crédit impossible.') }
+  }
+  return { data, error: null }
 }
 
 export async function getGuestStayPortal(portalToken: string) {

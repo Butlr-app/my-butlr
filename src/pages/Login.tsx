@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/Input'
 import { useAuth } from '@/lib/authContext'
 import { useState } from 'react'
 import { formatAuthError } from '@/lib/authErrors'
+import { homePathForRole } from '@/lib/partnerPortal'
+import { supabase } from '@/lib/supabase'
 
 export function Login() {
   const navigate = useNavigate()
@@ -21,13 +23,24 @@ export function Login() {
     const password = form.get('password') as string
 
     const { error } = await signIn(email, password)
-    setLoading(false)
-
     if (error) {
+      setLoading(false)
       setError(formatAuthError(error.message))
-    } else {
-      navigate('/app')
+      return
     }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    let role: string | null = null
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      role = profile?.role ?? null
+    }
+    setLoading(false)
+    navigate(homePathForRole(role))
   }
 
   return (

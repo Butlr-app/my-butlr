@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { Property, Reservation } from '@/lib/types'
 import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
 import {
   uploadAndAnalyzeContractFiles,
   extractContractPrefillData,
@@ -93,16 +94,24 @@ export function ReservationCreateModal({
   onCreated,
 }: ReservationCreateModalProps) {
   const { user } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const canViewContracts = can('contracts')
   const navigate = useNavigate()
   const [propertyId, setPropertyId] = useState('')
   const [arrival, setArrival] = useState('')
   const [departure, setDeparture] = useState('')
   const [contractMode, setContractMode] = useState<ContractMode | null>(null)
+  // Without contracts: allow guest booking (to_prepare for later) + date blocks; no uploads.
+  const visibleContractOptions = canViewContracts
+    ? contractOptions
+    : contractOptions.filter(option => option.value === 'to_prepare' || option.value === 'none')
   const [bookingKind, setBookingKind] = useState<BookingKind>('owner_stay')
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
   const [guestPhone, setGuestPhone] = useState('')
   const [guestsCount, setGuestsCount] = useState(1)
+  const [guestLanguage, setGuestLanguage] = useState('fr')
   const [totalAmount, setTotalAmount] = useState('')
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const [pricingQuote, setPricingQuote] = useState<StayQuote | null>(null)
@@ -126,7 +135,19 @@ export function ReservationCreateModal({
     }
   }, [open, properties, propertyId])
 
+  useEffect(() => {
+    if (!open) return
+    if (!canViewContracts && (contractMode === 'already_done' || contractMode === 'concierge')) {
+      setContractMode('to_prepare')
+    }
+    if (!canViewAmounts) {
+      setTotalAmount('')
+      setPriceManuallyEdited(false)
+    }
+  }, [open, canViewContracts, canViewAmounts, contractMode])
+
   const selectedProperty = properties.find(property => property.id === propertyId)
+  const contractPriceDecided = ocrPrefill?.totalAmount != null
 
   useEffect(() => {
     if (
@@ -153,7 +174,7 @@ export function ReservationCreateModal({
         overrides: result.overrides,
       })
       setPricingQuote(quote)
-      if (!priceManuallyEdited && !totalAmount) {
+      if (canViewAmounts && !priceManuallyEdited && !totalAmount && !contractPriceDecided) {
         setTotalAmount(quote.total.toFixed(2))
       }
     })
@@ -161,6 +182,7 @@ export function ReservationCreateModal({
     return () => { active = false }
   }, [
     open,
+    canViewAmounts,
     propertyId,
     arrival,
     departure,
@@ -168,6 +190,7 @@ export function ReservationCreateModal({
     guestsCount,
     priceManuallyEdited,
     totalAmount,
+    contractPriceDecided,
   ])
 
   const reset = () => {
@@ -180,6 +203,7 @@ export function ReservationCreateModal({
     setGuestEmail('')
     setGuestPhone('')
     setGuestsCount(1)
+    setGuestLanguage('fr')
     setTotalAmount('')
     setPriceManuallyEdited(false)
     setPricingQuote(null)
@@ -216,7 +240,8 @@ export function ReservationCreateModal({
       !current || current === previous?.departure ? prefill.departure ?? '' : current
     )
     if (
-      prefill.totalAmount !== null
+      canViewAmounts
+      && prefill.totalAmount !== null
       && (!priceManuallyEdited || Number(totalAmount) === previous?.totalAmount)
     ) {
       setTotalAmount(prefill.totalAmount.toFixed(2))
@@ -315,6 +340,7 @@ export function ReservationCreateModal({
       totalAmount,
       blockTitle,
       notes,
+      guestLanguage,
       propertyMaxGuests: selectedProperty?.max_guests,
     }
     const validationError = validateReservationInput(input)
@@ -436,7 +462,7 @@ export function ReservationCreateModal({
     reset()
     onClose()
 
-    if (contractMode === 'to_prepare') {
+    if (contractMode === 'to_prepare' && canViewContracts) {
       navigate(`/app/contracts/generate?reservation=${data.id}`)
     }
   }
@@ -479,10 +505,18 @@ export function ReservationCreateModal({
 
         <fieldset className="space-y-3">
           <legend className="text-sm font-semibold">
-            Comment souhaitez-vous gérer le contrat ?
+            {canViewContracts
+              ? 'Comment souhaitez-vous gérer le contrat ?'
+              : 'Type de réservation'}
           </legend>
+          {!canViewContracts && (
+            <p className="text-xs text-muted-foreground">
+              Les contrats ne sont pas disponibles pour votre rôle. Vous pouvez créer une
+              réservation client (contrat à préparer plus tard) ou bloquer des dates.
+            </p>
+          )}
           <div role="radiogroup" className="grid gap-3 sm:grid-cols-2">
-            {contractOptions.map(option => {
+            {visibleContractOptions.map(option => {
               const Icon = option.icon
               const selected = contractMode === option.value
 
@@ -591,7 +625,7 @@ export function ReservationCreateModal({
                   {ocrPrefill.arrival && ocrPrefill.departure && (
                     <span>· Séjour : {ocrPrefill.arrival} → {ocrPrefill.departure}</span>
                   )}
-                  {ocrPrefill.totalAmount !== null && (
+                  {canViewAmounts && ocrPrefill.totalAmount !== null && (
                     <span>· Montant : {ocrPrefill.totalAmount.toLocaleString('fr-FR')} €</span>
                   )}
                 </div>
@@ -631,19 +665,39 @@ export function ReservationCreateModal({
                 value={guestPhone}
                 onChange={event => setGuestPhone(event.target.value)}
               />
-              <Input
-                label={`Montant total (${pricingQuote?.currency ?? 'EUR'})`}
-                type="number"
-                min="0"
-                step="0.01"
-                value={totalAmount}
-                onChange={event => {
-                  setTotalAmount(event.target.value)
-                  setPriceManuallyEdited(true)
-                }}
+              {canViewAmounts ? (
+                <Input
+                  label={`Montant total (${pricingQuote?.currency ?? 'EUR'})`}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={totalAmount}
+                  onChange={event => {
+                    setTotalAmount(event.target.value)
+                    setPriceManuallyEdited(true)
+                  }}
+                />
+              ) : (
+                <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Montant total
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Masqué pour votre rôle — le propriétaire pourra le renseigner.
+                  </p>
+                </div>
+              )}
+              <Select
+                label="Langue du voyageur"
+                value={guestLanguage}
+                onChange={event => setGuestLanguage(event.target.value)}
+                options={[
+                  { value: 'fr', label: 'Français' },
+                  { value: 'en', label: 'English' },
+                ]}
               />
             </div>
-            {pricingQuote && (
+            {canViewAmounts && pricingQuote && !contractPriceDecided && (
               <div className="rounded-md border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>

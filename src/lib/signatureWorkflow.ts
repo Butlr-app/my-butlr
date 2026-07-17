@@ -1,8 +1,13 @@
+import { supabase } from './supabase'
 import type {
   SignatureEnvelopeStatus,
   SignatureFieldType,
   SignatureRecipient,
 } from './types'
+
+export async function expireStaleSignatureEnvelopes() {
+  return supabase.rpc('expire_stale_signature_envelopes')
+}
 
 export interface SignatureRecipientDraft {
   key: string

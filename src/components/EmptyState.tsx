@@ -16,7 +16,7 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
   )
 }
 
-export function LoadingState({ label = 'Loading...' }: { label?: string }) {
+export function LoadingState({ label = 'Chargement...' }: { label?: string }) {
   return (
     <div className="flex items-center justify-center py-24">
       <div className="text-center">

@@ -90,7 +90,7 @@ test.describe('parcours de réservation authentifiés', () => {
     await page.goto('/login')
     await page.getByLabel('Email').fill(ownerEmail!)
     await page.getByLabel('Password').fill(ownerPassword!)
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.getByRole('button', { name: 'Se connecter' }).click()
     await expect(page).toHaveURL(/\/app$/)
   }
 

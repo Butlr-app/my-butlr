@@ -19,8 +19,14 @@ import { ImageUpload } from '@/components/ui/ImageUpload'
 import { uploadImageAsset } from '@/lib/uploadImageAsset'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/authContext'
+import { ServiceOptionsEditor } from '@/components/services/ServiceOptionsEditor'
+import {
+  normalizeServiceOptions,
+  type ServiceOptionGroup,
+} from '@/lib/propertyServices'
 
 type PricingMode = 'fixed' | 'per_person' | 'quote'
+type BookingMode = 'quote' | 'direct'
 
 interface Service {
   id: string
@@ -32,8 +38,10 @@ interface Service {
   available: boolean | null
   image_url: string | null
   pricing_mode: PricingMode | null
+  booking_mode: BookingMode | null
   provider_name: string | null
   includes_text: string | null
+  options: ServiceOptionGroup[] | null
 }
 
 const PRICING_MODE_LABELS: Record<PricingMode, string> = {
@@ -64,8 +72,10 @@ interface FormState {
   commission: string
   available: boolean
   pricingMode: PricingMode
+  bookingMode: BookingMode
   providerName: string
   includesText: string
+  options: ServiceOptionGroup[]
   imageUrl: string | null
   imageFile: File | null
   imagePreview: string | null
@@ -79,8 +89,10 @@ const EMPTY_FORM: FormState = {
   commission: '',
   available: true,
   pricingMode: 'fixed',
+  bookingMode: 'quote',
   providerName: '',
   includesText: '',
+  options: [],
   imageUrl: null,
   imageFile: null,
   imagePreview: null,
@@ -104,7 +116,7 @@ export function Services() {
     const { data, error } = await supabase
       .from('services')
       .select(
-        'id, name, description, category, starting_price, commission, available, image_url, pricing_mode, provider_name, includes_text',
+        'id, name, description, category, starting_price, commission, available, image_url, pricing_mode, booking_mode, provider_name, includes_text, options',
       )
       .order('name', { ascending: true })
     if (error) {
@@ -157,8 +169,10 @@ export function Services() {
       commission: service.commission?.toString() ?? '',
       available: service.available ?? true,
       pricingMode: service.pricing_mode ?? 'fixed',
+      bookingMode: service.booking_mode === 'direct' ? 'direct' : 'quote',
       providerName: service.provider_name ?? '',
       includesText: service.includes_text ?? '',
+      options: normalizeServiceOptions(service.options),
       imageUrl: service.image_url,
       imageFile: null,
       imagePreview: service.image_url,
@@ -207,8 +221,10 @@ export function Services() {
       commission: form.commission ? parseFloat(form.commission) : null,
       available: form.available,
       pricing_mode: form.pricingMode,
+      booking_mode: form.pricingMode === 'quote' ? 'quote' : form.bookingMode,
       provider_name: form.providerName.trim() || null,
       includes_text: form.includesText.trim() || null,
+      options: normalizeServiceOptions(form.options),
       image_url: imageUrl,
     }
 
@@ -394,6 +410,18 @@ export function Services() {
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                     {PRICING_MODE_LABELS[service.pricing_mode ?? 'fixed']}
                   </span>
+                  {service.booking_mode === 'direct' && (service.pricing_mode ?? 'fixed') !== 'quote' && (
+                    <Badge variant="info">Achat direct</Badge>
+                  )}
+                  {(() => {
+                    const optionCount = normalizeServiceOptions(service.options).length
+                    if (optionCount === 0) return null
+                    return (
+                      <Badge variant="muted">
+                        {optionCount} option{optionCount > 1 ? 's' : ''}
+                      </Badge>
+                    )
+                  })()}
                   {service.commission != null && (
                     <span className="text-[10px] font-mono text-muted-foreground">
                       {service.commission}% comm.
@@ -410,7 +438,13 @@ export function Services() {
                     Visible
                   </label>
                   <div className="flex items-center gap-1">
-                    <Button variant="secondary" size="sm" className="px-2.5" onClick={() => openEdit(service)}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="px-2.5"
+                      onClick={() => openEdit(service)}
+                      aria-label={`Modifier ${service.name ?? 'le service'}`}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
@@ -418,6 +452,7 @@ export function Services() {
                       size="sm"
                       className="px-2.5 text-destructive hover:bg-destructive/10"
                       onClick={() => handleDelete(service)}
+                      aria-label={`Supprimer ${service.name ?? 'le service'}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -511,10 +546,35 @@ export function Services() {
             placeholder="Courses et vaisselle incluses"
           />
 
+          <ServiceOptionsEditor
+            value={form.options}
+            onChange={options => patch({ options })}
+            disabled={saving}
+          />
+
+          {form.pricingMode !== 'quote' && (
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">Achat direct</p>
+                <p className="text-xs text-muted-foreground">
+                  Le voyageur paie immédiatement via sa Réserve séjour (sans devis).
+                </p>
+              </div>
+              <Switch
+                checked={form.bookingMode === 'direct'}
+                onCheckedChange={v => patch({ bookingMode: v ? 'direct' : 'quote' })}
+              />
+            </div>
+          )}
+
           <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
             <div>
               <p className="text-sm font-medium">Visible dans le portail voyageur</p>
-              <p className="text-xs text-muted-foreground">Les voyageurs peuvent demander ce service.</p>
+              <p className="text-xs text-muted-foreground">
+                {form.bookingMode === 'direct' && form.pricingMode !== 'quote'
+                  ? 'Les voyageurs peuvent acheter ce service directement.'
+                  : 'Les voyageurs peuvent demander ce service.'}
+              </p>
             </div>
             <Switch checked={form.available} onCheckedChange={v => patch({ available: v })} />
           </div>

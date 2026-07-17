@@ -8,7 +8,7 @@ test('la page publique se charge', async ({ page }) => {
 test('une page privée redirige vers la connexion', async ({ page }) => {
   await page.goto('/app/reservations')
   await expect(page).toHaveURL(/\/login$/)
-  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Se connecter' })).toBeVisible()
 })
 
 test('la cérémonie de signature est publique et demande une vérification OTP', async ({ page }) => {

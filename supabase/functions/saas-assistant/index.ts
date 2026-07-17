@@ -12,6 +12,12 @@ import {
   needsLiveData,
   type SaasSnapshot,
 } from '../_shared/saasSnapshot.ts'
+import {
+  parseAssistantTaskDraft,
+  sanitizeAssistantTaskDraft,
+  taskCreatePath,
+  type AssistantTaskDraft,
+} from '../_shared/assistantDraft.ts'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -28,6 +34,7 @@ interface AssistantResponse {
   reply: string
   quickReplies?: string[]
   actions?: AssistantAction[]
+  draft?: AssistantTaskDraft | null
 }
 
 const VALID_PATHS = new Set([
@@ -37,6 +44,7 @@ const VALID_PATHS = new Set([
   '/app/reservations',
   '/app/calendar',
   '/app/tasks',
+  '/app/operations',
   '/app/guest-portal',
   '/app/messages',
   '/app/stay-reserves',
@@ -52,6 +60,12 @@ const VALID_PATHS = new Set([
   '/app/settings',
 ])
 
+function todayIso() {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
 const systemPrompt = `Tu es l'assistant My Butlr, intégré au back-office SaaS de gestion de villas de luxé.
 Réponds TOUJOURS en français, de façon concise et actionnable (2-4 phrases max sauf si procédure détaillée demandée).
 
@@ -66,7 +80,8 @@ Cite les nombres pertinents dans ta réponse. Si une donnée vaut 0, dis-le clai
 - /app/properties/new — Créer une propriété
 - /app/reservations — Réservations
 - /app/calendar — Calendrier
-- /app/tasks — Tâches
+- /app/tasks — Tâches générales
+- /app/operations — Entretien & travaux (intervenants : ménage, piscine, jardin, élec, menuiserie…)
 - /app/guest-portal — Configuration portail voyageur
 - /app/messages — Messages séjour
 - /app/stay-reserves — Réserve séjour
@@ -78,7 +93,7 @@ Cite les nombres pertinents dans ta réponse. Si une donnée vaut 0, dis-le clai
 - /app/contracts/generate — Générer un contrat
 - /app/invoices/generate — Factures
 - /app/reports — Rapports
-- /app/partners — Partenaires
+- /app/partners — Prestataires de services (chef, spa bien-être, transport, activités)
 - /app/settings — Paramètres
 
 ## Concepts clés
@@ -86,6 +101,24 @@ Cite les nombres pertinents dans ta réponse. Si une donnée vaut 0, dis-le clai
 - **Conciergerie** vs **Boutique** : prestations sur devis vs produits au panier
 - **Réserve séjour** : wallet prépayé voyageur
 - **Messages séjour** : chat voyageur ↔ équipe
+- **Intervenants** (Entretien & travaux) : ménage, pisciniste, jardinier, électricien, menuisier, maintenance — /app/operations
+- **Prestataires de services** : chef, spa & bien-être, massage, transport, yacht, activités — /app/partners
+- Ne confonds pas **Piscine & spa technique** (intervenant) avec **Spa & bien-être** (service voyageur).
+
+## Création de tâche (préremplissage)
+Quand l’utilisateur demande d’ajouter / créer / planifier une tâche ou une intervention :
+1. Remplis l’objet "draft" (kind: "task") avec titre, description, dueDate (YYYY-MM-DD), dueTime (HH:MM si mentionné), linkType, priority, categoryHint.
+2. categoryHint : "cleaning" (ménage), "pool" (pisciniste / spa technique), "garden" (jardinage), "works" (élec / menuiserie / maintenance), sinon null.
+3. linkType : "partner" pour intervenants techniques, "client" pour séjour voyageur, sinon "property".
+4. dueDate : convertis aujourd’hui / demain / après-demain à partir de la date du jour fournie dans le contexte.
+5. Navigue vers /app/operations?tab=tasks&create=task (intervenant) ou /app/tasks?create=task (tâche générique).
+6. Dans "reply", confirme brièvement le titre et la date/heure détectés.
+Si ce n’est pas une création de tâche, mets "draft" à null.
+
+## Routage recommandé
+- Intervention / facture / suivi **ménage, pisciniste, jardinage, électricité, menuiserie, travaux** → /app/operations?tab=tasks&create=task
+- Chef / spa bien-être / massage / transport / activités → /app/partners
+- Tâche générique (rappel client, admin) → /app/tasks?create=task
 
 Quand tu proposes une action de navigation, inclus-la dans "actions".
 Propose 2-3 "quickReplies" pertinents.
@@ -115,31 +148,113 @@ const responseSchema = {
       },
       maxItems: 3,
     },
+    draft: {
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            kind: { type: 'string', enum: ['task'] },
+            title: { type: 'string' },
+            description: { type: ['string', 'null'] },
+            dueDate: { type: ['string', 'null'] },
+            dueTime: { type: ['string', 'null'] },
+            linkType: { type: ['string', 'null'], enum: ['client', 'property', 'partner', null] },
+            priority: { type: ['string', 'null'], enum: ['low', 'medium', 'high', null] },
+            categoryHint: { type: ['string', 'null'], enum: ['pool', 'garden', 'works', 'cleaning', null] },
+          },
+          required: [
+            'kind',
+            'title',
+            'description',
+            'dueDate',
+            'dueTime',
+            'linkType',
+            'priority',
+            'categoryHint',
+          ],
+        },
+      ],
+    },
   },
-  required: ['reply', 'quickReplies', 'actions'],
+  required: ['reply', 'quickReplies', 'actions', 'draft'],
 }
 
-function sanitizeResponse(raw: AssistantResponse, currentPath?: string): AssistantResponse {
+function isAllowedNavigatePath(path: string): boolean {
+  try {
+    const url = new URL(path, 'https://local.invalid')
+    return VALID_PATHS.has(url.pathname)
+  } catch {
+    return VALID_PATHS.has(path)
+  }
+}
+
+function withDraftNavigation(response: AssistantResponse): AssistantResponse {
+  const draft = response.draft
+  if (!draft) return response
+
+  const createPath = taskCreatePath(draft)
+  const actions = [...(response.actions ?? [])]
+  const hasCreate = actions.some(action => {
+    try {
+      const url = new URL(action.path, 'https://local.invalid')
+      return url.searchParams.get('create') === 'task'
+    } catch {
+      return false
+    }
+  })
+
+  if (!hasCreate) {
+    actions.unshift({
+      type: 'navigate',
+      path: createPath,
+      label: draft.categoryHint ? 'Finaliser l’intervention' : 'Finaliser la tâche',
+    })
+  }
+
+  return { ...response, actions: actions.slice(0, 3) }
+}
+
+function sanitizeResponse(raw: AssistantResponse, _currentPath?: string): AssistantResponse {
   const actions = (raw.actions ?? [])
-    .filter(a => a.type === 'navigate' && VALID_PATHS.has(a.path))
+    .filter(a => a.type === 'navigate' && isAllowedNavigatePath(a.path))
     .slice(0, 3)
 
   const quickReplies = (raw.quickReplies ?? [])
     .filter(q => typeof q === 'string' && q.trim().length > 0)
     .slice(0, 3)
 
+  const draft = sanitizeAssistantTaskDraft(raw.draft)
   const reply = raw.reply?.trim() || 'Je suis là pour vous aider dans My Butlr.'
-  return { reply, quickReplies, actions }
+  return withDraftNavigation({ reply, quickReplies, actions, draft })
 }
 
 function keywordFallback(message: string, currentPath?: string): AssistantResponse {
   const q = message.toLowerCase()
+  const taskDraft = parseAssistantTaskDraft(message)
+
+  if (taskDraft) {
+    const path = taskCreatePath(taskDraft)
+    const when = [
+      taskDraft.dueDate ? `pour le ${taskDraft.dueDate}` : null,
+      taskDraft.dueTime ? `à ${taskDraft.dueTime}` : null,
+    ].filter(Boolean).join(' ')
+
+    return sanitizeResponse({
+      reply: `J’ai préparé « ${taskDraft.title} »${when ? ` ${when}` : ''}. Ouvrez le formulaire pour finaliser (villa / prestataire).`,
+      quickReplies: ['Créer une autre tâche', 'Voir mes tâches', 'Retour au tableau de bord'],
+      actions: [{ type: 'navigate', path, label: 'Finaliser la tâche' }],
+      draft: taskDraft,
+    }, currentPath)
+  }
 
   if (/portail|voyageur|invité|guest/.test(q)) {
     return sanitizeResponse({
       reply: 'Le portail voyageur se configure par propriété : contenus d’accueil, Wi-Fi, guides, toggles conciergerie/boutique/messagerie.',
       quickReplies: ['Activer la messagerie', 'Différence boutique / conciergerie', 'Résumé de ma situation'],
       actions: [{ type: 'navigate', path: '/app/guest-portal', label: 'Ouvrir le portail voyageur' }],
+      draft: null,
     }, currentPath)
   }
 
@@ -151,6 +266,7 @@ function keywordFallback(message: string, currentPath?: string): AssistantRespon
         { type: 'navigate', path: '/app/boutique/catalog', label: 'Catalogue boutique' },
         { type: 'navigate', path: '/app/boutique', label: 'Commandes boutique' },
       ],
+      draft: null,
     }, currentPath)
   }
 
@@ -159,6 +275,7 @@ function keywordFallback(message: string, currentPath?: string): AssistantRespon
       reply: 'Le catalogue conciergerie regroupe les prestations proposées aux voyageurs (devis, coordination).',
       quickReplies: ['Devis en attente', 'Créer un service', 'Résumé'],
       actions: [{ type: 'navigate', path: '/app/services', label: 'Ouvrir la conciergerie' }],
+      draft: null,
     }, currentPath)
   }
 
@@ -167,6 +284,37 @@ function keywordFallback(message: string, currentPath?: string): AssistantRespon
       reply: 'Les paramètres couvrent le compte, l’équipe, les rôles et les notifications.',
       quickReplies: ['Propriétés', 'Partenaires', 'Résumé'],
       actions: [{ type: 'navigate', path: '/app/settings', label: 'Paramètres' }],
+      draft: null,
+    }, currentPath)
+  }
+
+  if (/entretien|piscin|jardin|travaux|maintenance|spa technique|m[eé]nage|[eé]lectric|menuis|facture.?prestataire|artisan|intervenant/.test(q)) {
+    return sanitizeResponse({
+      reply: 'Entretien & travaux regroupe les intervenants techniques (ménage, piscine, jardin, électricité, menuiserie) : tâches et factures. Les chefs / spa bien-être sont dans Prestataires de services.',
+      quickReplies: ['Planifier une intervention', 'Voir les factures', 'Ajouter un intervenant'],
+      actions: [{ type: 'navigate', path: '/app/operations', label: 'Entretien & travaux' }],
+      draft: null,
+    }, currentPath)
+  }
+
+  if (/chef|massage|spa bien|prestataire.?de.?service|activit[eé]|transport|yacht/.test(q) && !/piscin|spa technique|m[eé]nage/.test(q)) {
+    return sanitizeResponse({
+      reply: 'Les prestataires de services voyageur (chef, spa & bien-être, transport, activités) se gèrent dans Prestataires de services.',
+      quickReplies: ['Ajouter un chef', 'Résumé', 'Entretien & travaux'],
+      actions: [{ type: 'navigate', path: '/app/partners', label: 'Prestataires de services' }],
+      draft: null,
+    }, currentPath)
+  }
+
+  if (/tâche|tache|task/.test(q)) {
+    return sanitizeResponse({
+      reply: 'Les tâches générales se gèrent dans Tâches. Pour les intervenants villa (ménage, piscine, jardin, travaux), préférez Entretien & travaux.',
+      quickReplies: ['Entretien & travaux', 'Résumé', 'Calendrier'],
+      actions: [
+        { type: 'navigate', path: '/app/tasks', label: 'Voir les tâches' },
+        { type: 'navigate', path: '/app/operations', label: 'Entretien & travaux' },
+      ],
+      draft: null,
     }, currentPath)
   }
 
@@ -176,7 +324,21 @@ function keywordFallback(message: string, currentPath?: string): AssistantRespon
       : 'Bonjour ! Demandez un résumé de votre activité, vos réservations cette semaine, ou comment configurer le portail voyageur.',
     quickReplies: ['Résumé de ma situation', 'Réservations cette semaine', 'Messages non lus'],
     actions: [{ type: 'navigate', path: '/app', label: 'Tableau de bord' }],
+    draft: null,
   }, currentPath)
+}
+
+function ensureDraftFromMessage(response: AssistantResponse, message: string): AssistantResponse {
+  if (response.draft) return withDraftNavigation(response)
+  const parsed = parseAssistantTaskDraft(message)
+  if (!parsed) return response
+  return withDraftNavigation({
+    ...response,
+    draft: parsed,
+    reply: response.reply.includes(parsed.title)
+      ? response.reply
+      : `J’ai préparé « ${parsed.title} ». ${response.reply}`,
+  })
 }
 
 async function askOpenAi(
@@ -197,6 +359,7 @@ async function askOpenAi(
     context.userName ? `Utilisateur : ${context.userName}` : null,
     context.userRole ? `Rôle : ${context.userRole}` : null,
     context.currentPath ? `Page actuelle : ${context.currentPath}` : null,
+    `Date du jour (Europe/Paris locale serveur) : ${todayIso()}`,
   ].filter(Boolean).join(' · ')
 
   const snapshotBlock = context.snapshot
@@ -279,11 +442,14 @@ Deno.serve(async req => {
     let source: 'ai' | 'data' | 'fallback'
 
     if (aiReply) {
-      response = aiReply
+      response = ensureDraftFromMessage(aiReply, lastUser.content)
       source = 'ai'
     } else if (snapshot) {
       const dataReply = dataKeywordFallback(lastUser.content, snapshot, context.currentPath)
-      response = sanitizeResponse(dataReply ?? keywordFallback(lastUser.content, context.currentPath), context.currentPath)
+      response = ensureDraftFromMessage(
+        sanitizeResponse(dataReply ?? keywordFallback(lastUser.content, context.currentPath), context.currentPath),
+        lastUser.content,
+      )
       source = dataReply ? 'data' : 'fallback'
     } else {
       response = keywordFallback(lastUser.content, context.currentPath)

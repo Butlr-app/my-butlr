@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { SwitchField } from '@/components/ui/Switch'
 import { GuestPortalPreview } from '@/components/guest/GuestPortalPreview'
+import { useGuestPortalPreviewSimulation } from '@/lib/guestPortalPreviewSimulation'
 import type { GuestGuide, GuestPortalSettings } from '@/lib/guestPortal'
 import type { PropertyServiceItem } from '@/lib/propertyServices'
 
@@ -29,6 +30,8 @@ export function GuestPortalPreviewModal({
   includeDraftGuides,
   onIncludeDraftGuidesChange,
 }: GuestPortalPreviewModalProps) {
+  const simulation = useGuestPortalPreviewSimulation(settings.property_id)
+
   const openInNewTab = () => {
     const payload = {
       propertyName,
@@ -52,7 +55,8 @@ export function GuestPortalPreviewModal({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Prévisualisation mobile avec vos modifications en cours (même non enregistrées).
+            Prévisualisation mobile interactive : testez la Réserve séjour, la boutique et la messagerie
+            (simulation locale, aucune donnée n’est enregistrée).
           </p>
           <Button size="sm" variant="secondary" onClick={openInNewTab}>
             <ExternalLink className="mr-1.5 h-4 w-4" />
@@ -80,6 +84,10 @@ export function GuestPortalPreviewModal({
               guides={guides}
               propertyServices={propertyServices}
               includeDraftGuides={includeDraftGuides}
+              reservationContext={simulation.reservationContext}
+              stayReserveOverride={simulation.stayReserveOverride}
+              boutiqueOverride={simulation.boutiqueOverride}
+              messagingOverride={simulation.messagingOverride}
             />
             </div>
           </div>

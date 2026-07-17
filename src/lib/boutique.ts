@@ -208,7 +208,14 @@ export async function fetchPropertyBoutiqueCatalog(propertyId: string) {
 export async function fetchGuestBoutiqueCatalog(token: string) {
   const { data, error } = await supabase.rpc('get_guest_boutique_catalog', { p_token: token })
   if (error) return { data: { categories: [], items: [] }, error }
-  return { data: parseBoutiqueCatalog(data as { categories: CatalogCategory[]; items: BoutiqueCatalogEntry[] }), error: null }
+  const payload = data as { error?: string; categories?: CatalogCategory[]; items?: BoutiqueCatalogEntry[] } | null
+  if (!payload || payload.error) {
+    return {
+      data: { categories: [], items: [] },
+      error: payload?.error ? new Error(payload.error) : new Error('catalog_unavailable'),
+    }
+  }
+  return { data: parseBoutiqueCatalog(payload), error: null }
 }
 
 export async function fetchStoreOrders(propertyIds: string[]) {

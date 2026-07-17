@@ -14,8 +14,6 @@ import { PropertyOverviewSummary } from '@/components/property/PropertyDetailsPa
 import { StorageBucketSetupHint } from '@/components/property/StorageBucketSetupHint'
 import { PropertyColumnsSetupHint } from '@/components/property/PropertyColumnsSetupHint'
 import { PropertyPricingPanel } from '@/components/property/PropertyPricingPanel'
-import { PropertyGuestPortalPanel } from '@/components/property/PropertyGuestPortalPanel'
-import { PropertyServicesPanel } from '@/components/property/PropertyServicesPanel'
 import { PropertyTeamPanel } from '@/components/property/PropertyTeamPanel'
 import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { useAuth } from '@/lib/authContext'
@@ -31,12 +29,7 @@ const tabs = [
   { id: 'Overview', label: 'Aperçu' },
   { id: 'Tarifs & calendrier', label: 'Tarifs & calendrier' },
   { id: 'Bookings', label: 'Réservations' },
-  { id: 'Guest Portal', label: 'Portail voyageur' },
-  { id: 'Conciergerie', label: 'Offres conciergerie' },
   { id: 'Staff', label: 'Équipe' },
-  { id: 'Maintenance', label: 'Maintenance' },
-  { id: 'Documents', label: 'Documents' },
-  { id: 'Financials', label: 'Finances' },
 ]
 
 interface PropertyFormState {
@@ -51,6 +44,9 @@ interface PropertyFormState {
   address: string
   amenities: string[]
   description: string
+  marketplaceListed: boolean
+  marketplaceBookingUrl: string
+  marketplaceTagline: string
 }
 
 function toFormState(property: Property): PropertyFormState {
@@ -66,6 +62,9 @@ function toFormState(property: Property): PropertyFormState {
     address: property.address ?? '',
     amenities: Array.isArray(property.amenities) ? property.amenities : [],
     description: property.description ?? '',
+    marketplaceListed: property.marketplace_listed ?? false,
+    marketplaceBookingUrl: property.marketplace_booking_url ?? '',
+    marketplaceTagline: property.marketplace_tagline ?? '',
   }
 }
 
@@ -193,6 +192,10 @@ export function PropertyDetail() {
       setError('Name and location are required.')
       return
     }
+    if (form.marketplaceListed && !/^https:\/\//i.test(form.marketplaceBookingUrl.trim())) {
+      setError('Ajoutez un lien de réservation HTTPS pour référencer ce bien.')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -226,6 +229,9 @@ export function PropertyDetail() {
       surfaceSqm: form.surfaceSqm,
       amenities: form.amenities,
       imageUrl,
+      marketplaceListed: form.marketplaceListed,
+      marketplaceBookingUrl: form.marketplaceBookingUrl,
+      marketplaceTagline: form.marketplaceTagline,
     })
 
     setSaving(false)
@@ -423,6 +429,43 @@ export function PropertyDetail() {
             />
           </div>
 
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={form.marketplaceListed}
+                onChange={event => setForm({ ...form, marketplaceListed: event.target.checked })}
+                className="mt-1 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-foreground">
+                  Référencer ce bien sur My Butlr
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  Le bien pourra être recommandé aux voyageurs après leur séjour. Seules les informations publiques ci-dessous seront affichées.
+                </span>
+              </span>
+            </label>
+
+            {form.marketplaceListed && (
+              <div className="mt-4 space-y-4 border-t border-border pt-4">
+                <Input
+                  label="Lien de réservation public"
+                  type="url"
+                  value={form.marketplaceBookingUrl}
+                  onChange={event => setForm({ ...form, marketplaceBookingUrl: event.target.value })}
+                  placeholder="https://..."
+                />
+                <Input
+                  label="Accroche publique"
+                  value={form.marketplaceTagline}
+                  onChange={event => setForm({ ...form, marketplaceTagline: event.target.value })}
+                  placeholder="Une villa confidentielle face à la Méditerranée"
+                />
+              </div>
+            )}
+          </div>
+
           {error && (
             <div className="space-y-2">
               <p className="text-xs text-destructive">{error}</p>
@@ -476,22 +519,6 @@ export function PropertyDetail() {
         <PropertyPricingPanel propertyId={property.id} reservations={reservations} />
       )}
 
-      {activeTab === 'Guest Portal' && (
-        <PropertyGuestPortalPanel
-          propertyId={property.id}
-          propertyName={property.name}
-          propertyImageUrl={property.image_url}
-        />
-      )}
-
-      {activeTab === 'Conciergerie' && (
-        <PropertyServicesPanel
-          propertyId={property.id}
-          propertyName={property.name}
-          userId={user?.id}
-        />
-      )}
-
       {activeTab === 'Staff' && (
         <PropertyTeamPanel
           propertyId={property.id}
@@ -502,12 +529,6 @@ export function PropertyDetail() {
         />
       )}
 
-      {activeTab !== 'Overview' && activeTab !== 'Bookings' && activeTab !== 'Tarifs & calendrier' && activeTab !== 'Guest Portal' && activeTab !== 'Conciergerie' && activeTab !== 'Staff' && (
-        <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground">{activeTab} for {property.name} — coming soon</p>
-          <Button variant="secondary" size="sm" className="mt-4">Configure {activeTab.toLowerCase()}</Button>
-        </Card>
-      )}
     </div>
   )
 }

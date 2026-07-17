@@ -25,8 +25,16 @@ import {
   guestMarkStayMessagesRead,
   guestSendStayMessage,
   parseStayMessagingPayload,
+  type StayMessageInput,
   type StayMessagingPayload,
 } from '@/lib/stayMessaging'
+import { isGuestStayPortalPayloadValid } from '@/lib/guestPortalAccess'
+import { tGuest } from '@/lib/guestLanguage'
+import {
+  fetchGuestRecommendedProperties,
+  type RecommendedProperty,
+} from '@/lib/postStayMarketplace'
+import { getStayPhase } from '@/lib/guestStayPhase'
 
 export interface GuestStayPortalData {
   reservation: {
@@ -40,6 +48,7 @@ export interface GuestStayPortalData {
     property_image_url: string | null
     property_type?: string
     max_guests?: number
+    guest_language?: string | null
   }
   settings: GuestPortalSettings
   guides: GuestGuide[]
@@ -53,9 +62,10 @@ export interface GuestStayPortalData {
   transactions: ReserveTransaction[]
   recommendedAmount: number
   messaging: StayMessagingPayload
+  recommendedProperties: RecommendedProperty[]
 }
 
-export function useGuestStayPortal(token: string | undefined) {
+export function useGuestStayPortal(token: string | undefined, activeTab?: string) {
   const [loading, setLoading] = useState(Boolean(token))
   const [error, setError] = useState('')
   const [data, setData] = useState<GuestStayPortalData | null>(null)
@@ -71,8 +81,9 @@ export function useGuestStayPortal(token: string | undefined) {
 
     const { data: payload, error: rpcError } = await getGuestStayPortal(token)
 
-    if (rpcError || !payload || (payload as { error?: string }).error) {
-      setError('Portail introuvable ou séjour expiré.')
+    if (rpcError || !isGuestStayPortalPayloadValid(payload)) {
+      const browserLang = typeof navigator !== 'undefined' ? navigator.language : null
+      setError(tGuest('portal.unavailableBody', browserLang))
       setData(null)
       setLoading(false)
       return
@@ -80,11 +91,12 @@ export function useGuestStayPortal(token: string | undefined) {
 
     const raw = payload as Record<string, unknown>
     const reservation = raw.reservation as GuestStayPortalData['reservation']
+
     const settingsRaw = raw.settings as GuestPortalSettings | null
     let boutique = { categories: [] as CatalogCategory[], items: [] as BoutiqueCatalogEntry[] }
-    if (token && (settingsRaw?.show_boutique ?? true)) {
-      const { data: catalogData } = await fetchGuestBoutiqueCatalog(token)
-      boutique = catalogData
+    if (token && (settingsRaw?.show_boutique ?? true) && settingsRaw?.enabled !== false) {
+      const { data: catalogData, error: catalogError } = await fetchGuestBoutiqueCatalog(token)
+      if (!catalogError) boutique = catalogData
     } else {
       boutique = parseBoutiqueCatalog(raw.boutique as { categories: CatalogCategory[]; items: BoutiqueCatalogEntry[] })
     }
@@ -100,10 +112,16 @@ export function useGuestStayPortal(token: string | undefined) {
       }
     }
 
-    let messaging = parseStayMessagingPayload(raw.messaging as Record<string, unknown>)
+    let messaging = await parseStayMessagingPayload(raw.messaging as Record<string, unknown>)
     if (token && (settingsRaw?.show_messaging ?? true)) {
       const { data: messagingData } = await guestGetStayMessages(token)
       if (messagingData.enabled) messaging = messagingData
+    }
+
+    let recommendedProperties: RecommendedProperty[] = []
+    if (token && getStayPhase(reservation.arrival, reservation.departure) === 'after') {
+      const recommendations = await fetchGuestRecommendedProperties(token)
+      recommendedProperties = recommendations.data
     }
 
     setData({
@@ -120,6 +138,7 @@ export function useGuestStayPortal(token: string | undefined) {
       transactions: (raw.transactions ?? []) as ReserveTransaction[],
       recommendedAmount: Number(raw.recommended_amount ?? 3000),
       messaging,
+      recommendedProperties,
     })
     setLoading(false)
   }, [token])
@@ -134,9 +153,9 @@ export function useGuestStayPortal(token: string | undefined) {
       supabase.rpc('guest_get_store_orders', { p_token: token }),
       getGuestStayPortal(token),
     ])
-    if (portalError || !portalPayload || (portalPayload as { error?: string }).error) return
-
+    if (portalError || !isGuestStayPortalPayloadValid(portalPayload)) return
     const raw = portalPayload as Record<string, unknown>
+
     let storeOrders = (raw.store_orders ?? []) as StoreOrder[]
     let storeOrderItems = (raw.store_order_items ?? []) as StoreOrderItem[]
     if (ordersPayload && !(ordersPayload as { error?: string }).error) {
@@ -168,11 +187,20 @@ export function useGuestStayPortal(token: string | undefined) {
 
   const messagingEnabled = Boolean(data?.messaging.enabled) && data?.settings.show_messaging !== false
 
+  const messagesTabActive = activeTab === 'messages'
+  const trackingTabActive = activeTab === 'requests' || activeTab === 'reserve'
+
   // Poll for new staff messages (guests use the anon client and cannot rely on
-  // realtime, which is gated by RLS). Also refresh when the tab regains focus.
+  // realtime, which is gated by RLS). Paused while the tab is hidden, and
+  // polls faster while the guest has the Messages tab open.
   useEffect(() => {
     if (!token || !messagingEnabled) return
-    const interval = window.setInterval(refreshMessaging, 15000)
+    const delay = messagesTabActive ? 15000 : 30000
+    const tick = () => {
+      if (document.hidden) return
+      refreshMessaging()
+    }
+    const interval = window.setInterval(tick, delay)
     const onVisible = () => {
       if (document.visibilityState === 'visible') refreshMessaging()
     }
@@ -181,12 +209,18 @@ export function useGuestStayPortal(token: string | undefined) {
       window.clearInterval(interval)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [token, messagingEnabled, refreshMessaging])
+  }, [token, messagingEnabled, messagesTabActive, refreshMessaging])
 
   // Poll Suivi (commandes boutique + demandes conciergerie + solde réserve).
+  // Only runs while the guest is looking at Suivi/Réserve, and pauses while
+  // the tab is hidden.
   useEffect(() => {
-    if (!token) return
-    const interval = window.setInterval(refreshTracking, 30000)
+    if (!token || !trackingTabActive) return
+    const tick = () => {
+      if (document.hidden) return
+      refreshTracking()
+    }
+    const interval = window.setInterval(tick, 30000)
     const onVisible = () => {
       if (document.visibilityState === 'visible') refreshTracking()
     }
@@ -195,7 +229,7 @@ export function useGuestStayPortal(token: string | undefined) {
       window.clearInterval(interval)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [token, refreshTracking])
+  }, [token, trackingTabActive, refreshTracking])
 
   const markMessagesRead = useCallback(async () => {
     if (!token) return
@@ -227,7 +261,7 @@ export function useGuestStayPortal(token: string | undefined) {
     })
     if (error) throw new Error(error.message)
     if ((result as { error?: string })?.error) {
-      throw new Error('Impossible d’activer la Réserve séjour.')
+      throw new Error('Impossible d’envoyer la demande de crédit.')
     }
     await load()
   }
@@ -240,7 +274,7 @@ export function useGuestStayPortal(token: string | undefined) {
     })
     if (error) throw new Error(error.message)
     if ((result as { error?: string })?.error) {
-      throw new Error('Versement impossible.')
+      throw new Error('Impossible d’envoyer la demande de crédit.')
     }
     await load()
   }
@@ -266,6 +300,40 @@ export function useGuestStayPortal(token: string | undefined) {
       p_provider_name: input.providerName ?? null,
     })
     if (error) throw new Error(error.message)
+    await load()
+  }
+
+  const bookDirectService = async (input: {
+    propertyServiceId: string
+    quantity?: number
+    requestedDate?: string
+    clientNotes?: string
+    selectedOptions?: Record<string, string>
+  }) => {
+    if (!token) throw new Error('Session invalide.')
+    const { data: result, error } = await supabase.rpc('guest_book_concierge_service', {
+      p_token: token,
+      p_property_service_id: input.propertyServiceId,
+      p_quantity: input.quantity ?? 1,
+      p_requested_date: input.requestedDate || null,
+      p_client_notes: input.clientNotes || null,
+      p_selected_options: input.selectedOptions ?? {},
+    })
+    if (error) throw new Error(error.message)
+    const errCode = (result as { error?: string })?.error
+    if (errCode === 'insufficient_balance') {
+      throw new Error('Solde insuffisant sur votre Réserve séjour.')
+    }
+    if (errCode === 'quote_only') {
+      throw new Error('Ce service est disponible uniquement sur devis.')
+    }
+    if (errCode === 'missing_options' || errCode === 'invalid_options') {
+      throw new Error('Veuillez sélectionner les options du service.')
+    }
+    if (errCode === 'stay_finished') {
+      throw new Error('Les commandes ne sont plus disponibles après le séjour.')
+    }
+    if (errCode) throw new Error('Commande impossible.')
     await load()
   }
 
@@ -315,11 +383,15 @@ export function useGuestStayPortal(token: string | undefined) {
     await load()
   }
 
-  const sendMessage = async (body: string) => {
+  const sendMessage = async (input: StayMessageInput) => {
     if (!token) throw new Error('Session invalide.')
-    const { data: result, error } = await guestSendStayMessage(token, body)
+    const { data: result, error } = await guestSendStayMessage(token, input)
     if (error) throw new Error(error.message)
     if ((result as { error?: string })?.error) {
+      const code = (result as { error: string }).error
+      if (code === 'invalid_message' || code === 'empty_body') {
+        throw new Error('Message invalide.')
+      }
       throw new Error('Envoi impossible.')
     }
     await refreshMessaging()
@@ -333,6 +405,7 @@ export function useGuestStayPortal(token: string | undefined) {
     createReserve,
     topUp,
     createRequest,
+    bookDirectService,
     approveRequest,
     checkoutBoutique,
     approveStoreQuote,

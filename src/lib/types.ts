@@ -9,6 +9,8 @@ export interface Profile {
   role: Role | null
   onboarding_completed: boolean
   date_format: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
+  /** Owner-only: template of what house managers can see/do. */
+  house_manager_permissions?: Record<string, boolean> | null
 }
 
 export interface Property {
@@ -26,6 +28,9 @@ export interface Property {
   address: string | null
   surface_m2: number | null
   amenities: string[] | null
+  marketplace_listed?: boolean
+  marketplace_booking_url?: string | null
+  marketplace_tagline?: string | null
   created_at: string
 }
 
@@ -45,6 +50,7 @@ export interface Reservation {
   booking_kind: 'guest' | 'owner_stay' | 'marketing_event' | 'blocked_dates' | 'other'
   total_amount: number
   notes: string | null
+  guest_language?: string | null
   portal_access_token?: string | null
   properties?: { name: string; max_guests?: number } | null
 }
@@ -52,12 +58,36 @@ export interface Reservation {
 export interface Task {
   id: string
   property_id: string | null
+  reservation_id?: string | null
+  partner_id?: string | null
+  link_type?: 'client' | 'property' | 'partner'
   title: string
   description: string | null
   status: string
   priority: string
   due_date: string | null
   properties?: { name: string } | null
+  reservations?: {
+    id: string
+    guest_name: string
+    arrival: string
+    departure: string
+    properties?: { name: string } | null
+  } | null
+  partners?: { name: string; category: string | null } | null
+}
+
+export interface ServiceOptionChoice {
+  id: string
+  label: string
+  price: number
+}
+
+export interface ServiceOptionGroup {
+  id: string
+  label: string
+  required: boolean
+  choices: ServiceOptionChoice[]
 }
 
 export interface Service {
@@ -70,8 +100,11 @@ export interface Service {
   available: boolean
   image_url?: string | null
   pricing_mode?: 'fixed' | 'per_person' | 'quote' | null
+  booking_mode?: 'quote' | 'direct' | null
   provider_name?: string | null
   includes_text?: string | null
+  /** Option groups (airport, car model, etc.). Prices add to base price. */
+  options?: ServiceOptionGroup[] | null
 }
 
 export interface Payment {
@@ -219,10 +252,16 @@ export interface Partner {
   category: string | null
   location: string | null
   contact: string | null
+  email?: string | null
+  phone?: string | null
   commission: number
-  status: string
+  status: 'active' | 'inactive' | string
   rating: number
   bookings_count: number
+  source?: 'manual' | 'marketplace'
+  owner_id?: string | null
+  profile_id?: string | null
+  notes?: string | null
 }
 
 export interface CalendarEvent {

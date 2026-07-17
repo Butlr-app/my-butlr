@@ -1,19 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import { Send } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState, LoadingState } from '@/components/EmptyState'
+import { StaffMessageComposer } from '@/components/messaging/StaffMessageComposer'
+import { StayMessageContent } from '@/components/messaging/StayMessageContent'
 import { useAuth } from '@/lib/authContext'
+import { fetchPropertyBoutiqueCatalog, filterBoutiqueCatalogEntries, type BoutiqueCatalogEntry } from '@/lib/boutique'
 import { fetchOwnerProperties } from '@/lib/data'
 import { formatDateForDisplay } from '@/lib/dateFormat'
+import { fetchEnabledPropertyServices, type PropertyServiceItem } from '@/lib/propertyServices'
 import {
   fetchConversationMessages,
   fetchPropertyStayConversations,
   messageContactRoleLabels,
+  staffMarkStayMessagesRead,
   staffSendStayMessage,
+  stayMessageRpcError,
   type StayConversationWithMeta,
   type StayMessage,
+  type StayMessageInput,
 } from '@/lib/stayMessaging'
 
 export function StayMessagesPage() {
@@ -22,55 +27,139 @@ export function StayMessagesPage() {
   const [conversations, setConversations] = useState<StayConversationWithMeta[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<StayMessage[]>([])
+  const [products, setProducts] = useState<BoutiqueCatalogEntry[]>([])
+  const [services, setServices] = useState<PropertyServiceItem[]>([])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const propertyIdsRef = useRef<string[] | null>(null)
 
   const selected = conversations.find(c => c.id === selectedId) ?? null
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async (showLoading = false) => {
     if (!user) return
-    setLoading(true)
-    const { data: properties } = await fetchOwnerProperties(user.id)
-    const propertyIds = (properties ?? []).map(p => p.id)
-    const { data, error: fetchError } = await fetchPropertyStayConversations(propertyIds)
-    if (fetchError) setError(fetchError.message)
-    const list = data ?? []
-    setConversations(list)
-    if (!selectedId && list.length > 0) setSelectedId(list[0].id)
-    setLoading(false)
-  }
+    if (showLoading) setLoading(true)
+    try {
+      let propertyIds = propertyIdsRef.current
+      if (!propertyIds) {
+        const { data: properties, error: propertiesError } = await fetchOwnerProperties(user.id)
+        if (propertiesError) {
+          setError(propertiesError.message)
+          return
+        }
+        propertyIds = (properties ?? []).map(p => p.id)
+        propertyIdsRef.current = propertyIds
+      }
+      const { data, error: fetchError } = await fetchPropertyStayConversations(propertyIds)
+      if (fetchError) {
+        setError(fetchError.message)
+        return
+      }
+      const list = data ?? []
+      setConversations(list)
+      setSelectedId(current => current ?? list[0]?.id ?? null)
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
-    loadConversations()
-  }, [user?.id])
+    if (!user) return
+    propertyIdsRef.current = null
+    void loadConversations(true)
+    const interval = window.setInterval(() => void loadConversations(), 15000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadConversations()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loadConversations, user])
 
   useEffect(() => {
     if (!selectedId) return
-    fetchConversationMessages(selectedId).then(({ data }) => {
-      setMessages((data ?? []) as StayMessage[])
-    })
+    let active = true
+    const loadMessages = () => {
+      fetchConversationMessages(selectedId).then(({ data, error: fetchError }) => {
+        if (!active) return
+        if (fetchError) {
+          setError(fetchError.message)
+          return
+        }
+        setMessages(data ?? [])
+        void staffMarkStayMessagesRead(selectedId)
+        setConversations(current =>
+          current.map(conversation =>
+            conversation.id === selectedId
+              ? { ...conversation, unread_staff_count: 0 }
+              : conversation,
+          ),
+        )
+      })
+    }
+    loadMessages()
+
+    const interval = window.setInterval(loadMessages, 15000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadMessages()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [selectedId])
+
+  useEffect(() => {
+    if (!selected?.property_id) {
+      setProducts([])
+      setServices([])
+      return
+    }
+    Promise.all([
+      fetchPropertyBoutiqueCatalog(selected.property_id),
+      fetchEnabledPropertyServices(selected.property_id),
+    ]).then(([boutiqueResult, servicesResult]) => {
+      setProducts(filterBoutiqueCatalogEntries(boutiqueResult.data.items))
+      setServices(servicesResult.data ?? [])
+    })
+  }, [selected?.property_id])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
-  const handleSend = async () => {
-    if (!selected || !draft.trim()) return
+  const handleSend = async (input: StayMessageInput): Promise<boolean> => {
+    if (!selected) return false
     setBusy(true)
     setError('')
-    const { data, error: sendError } = await staffSendStayMessage(selected.id, draft.trim())
-    if (sendError) {
-      setError(sendError.message)
-    } else {
-      const msg = (data as { message?: StayMessage })?.message
-      if (msg) setMessages(current => [...current, msg])
+    try {
+      const { data, error: sendError } = await staffSendStayMessage(selected.id, input)
+      if (sendError) {
+        setError(sendError.message)
+        return false
+      }
+      const rpcError = stayMessageRpcError(data)
+      if (rpcError) {
+        setError(rpcError)
+        return false
+      }
+      const { data: refreshed, error: refreshError } = await fetchConversationMessages(selected.id)
+      if (refreshError) {
+        setError(refreshError.message)
+        return false
+      }
+      setMessages(refreshed ?? [])
       setDraft('')
       await loadConversations()
+      return true
+    } finally {
+      setBusy(false)
     }
-    setBusy(false)
   }
 
   if (loading) return <LoadingState label="Chargement des messages…" />
@@ -80,7 +169,7 @@ export function StayMessagesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Messages séjour</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Conversations voyageurs — répondez depuis la plateforme pour garder l&apos;historique centralisé.
+          Proposez des produits, activités ou photos directement dans la conversation.
         </p>
       </div>
 
@@ -101,7 +190,14 @@ export function StayMessagesPage() {
                   selectedId === conv.id ? 'border-foreground bg-muted/50' : 'border-border hover:bg-muted/30'
                 }`}
               >
-                <p className="font-medium">{conv.guest_name ?? conv.reservations?.guest_name ?? 'Voyageur'}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium">{conv.guest_name ?? conv.reservations?.guest_name ?? 'Voyageur'}</p>
+                  {Boolean(conv.unread_staff_count) && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">
+                      {conv.unread_staff_count}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {conv.reservations?.properties?.name}
                 </p>
@@ -117,8 +213,8 @@ export function StayMessagesPage() {
             ))}
           </div>
 
-          {selected && (
-            <Card className="flex min-h-[480px] flex-col p-5">
+          {selected && user && (
+            <Card className="flex min-h-[520px] flex-col p-5">
               <div className="mb-4 border-b border-border pb-4">
                 <p className="font-semibold">
                   {selected.guest_name ?? selected.reservations?.guest_name}
@@ -133,15 +229,28 @@ export function StayMessagesPage() {
               <div className="flex-1 space-y-3 overflow-y-auto pr-1">
                 {messages.map(message => {
                   const isStaff = message.sender_type === 'staff'
+                  const isRich = message.message_type !== 'text'
                   return (
                     <div key={message.id} className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>
                       <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                          isStaff ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                        }`}
+                        className={
+                          isRich
+                            ? 'max-w-[85%] text-sm'
+                            : `max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                              isStaff ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                            }`
+                        }
                       >
-                        <p className="whitespace-pre-wrap">{message.body}</p>
-                        <p className={`mt-1 text-[10px] ${isStaff ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        <StayMessageContent message={message} variant="staff" />
+                        <p
+                          className={`mt-1 text-[10px] ${
+                            isRich
+                              ? 'text-muted-foreground'
+                              : isStaff
+                                ? 'text-primary-foreground/70'
+                                : 'text-muted-foreground'
+                          }`}
+                        >
                           {formatDateForDisplay(message.created_at.slice(0, 10), profile?.date_format)}
                           {' · '}
                           {message.created_at.slice(11, 16)}
@@ -153,24 +262,15 @@ export function StayMessagesPage() {
                 <div ref={bottomRef} />
               </div>
 
-              <div className="mt-4 flex gap-2 border-t border-border pt-4">
-                <textarea
-                  rows={2}
-                  value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  placeholder="Répondre au voyageur…"
-                  className="min-h-[44px] flex-1 resize-none rounded-md border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-info/20"
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
-                />
-                <Button disabled={busy || !draft.trim()} onClick={handleSend} className="self-end">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+              <StaffMessageComposer
+                userId={user.id}
+                draft={draft}
+                onDraftChange={setDraft}
+                busy={busy}
+                products={products}
+                services={services}
+                onSend={handleSend}
+              />
               {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
             </Card>
           )}

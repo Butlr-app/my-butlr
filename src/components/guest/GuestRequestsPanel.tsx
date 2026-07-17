@@ -15,10 +15,12 @@ import {
 } from '@/lib/boutique'
 import {
   formatReserveAmount,
+  formatStayServiceRequestDetails,
   stayServiceStatusLabels,
   type StayServiceRequest,
 } from '@/lib/stayReserve'
 import { formatDateForDisplay } from '@/lib/dateFormat'
+import { tGuest } from '@/lib/guestLanguage'
 
 type RequestTab = 'active' | 'done'
 type DetailView =
@@ -56,6 +58,7 @@ interface GuestRequestsPanelProps {
   storeOrders: StoreOrder[]
   storeOrderItems: StoreOrderItem[]
   serviceRequests: StayServiceRequest[]
+  guestLanguage?: string | null
   dateFormat?: string | null
   readOnly?: boolean
   onApproveQuote?: (orderItemId: string) => Promise<void>
@@ -68,6 +71,7 @@ export function GuestRequestsPanel({
   storeOrders,
   storeOrderItems,
   serviceRequests,
+  guestLanguage,
   dateFormat,
   readOnly = false,
   onApproveQuote,
@@ -75,6 +79,7 @@ export function GuestRequestsPanel({
   contactVia = 'help',
   onContactService,
 }: GuestRequestsPanelProps) {
+  const t = (key: Parameters<typeof tGuest>[0]) => tGuest(key, guestLanguage)
   const [tab, setTab] = useState<RequestTab>('active')
   const [detail, setDetail] = useState<DetailView | null>(null)
   const [busy, setBusy] = useState(false)
@@ -144,7 +149,7 @@ export function GuestRequestsPanel({
               </span>
             </div>
             <GoldButton disabled={busy} onClick={() => run(async () => { await onApproveQuote(pendingQuote.id) })}>
-              Valider ce devis
+              {t('requests.approveQuote')}
             </GoldButton>
           </div>
         )}
@@ -164,7 +169,11 @@ export function GuestRequestsPanel({
           {stayServiceStatusLabels[request.status]}
         </span>
         <p className="text-[17px] font-semibold">{request.title}</p>
-        {request.description && <p className={`mt-2 ${guestMobile.body}`}>{request.description}</p>}
+        {(() => {
+          const details = formatStayServiceRequestDetails(request)
+          if (!details) return null
+          return <p className={`mt-2 whitespace-pre-line ${guestMobile.body}`}>{details}</p>
+        })()}
         {request.requested_date && (
           <p className={`mt-2 ${guestMobile.subtitle}`}>
             {formatDateForDisplay(request.requested_date, dateFormat)}
@@ -178,7 +187,7 @@ export function GuestRequestsPanel({
         {pending && !readOnly && onApproveRequest && (
           <div className="mt-auto pt-6">
             <GoldButton disabled={busy} onClick={() => run(async () => { await onApproveRequest(request.id) })}>
-              Valider cette dépense
+              {t('reserve.approveExpense')}
             </GoldButton>
           </div>
         )}
@@ -189,7 +198,7 @@ export function GuestRequestsPanel({
 
   return (
     <MobileScreen>
-      <MobileHeader title="Suivi" subtitle="Commandes et prestations" />
+      <MobileHeader title={t('requests.title')} subtitle={t('requests.subtitle')} />
 
       {(pendingQuotes.length > 0 || pendingRequests.length > 0) && (
         <div className="mb-4 space-y-2">
@@ -206,7 +215,7 @@ export function GuestRequestsPanel({
                   disabled={busy}
                   onClick={() => run(async () => { await onApproveQuote(item.id) })}
                 >
-                  Valider le devis
+                  {t('requests.approveQuote')}
                 </GoldButton>
               )}
             </div>
@@ -224,7 +233,7 @@ export function GuestRequestsPanel({
                   disabled={busy}
                   onClick={() => run(async () => { await onApproveRequest(request.id) })}
                 >
-                  Valider la dépense
+                  {t('reserve.approveExpense')}
                 </GoldButton>
               )}
             </div>
@@ -238,22 +247,22 @@ export function GuestRequestsPanel({
           onClick={() => setTab('active')}
           className={tab === 'active' ? guestMobile.tabActive : guestMobile.tabIdle}
         >
-          En cours ({activeCount})
+          {t('requests.active')} ({activeCount})
         </button>
         <button
           type="button"
           onClick={() => setTab('done')}
           className={tab === 'done' ? guestMobile.tabActive : guestMobile.tabIdle}
         >
-          Terminées ({doneCount})
+          {t('requests.done')} ({doneCount})
         </button>
       </div>
 
       {tab === 'active' && activeCount === 0 && (
-        <p className={`py-12 text-center ${guestMobile.subtitle}`}>Aucune demande en cours.</p>
+        <p className={`py-12 text-center ${guestMobile.subtitle}`}>{t('requests.noneActive')}</p>
       )}
       {tab === 'done' && doneCount === 0 && (
-        <p className={`py-12 text-center ${guestMobile.subtitle}`}>Aucune demande terminée.</p>
+        <p className={`py-12 text-center ${guestMobile.subtitle}`}>{t('requests.noneDone')}</p>
       )}
 
       {tab === 'active' && boutiqueActive.map(order => {
@@ -348,7 +357,7 @@ export function GuestRequestsPanel({
           ) : (
             <ClipboardList className="h-4 w-4" />
           )}
-          {contactVia === 'messages' ? 'Contacter votre équipe' : 'Besoin d’aide ?'}
+          {contactVia === 'messages' ? t('requests.contactTeam') : t('requests.needHelp')}
         </button>
       )}
 

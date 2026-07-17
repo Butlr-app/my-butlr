@@ -1,16 +1,20 @@
 import { useParams } from 'react-router-dom'
+import { useState } from 'react'
 import { GuestPortalPreview } from '@/components/guest/GuestPortalPreview'
 import { useGuestStayPortal } from '@/lib/useGuestStayPortal'
+import { tGuest } from '@/lib/guestLanguage'
 
 export function GuestStayPortalPage() {
   const { token } = useParams<{ token: string }>()
-  const portal = useGuestStayPortal(token)
+  const [activeTab, setActiveTab] = useState('home')
+  const portal = useGuestStayPortal(token, activeTab)
+  const browserLang = typeof navigator !== 'undefined' ? navigator.language : null
 
   if (portal.loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAF8F5]">
-        <p className="font-['Cormorant_Garamond',Georgia,serif] text-xl text-[#1A1614]/60">
-          Chargement de votre séjour…
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <p className="text-[15px] text-[#717171]">
+          {tGuest('portal.loading', browserLang)}
         </p>
       </div>
     )
@@ -21,10 +25,10 @@ export function GuestStayPortalPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#1A1614] px-6 text-center">
         <div className="max-w-sm">
           <p className="font-['Cormorant_Garamond',Georgia,serif] text-2xl font-semibold text-white">
-            Portail indisponible
+            {tGuest('portal.unavailableTitle', browserLang)}
           </p>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
-            {portal.error || 'Ce lien n’est plus valide. Contactez votre conciergerie.'}
+            {portal.error || tGuest('portal.unavailableBody', browserLang)}
           </p>
         </div>
       </div>
@@ -45,18 +49,22 @@ export function GuestStayPortalPage() {
     transactions,
     recommendedAmount,
     messaging,
+    recommendedProperties,
   } = portal.data
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5]">
-      <div className="mx-auto flex min-h-screen max-w-[430px] flex-col shadow-2xl">
+    <div className="h-dvh overflow-hidden bg-[#E9E3DA]">
+      <div className="mx-auto flex h-dvh max-w-[430px] flex-col bg-[#F6F1E9] shadow-[0_0_40px_rgba(7,26,47,0.12)]">
         <GuestPortalPreview
+          fullViewport
           propertyName={reservation.property_name}
           propertyImageUrl={reservation.property_image_url}
+          guestLanguage={reservation.guest_language}
           settings={settings}
           guides={guides}
           propertyServices={propertyServices}
           guestName={reservation.guest_name}
+          recommendedProperties={recommendedProperties}
           reservationContext={{
             reservationId: reservation.id,
             propertyId: reservation.property_id,
@@ -75,6 +83,7 @@ export function GuestStayPortalPage() {
             createReserve: portal.createReserve,
             topUp: portal.topUp,
             createRequest: portal.createRequest,
+            bookDirectService: portal.bookDirectService,
             approveRequest: portal.approveRequest,
           }}
           boutiqueOverride={{
@@ -88,10 +97,12 @@ export function GuestStayPortalPage() {
           }}
           messagingOverride={{
             messaging,
+            guestToken: token,
+            guestLanguage: reservation.guest_language,
             onSend: portal.sendMessage,
             onMarkRead: portal.markMessagesRead,
           }}
-          cartStorageKey={token}
+          onActiveTabChange={setActiveTab}
         />
       </div>
     </div>

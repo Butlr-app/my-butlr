@@ -56,12 +56,20 @@ cp .env.example .env
 npm run dev
 ```
 
+5. (Optional) E2E tests — install Chromium once, then run Playwright:
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+Guest portal smoke uses `E2E_GUEST_TOKEN` for the live boutique check (`e2e/guest-portal.spec.ts`).
+
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `VITE_SUPABASE_URL` | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key |
+| `E2E_GUEST_TOKEN` | Optional guest portal token for Playwright boutique smoke |
 
 ### Database Setup
 

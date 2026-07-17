@@ -1,12 +1,13 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/lib/authContext'
+import { homePathForRole } from '@/lib/partnerPortal'
 
 function AuthLoading() {
   return (
     <div className="bg-background text-foreground min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-6 h-6 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Loading...</p>
+        <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Chargement...</p>
       </div>
     </div>
   )
@@ -23,6 +24,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user.email_confirmed_at) {
     return <Navigate to="/verify-email" state={{ email: user.email }} replace />
+  }
+
+  if (profile?.role === 'partner') {
+    return <Navigate to="/partner" replace />
   }
 
   if (profile?.role === 'owner' && !profile.onboarding_completed) {
@@ -48,7 +53,7 @@ export function OnboardingRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (profile?.role !== 'owner' || profile.onboarding_completed) {
-    return <Navigate to="/app" replace />
+    return <Navigate to={homePathForRole(profile?.role)} replace />
   }
 
   return <>{children}</>

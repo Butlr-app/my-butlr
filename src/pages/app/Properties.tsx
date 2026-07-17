@@ -6,12 +6,14 @@ import { EmptyState, LoadingState } from '@/components/EmptyState'
 import { Link, useNavigate } from 'react-router-dom'
 import { MapPin, Plus } from 'lucide-react'
 import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
 import { fetchOwnerProperties } from '@/lib/data'
 import type { Property } from '@/lib/types'
 
 export function Properties() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
+  const { can } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [properties, setProperties] = useState<Property[]>([])
 
@@ -35,7 +37,7 @@ export function Properties() {
             {properties.length} propriété{properties.length > 1 ? 's' : ''}
           </p>
         </div>
-        {profile?.role === 'owner' && (
+        {can('properties_create') && (
           <Button size="sm" onClick={() => navigate('/app/properties/new')}>
             <Plus className="mr-1.5 h-4 w-4" />
             Ajouter une propriété

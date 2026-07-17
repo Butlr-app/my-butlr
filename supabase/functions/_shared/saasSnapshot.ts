@@ -343,11 +343,22 @@ export function dataKeywordFallback(
     }
   }
 
+  if (/entretien|piscin|jardin|travaux|maintenance|spa technique|facture.?prestataire/.test(q)) {
+    return {
+      reply: `${snapshot.tasks.open} tâche(s) ouverte(s) au total. Pour le suivi technique villa (piscine, jardin, travaux), ouvrez Entretien & travaux.`,
+      quickReplies: ['Planifier une intervention', 'Résumé', 'Partenaires'],
+      actions: [{ type: 'navigate', path: '/app/operations', label: 'Entretien & travaux' }],
+    }
+  }
+
   if (/tâche|tache|task/.test(q)) {
     return {
       reply: `${snapshot.tasks.open} tâche(s) ouverte(s) sur vos propriétés.`,
-      quickReplies: ['Résumé', 'Réservations', 'Calendrier'],
-      actions: [{ type: 'navigate', path: '/app/tasks', label: 'Voir les tâches' }],
+      quickReplies: ['Entretien & travaux', 'Réservations', 'Calendrier'],
+      actions: [
+        { type: 'navigate', path: '/app/tasks', label: 'Voir les tâches' },
+        { type: 'navigate', path: '/app/operations', label: 'Entretien & travaux' },
+      ],
     }
   }
 

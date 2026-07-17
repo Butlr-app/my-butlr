@@ -12,7 +12,7 @@ import { createContractFileSignedUrl } from '@/lib/contractFiles'
 import type { Contract } from '@/lib/types'
 import { Link } from 'react-router-dom'
 import { FileSignature, Layers3 } from 'lucide-react'
-import { signatureStatusLabels } from '@/lib/signatureWorkflow'
+import { expireStaleSignatureEnvelopes, signatureStatusLabels } from '@/lib/signatureWorkflow'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 import { CalendarDays } from 'lucide-react'
 
@@ -27,11 +27,16 @@ export function Contracts() {
 
   useEffect(() => {
     if (!user) return
+    const userId = user.id
 
-    fetchOwnerContracts(user.id).then(({ data }) => {
+    async function load() {
+      await expireStaleSignatureEnvelopes()
+      const { data } = await fetchOwnerContracts(userId)
       setContracts((data as Contract[]) ?? [])
       setLoading(false)
-    })
+    }
+
+    load()
   }, [user])
 
   if (loading) return <LoadingState />

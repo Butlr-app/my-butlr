@@ -3,7 +3,11 @@ import {
   buildReservationInsertPayload,
   calendarEventCoversDate,
   isActiveGuestReservation,
+  isActiveReservation,
+  isArchivedReservation,
+  isBlockingReservationStatus,
   isCommercialReservation,
+  isPastStay,
   validateReservationInput,
   type ContractMode,
   type ReservationFormInput,
@@ -75,6 +79,7 @@ describe('buildReservationInsertPayload', () => {
       notes: 'Arrivée tardive',
       contract_mode: contractMode,
       booking_kind: 'guest',
+      guest_language: null,
     })
   })
 
@@ -102,6 +107,13 @@ describe('buildReservationInsertPayload', () => {
     })
   })
 
+  it('enregistre la langue du voyageur si renseignée', () => {
+    expect(buildReservationInsertPayload({
+      ...baseInput,
+      guestLanguage: ' en ',
+    }).guest_language).toBe('en')
+  })
+
   it('normalise un motif client incompatible avec un blocage', () => {
     expect(buildReservationInsertPayload({
       ...baseInput,
@@ -122,6 +134,16 @@ describe('effets transverses', () => {
     expect(isActiveGuestReservation({ booking_kind: 'guest', status: 'in_progress' })).toBe(true)
     expect(isActiveGuestReservation({ booking_kind: 'blocked_dates', status: 'confirmed' })).toBe(false)
     expect(isActiveGuestReservation({ booking_kind: 'guest', status: 'completed' })).toBe(false)
+  })
+
+  it('sépare les séjours actifs et archivés', () => {
+    expect(isActiveReservation({ status: 'confirmed' })).toBe(true)
+    expect(isActiveReservation({ status: 'cancelled' })).toBe(false)
+    expect(isArchivedReservation({ status: 'completed' })).toBe(true)
+    expect(isBlockingReservationStatus('completed')).toBe(false)
+    expect(isBlockingReservationStatus('confirmed')).toBe(true)
+    expect(isPastStay('2026-07-01', '2026-07-15')).toBe(true)
+    expect(isPastStay('2026-08-01', '2026-07-15')).toBe(false)
   })
 
   it('considère le départ comme une borne exclusive pour une réservation', () => {

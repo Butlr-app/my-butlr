@@ -43,18 +43,62 @@ import {
   type GuestGuideCategory,
   type GuestPortalSettings,
 } from '@/lib/guestPortal'
+import {
+  assessGuestPortalSection,
+  guestPortalSetupProgress,
+  type GuestPortalSectionId,
+  type GuestPortalSectionStatus,
+} from '@/lib/guestPortalSetup'
+
 import { fetchEnabledPropertyServices, type PropertyServiceItem } from '@/lib/propertyServices'
+
+type AccentTone = 'neutral' | 'info' | 'success' | 'warning'
+
+const sectionAccent: Record<GuestPortalSectionId, AccentTone> = {
+  activation: 'neutral',
+  welcome: 'info',
+  stay: 'success',
+  rules: 'warning',
+  guides: 'info',
+}
+
+const accentBorderClass: Record<AccentTone, string> = {
+  neutral: 'border-l-foreground/70',
+  info: 'border-l-info',
+  success: 'border-l-success',
+  warning: 'border-l-warning',
+}
+
+const accentBarClass: Record<AccentTone, string> = {
+  neutral: 'bg-foreground/70',
+  info: 'bg-info',
+  success: 'bg-success',
+  warning: 'bg-warning',
+}
+
+const accentTopBorderClass: Record<AccentTone, string> = {
+  neutral: 'border-t-foreground/70',
+  info: 'border-t-info',
+  success: 'border-t-success',
+  warning: 'border-t-warning',
+}
+
+const accentSurfaceClass: Record<AccentTone, string> = {
+  neutral: 'bg-muted/30',
+  info: 'bg-info-soft/50',
+  success: 'bg-success-soft/40',
+  warning: 'bg-warning-soft/40',
+}
 
 interface PropertyGuestPortalPanelProps {
   propertyId: string
   propertyName: string
   propertyImageUrl?: string | null
+  onSummaryChange?: (settings: GuestPortalSettings, guides: GuestGuide[]) => void
 }
 
-type PortalSectionId = 'activation' | 'welcome' | 'stay' | 'rules' | 'guides'
-
 const portalSections: Array<{
-  id: PortalSectionId
+  id: GuestPortalSectionId
   label: string
   description: string
   icon: typeof Settings2
@@ -118,11 +162,80 @@ function TextArea({
   )
 }
 
-function SectionHeader({ title, description }: { title: string; description: string }) {
+function SubsectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-b border-border pb-4">
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    <div className="flex items-center gap-3 pb-1">
+      <span className="shrink-0 text-xs font-mono font-medium uppercase tracking-wider text-foreground">
+        {children}
+      </span>
+      <span className="h-px flex-1 bg-border" aria-hidden />
+    </div>
+  )
+}
+
+function AccentPanel({
+  accent,
+  children,
+  className = '',
+  dimmed,
+}: {
+  accent: AccentTone
+  children: React.ReactNode
+  className?: string
+  dimmed?: boolean
+}) {
+  return (
+    <Card
+      className={`overflow-hidden border-l-[4px] p-0 ${accentBorderClass[accent]} ${
+        dimmed ? 'opacity-90' : ''
+      } ${className}`}
+    >
+      <div className={`h-1 w-full ${accentBarClass[accent]}`} aria-hidden />
+      <div className="p-5">{children}</div>
+    </Card>
+  )
+}
+
+function SectionStatusDot({ status }: { status: GuestPortalSectionStatus }) {
+  if (status === 'complete') {
+    return <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success" title="Complet" />
+  }
+  if (status === 'partial') {
+    return <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warning" title="À compléter" />
+  }
+  return <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-border" title="Non renseigné" />
+}
+
+function sectionStatusLabel(status: GuestPortalSectionStatus): string {
+  if (status === 'complete') return 'Complet'
+  if (status === 'partial') return 'À compléter'
+  return 'Non renseigné'
+}
+
+function SectionHeader({
+  title,
+  description,
+  status,
+  accent,
+}: {
+  title: string
+  description: string
+  status?: GuestPortalSectionStatus
+  accent: AccentTone
+}) {
+  return (
+    <div className={`rounded-lg border border-border border-l-[4px] px-4 py-3 ${accentBorderClass[accent]} ${accentSurfaceClass[accent]}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+        {status && (
+          <Badge variant={status === 'complete' ? 'success' : status === 'partial' ? 'warning' : 'muted'}>
+            {sectionStatusLabel(status)}
+          </Badge>
+        )}
+      </div>
     </div>
   )
 }
@@ -136,13 +249,14 @@ export function PropertyGuestPortalPanel({
   propertyId,
   propertyName,
   propertyImageUrl,
+  onSummaryChange,
 }: PropertyGuestPortalPanelProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [activeSection, setActiveSection] = useState<PortalSectionId>('activation')
+  const [activeSection, setActiveSection] = useState<GuestPortalSectionId>('activation')
   const [settings, setSettings] = useState<GuestPortalSettings>(() =>
     defaultGuestPortalSettings(propertyId),
   )
@@ -166,6 +280,19 @@ export function PropertyGuestPortalPanel({
   })
 
   const activeMeta = portalSections.find(section => section.id === activeSection) ?? portalSections[0]
+  const activeIndex = portalSections.findIndex(section => section.id === activeSection)
+  const setupProgress = guestPortalSetupProgress(settings, guides)
+  const sectionStatuses = Object.fromEntries(
+    portalSections.map(section => [
+      section.id,
+      assessGuestPortalSection(section.id, settings, guides),
+    ]),
+  ) as Record<GuestPortalSectionId, GuestPortalSectionStatus>
+
+  useEffect(() => {
+    if (loading) return
+    onSummaryChange?.(settings, guides)
+  }, [loading, settings, guides, onSummaryChange])
 
   useEffect(() => {
     if (!previewOpen) return
@@ -292,23 +419,76 @@ export function PropertyGuestPortalPanel({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card p-4">
-        <div>
-          <p className="text-sm font-semibold">{propertyName}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {settings.enabled ? 'Portail actif' : 'Portail désactivé'}
-            {' · '}
-            {countPublishedGuides(guides)} guide{countPublishedGuides(guides) > 1 ? 's' : ''} publié{countPublishedGuides(guides) > 1 ? 's' : ''}
-          </p>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className={`h-1 w-full ${settings.enabled ? 'bg-success' : 'bg-muted-foreground/40'}`} aria-hidden />
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border p-4">
+          <div className="flex min-w-0 items-start gap-3">
+            {propertyImageUrl ? (
+              <img
+                src={propertyImageUrl}
+                alt=""
+                className="h-14 w-14 shrink-0 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-muted-foreground">
+                {propertyName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{propertyName}</p>
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant={settings.enabled ? 'success' : 'muted'}>
+                  {settings.enabled ? 'Portail actif' : 'Portail désactivé'}
+                </Badge>
+                <span>{countPublishedGuides(guides)} guide{countPublishedGuides(guides) > 1 ? 's' : ''} publié{countPublishedGuides(guides) > 1 ? 's' : ''}</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setPreviewOpen(true)}>
+              <Eye className="mr-1.5 h-4 w-4" />
+              Aperçu mobile
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setPreviewOpen(true)}>
-            <Eye className="mr-1.5 h-4 w-4" />
-            Aperçu
-          </Button>
-          <Button size="sm" className="shadow-[var(--shadow-1)]" onClick={handleSaveSettings} disabled={saving}>
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </Button>
+        <div className="grid gap-px border-t border-border bg-border sm:grid-cols-3">
+          <div className="border-l-[3px] border-l-info bg-card px-4 py-3">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Avancement</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums">{setupProgress.percent}%</p>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-info transition-all"
+                style={{ width: `${setupProgress.percent}%` }}
+              />
+            </div>
+          </div>
+          <div className="border-l-[3px] border-l-success bg-card px-4 py-3">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Sections</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums">
+              {setupProgress.complete}/{setupProgress.total}
+            </p>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-success transition-all"
+                style={{ width: `${(setupProgress.complete / setupProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+          <div className="border-l-[3px] border-l-warning bg-card px-4 py-3">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Modules invité</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums">
+              {[settings.show_services, settings.show_boutique ?? true, settings.show_messaging ?? true].filter(Boolean).length}
+            </p>
+            <div className="mt-2 flex gap-1">
+              {[settings.show_services, settings.show_boutique ?? true, settings.show_messaging ?? true].map((on, i) => (
+                <span
+                  key={i}
+                  className={`h-1 flex-1 rounded-full ${on ? 'bg-warning' : 'bg-muted'}`}
+                  aria-hidden
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -323,46 +503,83 @@ export function PropertyGuestPortalPanel({
         </p>
       )}
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
         <nav
           aria-label="Sections du portail invité"
-          className="lg:w-60 lg:shrink-0"
+          className="xl:w-64 xl:shrink-0"
         >
-          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {portalSections.map(section => {
-              const Icon = section.icon
-              const isActive = activeSection === section.id
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setActiveSection(section.id)}
-                  className={`flex min-w-[11rem] shrink-0 cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors lg:min-w-0 lg:w-full ${
-                    isActive
-                      ? 'border-foreground/20 bg-foreground text-background shadow-sm'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
-                  }`}
-                >
-                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${isActive ? 'text-background' : 'text-muted-foreground'}`} />
-                  <span>
-                    <span className="block text-sm font-medium">{section.label}</span>
-                    <span className={`mt-0.5 block text-xs ${isActive ? 'text-background/80' : 'text-muted-foreground'}`}>
-                      {section.description}
+          <Card className="overflow-hidden p-0">
+            <div className="border-b border-border bg-muted/30 px-3 py-2">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+                Organisation
+              </p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto p-2 xl:flex-col xl:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {portalSections.map((section, index) => {
+                const Icon = section.icon
+                const isActive = activeSection === section.id
+                const status = sectionStatuses[section.id]
+                const accent = sectionAccent[section.id]
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={`relative flex min-w-[12rem] shrink-0 cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors xl:min-w-0 xl:w-full ${
+                      isActive
+                        ? `border-foreground/20 ${accentSurfaceClass[accent]} shadow-sm ring-1 ring-border`
+                        : 'border-transparent bg-card hover:border-border hover:bg-muted/60'
+                    }`}
+                  >
+                    {isActive && (
+                      <span
+                        className={`absolute bottom-2 left-0 top-2 w-1 rounded-r-full ${accentBarClass[accent]}`}
+                        aria-hidden
+                      />
+                    )}
+                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                      isActive ? `${accentBarClass[accent]} text-white` : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {index + 1}
                     </span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="block text-sm font-medium">{section.label}</span>
+                        {!isActive && <SectionStatusDot status={status} />}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {section.description}
+                      </span>
+                      {!isActive && status !== 'complete' && (
+                        <span
+                          className={`mt-2 block h-0.5 w-full max-w-[4rem] rounded-full ${
+                            status === 'partial' ? 'bg-warning' : 'bg-border'
+                          }`}
+                          aria-hidden
+                        />
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </Card>
         </nav>
 
-        <div className="min-w-0 flex-1 space-y-5">
-          <SectionHeader title={activeMeta.label} description={activeMeta.description} />
+        <div className="min-w-0 flex-1 space-y-5 xl:border-l xl:border-border xl:pl-6">
+          <SectionHeader
+            title={activeMeta.label}
+            description={activeMeta.description}
+            status={sectionStatuses[activeSection]}
+            accent={sectionAccent[activeSection]}
+          />
 
+          <div className={`space-y-4 rounded-xl border border-border border-t-[3px] p-4 sm:p-5 ${accentTopBorderClass[sectionAccent[activeSection]]} ${accentSurfaceClass[sectionAccent[activeSection]]}/25`}>
           {activeSection === 'activation' && (
-            <Card className="divide-y divide-border p-0">
+            <Card className="divide-y divide-border border-0 bg-card p-0 shadow-none">
               <div className="space-y-1 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Portail</p>
+                <SubsectionLabel>Portail</SubsectionLabel>
                 <SwitchField
                   checked={settings.enabled}
                   onCheckedChange={enabled => setSettings(current => ({ ...current, enabled }))}
@@ -378,19 +595,33 @@ export function PropertyGuestPortalPanel({
               </div>
 
               <div className="space-y-1 p-5">
-                <p className="pb-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">Modules invité</p>
-                <SwitchField
-                  checked={settings.show_services}
-                  onCheckedChange={show_services => setSettings(current => ({ ...current, show_services }))}
-                  label="Conciergerie"
-                  description="Prestations sur mesure — chef, transport, bien-être, devis."
-                />
-                <SwitchField
-                  checked={settings.show_boutique ?? true}
-                  onCheckedChange={show_boutique => setSettings(current => ({ ...current, show_boutique }))}
-                  label="Boutique"
-                  description="Produits commandables par quantité — paniers, boissons, cadeaux."
-                />
+                <SubsectionLabel>Modules invité</SubsectionLabel>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border border-l-[3px] border-l-info bg-background p-3">
+                    <SwitchField
+                      checked={settings.show_services}
+                      onCheckedChange={show_services => setSettings(current => ({ ...current, show_services }))}
+                      label="Conciergerie"
+                      description="Chef, transport, bien-être, devis."
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border border-l-[3px] border-l-warning bg-background p-3">
+                    <SwitchField
+                      checked={settings.show_boutique ?? true}
+                      onCheckedChange={show_boutique => setSettings(current => ({ ...current, show_boutique }))}
+                      label="Boutique"
+                      description="Paniers, boissons, cadeaux."
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border border-l-[3px] border-l-success bg-background p-3 sm:col-span-2">
+                    <SwitchField
+                      checked={settings.show_messaging ?? true}
+                      onCheckedChange={show_messaging => setSettings(current => ({ ...current, show_messaging }))}
+                      label="Messagerie séjour"
+                      description="Contact direct avec l’équipe depuis le portail."
+                    />
+                  </div>
+                </div>
                 {(settings.show_boutique ?? true) && (
                   <div className="pt-3">
                     <TextArea
@@ -402,12 +633,6 @@ export function PropertyGuestPortalPanel({
                     />
                   </div>
                 )}
-                <SwitchField
-                  checked={settings.show_messaging ?? true}
-                  onCheckedChange={show_messaging => setSettings(current => ({ ...current, show_messaging }))}
-                  label="Messagerie séjour"
-                  description="Permet au voyageur d’écrire à l’équipe depuis le portail."
-                />
                 {(settings.show_messaging ?? true) && (
                   <div className="pt-3">
                     <Select
@@ -430,8 +655,9 @@ export function PropertyGuestPortalPanel({
 
           {activeSection === 'welcome' && (
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="space-y-4 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Message d’accueil</p>
+              <AccentPanel accent="info">
+                <SubsectionLabel>Message d’accueil</SubsectionLabel>
+                <div className="space-y-4">
                 <Input
                   label="Titre de bienvenue"
                   value={settings.welcome_title ?? ''}
@@ -444,10 +670,12 @@ export function PropertyGuestPortalPanel({
                   onChange={value => setSettings(current => ({ ...current, welcome_message: value }))}
                   placeholder="Nous sommes ravis de vous accueillir…"
                 />
-              </Card>
+                </div>
+              </AccentPanel>
 
-              <Card className="space-y-4 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Connexion Wi-Fi</p>
+              <AccentPanel accent="success">
+                <SubsectionLabel>Connexion Wi-Fi</SubsectionLabel>
+                <div className="space-y-4">
                 <Input
                   label="Nom du réseau"
                   value={settings.wifi_name ?? ''}
@@ -470,15 +698,16 @@ export function PropertyGuestPortalPanel({
                     {showWifiPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-              </Card>
+                </div>
+              </AccentPanel>
             </div>
           )}
 
           {activeSection === 'stay' && (
             <div className="grid gap-4 xl:grid-cols-2">
-              <Card className="space-y-4 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Arrivée</p>
-                <p className="text-sm text-muted-foreground">
+              <AccentPanel accent="success">
+                <SubsectionLabel>Arrivée</SubsectionLabel>
+                <p className="mb-4 text-sm text-muted-foreground">
                   Instructions check-in : texte, étapes, listes, images et vidéos.
                 </p>
                 <GuideBlockEditor
@@ -490,10 +719,10 @@ export function PropertyGuestPortalPanel({
                   propertyId={propertyId}
                   userId={user?.id}
                 />
-              </Card>
-              <Card className="space-y-4 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Départ</p>
-                <p className="text-sm text-muted-foreground">
+              </AccentPanel>
+              <AccentPanel accent="warning">
+                <SubsectionLabel>Départ</SubsectionLabel>
+                <p className="mb-4 text-sm text-muted-foreground">
                   Instructions check-out : texte, étapes, listes, images et vidéos.
                 </p>
                 <GuideBlockEditor
@@ -505,14 +734,14 @@ export function PropertyGuestPortalPanel({
                   propertyId={propertyId}
                   userId={user?.id}
                 />
-              </Card>
+              </AccentPanel>
             </div>
           )}
 
           {activeSection === 'rules' && (
             <div className="space-y-4">
-              <Card className="space-y-4 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Règlement intérieur</p>
+              <AccentPanel accent="warning">
+                <SubsectionLabel>Règlement intérieur</SubsectionLabel>
                 <GuideBlockEditor
                   blocks={parseGuideContent(settings.house_rules ?? '')}
                   onChange={blocks => setSettings(current => ({
@@ -522,22 +751,23 @@ export function PropertyGuestPortalPanel({
                   propertyId={propertyId}
                   userId={user?.id}
                 />
-              </Card>
-              <Card className="space-y-4 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Contacts d’urgence</p>
+              </AccentPanel>
+              <AccentPanel accent="neutral">
+                <SubsectionLabel>Contacts d’urgence</SubsectionLabel>
                 <EmergencyContactsEditor
                   value={settings.emergency_contact}
                   onChange={emergency_contact => setSettings(current => ({ ...current, emergency_contact }))}
                   propertyId={propertyId}
                   userId={user?.id}
                 />
-              </Card>
+              </AccentPanel>
             </div>
           )}
 
           {activeSection === 'guides' && (
-            <Card className="space-y-4 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <AccentPanel accent="info" className="shadow-none">
+              <SubsectionLabel>Guides publiés</SubsectionLabel>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
                   Contenus affichés dans le portail : piscine, parking, adresses locales…
                 </p>
@@ -548,13 +778,23 @@ export function PropertyGuestPortalPanel({
               </div>
 
               {guides.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun guide pour l’instant.</p>
+                <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+                  <BookOpen className="mx-auto h-8 w-8 text-muted-foreground/60" />
+                  <p className="mt-3 text-sm font-medium">Aucun guide publié</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ajoutez des contenus pratiques : piscine, parking, adresses locales…
+                  </p>
+                  <Button size="sm" className="mt-4" variant="secondary" onClick={() => openGuideModal()}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    Créer le premier guide
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {guides.map(guide => (
                     <div
                       key={guide.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-3 py-3"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border border-l-[3px] border-l-info bg-background px-3 py-3"
                     >
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -587,8 +827,49 @@ export function PropertyGuestPortalPanel({
                   ))}
                 </div>
               )}
-            </Card>
+            </AccentPanel>
           )}
+
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-border pt-4">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={activeIndex <= 0}
+              onClick={() => setActiveSection(portalSections[Math.max(0, activeIndex - 1)].id)}
+            >
+              Section précédente
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={activeIndex >= portalSections.length - 1}
+              onClick={() => setActiveSection(portalSections[Math.min(portalSections.length - 1, activeIndex + 1)].id)}
+            >
+              Section suivante
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className={`sticky bottom-0 z-10 mt-2 overflow-hidden rounded-xl border border-border bg-card/95 shadow-[var(--shadow-2)] backdrop-blur-sm`}>
+        <div className={`h-0.5 w-full ${accentBarClass[sectionAccent[activeSection]]}`} aria-hidden />
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+          <p className="text-xs text-muted-foreground">
+            {setupProgress.percent}% configuré · section {activeIndex + 1}/{portalSections.length}
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setPreviewOpen(true)}>
+              <Eye className="mr-1.5 h-4 w-4" />
+              Aperçu
+            </Button>
+            <Button size="sm" className="shadow-[var(--shadow-1)]" onClick={handleSaveSettings} disabled={saving}>
+              {saving ? 'Enregistrement…' : 'Enregistrer la configuration'}
+            </Button>
+          </div>
         </div>
       </div>
 

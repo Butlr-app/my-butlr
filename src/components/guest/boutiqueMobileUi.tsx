@@ -28,7 +28,7 @@ export function MobileHeader({
           <button
             type="button"
             onClick={onBack}
-            className="-ml-1 rounded-full p-2 text-[#1A1614] active:bg-[#F2F2F7]"
+            className="-ml-1 flex h-11 w-11 items-center justify-center rounded-full text-[#071A2F] active:bg-[#E9E2D8]"
             aria-label="Retour"
           >
             <ChevronRight className="h-5 w-5 rotate-180" />
@@ -45,7 +45,7 @@ export function MobileHeader({
         <button
           type="button"
           onClick={onBack}
-          className="-ml-1 mt-0.5 rounded-full p-2 text-[#1A1614] active:bg-[#F2F2F7]"
+          className="-ml-1 mt-0.5 flex h-11 w-11 items-center justify-center rounded-full text-[#071A2F] active:bg-[#E9E2D8]"
           aria-label="Retour"
         >
           <ChevronRight className="h-5 w-5 rotate-180" />
@@ -72,7 +72,7 @@ export function MobileSearch({
 }) {
   return (
     <div className={`${boutiqueMobile.search} mb-4`}>
-      <Search className="h-4 w-4 shrink-0 text-[#8E8E93]" />
+      <Search className="h-4 w-4 shrink-0 text-[#8B837A]" />
       <input
         type="search"
         value={value}
@@ -124,14 +124,14 @@ export function CatalogListRow({
     <button type="button" onClick={onClick} className={`${boutiqueMobile.listRow} ${boutiqueMobile.divider}`}>
       <ItemThumbnail imageUrl={imageUrl} gradientClass={gradientClass} alt={title} />
       <div className="min-w-0 flex-1">
-        <p className="text-[16px] font-semibold text-[#1A1614]">{title}</p>
+        <p className="text-[16px] font-semibold text-[#071A2F]">{title}</p>
         {(subtitle || price) && (
           <p className={`mt-0.5 truncate ${boutiqueMobile.subtitle}`}>
             {subtitle ?? price}
           </p>
         )}
       </div>
-      <ChevronRight className="h-5 w-5 shrink-0 text-[#C7C7CC]" />
+      <ChevronRight className="h-5 w-5 shrink-0 text-[#A89E91]" />
     </button>
   )
 }
@@ -150,13 +150,13 @@ export function CategoryListRow({
   return (
     <button type="button" onClick={onClick} className={`${boutiqueMobile.listRow} ${boutiqueMobile.divider}`}>
       <span className={boutiqueMobile.iconCircle}>
-        <Icon className="h-5 w-5 text-[#9A7B4F]" strokeWidth={1.75} />
+        <Icon className="h-5 w-5 text-[#A8844F]" strokeWidth={1.75} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[16px] font-semibold text-[#1A1614]">{title}</p>
+        <p className="text-[16px] font-semibold text-[#071A2F]">{title}</p>
         {subtitle && <p className={`mt-0.5 ${boutiqueMobile.subtitle}`}>{subtitle}</p>}
       </div>
-      <ChevronRight className="h-5 w-5 shrink-0 text-[#C7C7CC]" />
+      <ChevronRight className="h-5 w-5 shrink-0 text-[#A89E91]" />
     </button>
   )
 }
@@ -176,16 +176,16 @@ export function MenuCardRow({
     <button
       type="button"
       onClick={onClick}
-      className="mb-2 flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-[0_2px_12px_rgba(26,22,20,0.06)] ring-1 ring-[#1A1614]/[0.04] active:scale-[0.99]"
+      className="mb-2 flex min-h-16 w-full items-center gap-3 rounded-2xl border border-[#E4DDD3] bg-white p-4 text-left transition active:scale-[0.99] active:bg-[#FCFAF7]"
     >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F5EDE3]">
-        <Icon className="h-5 w-5 text-[#9A7B4F]" strokeWidth={1.75} />
+        <Icon className="h-5 w-5 text-[#A8844F]" strokeWidth={1.75} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold text-[#1A1614]">{title}</p>
+        <p className="text-[15px] font-semibold text-[#071A2F]">{title}</p>
         <p className={`mt-0.5 ${boutiqueMobile.subtitle}`}>{subtitle}</p>
       </div>
-      <ChevronRight className="h-5 w-5 shrink-0 text-[#C7C7CC]" />
+      <ChevronRight className="h-5 w-5 shrink-0 text-[#A89E91]" />
     </button>
   )
 }
@@ -210,7 +210,7 @@ export function FormPickerRow({
         <p className={boutiqueMobile.label}>{label}</p>
         <p className={`mt-1 ${boutiqueMobile.value}`}>{value}</p>
       </div>
-      {onClick && <ChevronRight className="h-5 w-5 text-[#C7C7CC]" />}
+      {onClick && <ChevronRight className="h-5 w-5 text-[#A89E91]" />}
     </Tag>
   )
 }
@@ -284,7 +284,7 @@ export function ReserveBalanceBar({ label, amount }: { label: string; amount: st
   return (
     <div className="mb-4 flex items-center justify-between rounded-2xl bg-[#FAFAFA] px-4 py-3">
       <span className={boutiqueMobile.subtitle}>{label}</span>
-      <span className="text-[17px] font-bold text-[#1A1614]">{amount}</span>
+      <span className="text-[17px] font-bold text-[#071A2F]">{amount}</span>
     </div>
   )
 }

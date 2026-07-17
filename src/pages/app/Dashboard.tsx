@@ -7,20 +7,42 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
+import { formatMaskedAmount } from '@/lib/permissions'
 import {
   fetchOwnerReservations,
-  fetchOwnerTasks,
   fetchOwnerPayments,
   fetchOwnerProperties,
   todayISO,
 } from '@/lib/data'
+import { fetchOwnerTasks } from '@/lib/tasks'
 import type { Reservation, Task, Payment } from '@/lib/types'
 import { isCommercialReservation } from '@/lib/reservationWorkflow'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 
+const RESERVATION_STATUS_LABELS: Record<string, string> = {
+  confirmed: 'Confirmée',
+  in_progress: 'En cours',
+  completed: 'Terminée',
+  cancelled: 'Annulée',
+}
+
+const TASK_PRIORITY_LABELS: Record<string, string> = {
+  high: 'Haute',
+  medium: 'Moyenne',
+  low: 'Basse',
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  paid: 'Payé',
+  pending: 'En attente',
+}
+
 export function Dashboard() {
   const { role } = useRole()
   const { user } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
   const { openReservation } = useReservationDetail()
   const [loading, setLoading] = useState(true)
   const [reservations, setReservations] = useState<Reservation[]>([])
@@ -64,12 +86,12 @@ export function Dashboard() {
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
   const roleLabels: Record<string, string> = {
-    owner: 'Owner Dashboard',
-    house_manager: 'House Manager Dashboard',
-    concierge: 'Concierge Dashboard',
-    agency: 'Agency Dashboard',
-    partner: 'Partner Dashboard',
-    guest: 'Guest Dashboard',
+    owner: 'Tableau de bord propriétaire',
+    house_manager: 'Tableau de bord house manager',
+    concierge: 'Tableau de bord conciergerie',
+    agency: 'Tableau de bord agence',
+    partner: 'Tableau de bord partenaire',
+    guest: 'Tableau de bord voyageur',
   }
 
   if (propertyCount === 0) {
@@ -79,11 +101,11 @@ export function Dashboard() {
           {roleLabels[role]}
         </span>
         <EmptyState
-          title="Welcome to butlr"
-          description="Your dashboard will populate once you add properties and reservations."
+          title="Bienvenue sur butlr"
+          description="Votre tableau de bord se remplira dès que vous aurez ajouté des propriétés et des réservations."
           action={
             <Link to="/app/properties">
-              <span className="text-sm text-foreground hover:underline">Go to Properties</span>
+              <span className="text-sm text-foreground hover:underline">Aller aux propriétés</span>
             </Link>
           }
         />
@@ -100,24 +122,28 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <MetricCard label="Active Stays" value={activeStays} />
-        <MetricCard label="Upcoming Arrivals" value={upcomingArrivals} />
-        <MetricCard label="Properties" value={propertyCount} />
-        <MetricCard label="Service Revenue" value={serviceRevenue} prefix="€" />
-        <MetricCard label="Pending Tasks" value={pendingTasks} />
-        <MetricCard label="Reservations" value={commercialReservations.length} />
+        <MetricCard label="Séjours en cours" value={activeStays} />
+        <MetricCard label="Arrivées à venir" value={upcomingArrivals} />
+        <MetricCard label="Propriétés" value={propertyCount} />
+        <MetricCard
+          label="Revenu conciergerie"
+          value={canViewAmounts ? serviceRevenue : '•••'}
+          prefix={canViewAmounts ? '€' : undefined}
+        />
+        <MetricCard label="Tâches en attente" value={pendingTasks} />
+        <MetricCard label="Réservations" value={commercialReservations.length} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold">Upcoming Arrivals</h3>
+            <h3 className="text-sm font-semibold">Arrivées à venir</h3>
             <Link to="/app/reservations" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              View all <ArrowRight className="w-3 h-3" />
+              Tout voir <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
           {upcomingArrivals === 0 ? (
-            <p className="text-sm text-muted-foreground">No upcoming arrivals</p>
+            <p className="text-sm text-muted-foreground">Aucune arrivée à venir</p>
           ) : (
             <div className="space-y-3">
               {commercialReservations.filter(r => r.arrival >= today).slice(0, 3).map(r => (
@@ -131,7 +157,7 @@ export function Dashboard() {
                     <p className="text-sm font-medium">{r.guest_name}</p>
                     <p className="text-xs text-muted-foreground">{r.properties?.name}</p>
                   </div>
-                  <Badge variant="success">{r.status}</Badge>
+                  <Badge variant="success">{RESERVATION_STATUS_LABELS[r.status] ?? r.status}</Badge>
                 </button>
               ))}
             </div>
@@ -140,13 +166,13 @@ export function Dashboard() {
 
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold">Pending Tasks</h3>
+            <h3 className="text-sm font-semibold">Tâches en attente</h3>
             <Link to="/app/tasks" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              View all <ArrowRight className="w-3 h-3" />
+              Tout voir <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
           {pendingTasks === 0 ? (
-            <p className="text-sm text-muted-foreground">No pending tasks</p>
+            <p className="text-sm text-muted-foreground">Aucune tâche en attente</p>
           ) : (
             <div className="space-y-3">
               {tasks.filter(t => t.status === 'todo').slice(0, 3).map(t => (
@@ -155,7 +181,9 @@ export function Dashboard() {
                     <p className="text-sm font-medium">{t.title}</p>
                     <p className="text-xs text-muted-foreground">{t.properties?.name}</p>
                   </div>
-                  <Badge variant={t.priority === 'high' ? 'destructive' : 'muted'}>{t.priority}</Badge>
+                  <Badge variant={t.priority === 'high' ? 'destructive' : 'muted'}>
+                    {TASK_PRIORITY_LABELS[t.priority] ?? t.priority}
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -164,13 +192,13 @@ export function Dashboard() {
 
         <Card className="p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold">Recent Payments</h3>
+            <h3 className="text-sm font-semibold">Paiements récents</h3>
             <Link to="/app/payments" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              View all <ArrowRight className="w-3 h-3" />
+              Tout voir <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
           {payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No payments yet</p>
+            <p className="text-sm text-muted-foreground">Aucun paiement pour l'instant</p>
           ) : (
             <div className="space-y-3">
               {payments.slice(0, 3).map(p => (
@@ -180,8 +208,12 @@ export function Dashboard() {
                     <p className="text-xs text-muted-foreground">{p.property_name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-mono font-medium">€{Number(p.amount).toLocaleString()}</p>
-                    <Badge variant={p.status === 'paid' ? 'success' : 'warning'} className="mt-1">{p.status}</Badge>
+                    <p className="text-sm font-mono font-medium">
+                      {formatMaskedAmount(p.amount, canViewAmounts)}
+                    </p>
+                    <Badge variant={p.status === 'paid' ? 'success' : 'warning'} className="mt-1">
+                      {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                    </Badge>
                   </div>
                 </div>
               ))}

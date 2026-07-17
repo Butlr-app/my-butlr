@@ -7,8 +7,20 @@ import {
   clearAuthCallbackFromUrl,
   getAuthCallbackType,
 } from '@/lib/authCallback'
+import { homePathForRole } from '@/lib/partnerPortal'
 import { supabase } from '@/lib/supabase'
 import { formatAuthError } from '@/lib/authErrors'
+
+async function resolveHomePath() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return '/app'
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+  return homePathForRole(profile?.role)
+}
 
 type CallbackStatus = 'checking' | 'error'
 
@@ -32,7 +44,7 @@ export function AuthCallback() {
       if (!hasParams && !type) {
         const { data: { session } } = await supabase.auth.getSession()
         if (!cancelled) {
-          if (session) navigate('/app', { replace: true })
+          if (session) navigate(await resolveHomePath(), { replace: true })
           else {
             setStatus('error')
             setError('Aucun lien de connexion détecté.')
@@ -46,7 +58,7 @@ export function AuthCallback() {
 
       if (result.ok) {
         clearAuthCallbackFromUrl()
-        navigate('/app', { replace: true })
+        navigate(await resolveHomePath(), { replace: true })
         return
       }
 

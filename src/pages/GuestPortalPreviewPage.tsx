@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GuestPortalPreview } from '@/components/guest/GuestPortalPreview'
+import { useGuestPortalPreviewSimulation } from '@/lib/guestPortalPreviewSimulation'
 import type { GuestGuide, GuestPortalSettings } from '@/lib/guestPortal'
 import type { PropertyServiceItem } from '@/lib/propertyServices'
 
@@ -14,6 +15,7 @@ interface PreviewPayload {
 
 export function GuestPortalPreviewPage() {
   const [payload, setPayload] = useState<PreviewPayload | null>(null)
+  const simulation = useGuestPortalPreviewSimulation(payload?.settings.property_id)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('guest-portal-preview')
@@ -56,6 +58,10 @@ export function GuestPortalPreviewPage() {
             guides={payload.guides}
             propertyServices={payload.propertyServices ?? []}
             includeDraftGuides={payload.includeDraftGuides ?? false}
+            reservationContext={simulation.reservationContext}
+            stayReserveOverride={simulation.stayReserveOverride}
+            boutiqueOverride={simulation.boutiqueOverride}
+            messagingOverride={simulation.messagingOverride}
           />
         </div>
       </div>

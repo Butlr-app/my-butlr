@@ -1,7 +1,8 @@
 export type StayPhase = 'before' | 'arrival' | 'during' | 'departure' | 'after'
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
 export function getStayPhase(arrival: string, departure: string, today = todayIso()): StayPhase {
@@ -16,6 +17,50 @@ export function daysUntil(isoDate: string, today = todayIso()): number {
   const start = new Date(`${today}T12:00:00`)
   const end = new Date(`${isoDate}T12:00:00`)
   return Math.round((end.getTime() - start.getTime()) / 86400000)
+}
+
+export interface StayTiming {
+  phase: StayPhase
+  label: string
+  currentDay: number | null
+  totalDays: number
+}
+
+export function getStayTiming(
+  arrival: string,
+  departure: string,
+  today = todayIso(),
+): StayTiming {
+  const phase = getStayPhase(arrival, departure, today)
+  const totalDays = Math.max(1, daysUntil(departure, arrival))
+  const elapsed = daysUntil(today, arrival)
+
+  if (phase === 'before') {
+    const remaining = daysUntil(arrival, today)
+    return {
+      phase,
+      label: remaining === 1 ? 'Arrivée demain' : `Arrivée dans ${remaining} jours`,
+      currentDay: null,
+      totalDays,
+    }
+  }
+  if (phase === 'arrival') {
+    return { phase, label: 'Jour d’arrivée', currentDay: 1, totalDays }
+  }
+  if (phase === 'departure') {
+    return { phase, label: 'Jour du départ', currentDay: null, totalDays }
+  }
+  if (phase === 'after') {
+    return { phase, label: 'Séjour terminé', currentDay: null, totalDays }
+  }
+
+  const currentDay = Math.min(totalDays, Math.max(1, elapsed + 1))
+  return {
+    phase,
+    label: `Jour ${currentDay} sur ${totalDays}`,
+    currentDay,
+    totalDays,
+  }
 }
 
 export interface StayPhaseContext {

@@ -171,7 +171,7 @@ export function GuestVillaPanel({
 
   return (
     <MobileScreen>
-      <MobileHeader title="Villa & guides" />
+      <MobileHeader title="Mon séjour" />
 
       {(settings.wifi_name || settings.wifi_password) && (
         <CategoryListRow

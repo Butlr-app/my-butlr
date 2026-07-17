@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Bot, ChevronRight, Send, Sparkles, X } from 'lucide-react'
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
 import { useAuth } from '@/lib/authContext'
+import {
+  parseAssistantTaskDraft,
+  stashAssistantDraft,
+} from '@/lib/assistantDraft'
 import {
   SAAS_ASSISTANT_STARTERS,
   sendSaasAssistantMessage,
   type SaasAssistantAction,
   type SaasAssistantMessage,
 } from '@/lib/saasAssistant'
+import { appendSpeechTranscript } from '@/lib/speechDraft'
 
 const STORAGE_KEY = 'butlr-saas-assistant-open'
+const VOICE_AUTO_SEND_KEY = 'butlr-voice-auto-send'
 
 function newMessage(
   role: SaasAssistantMessage['role'],
@@ -57,21 +64,32 @@ export function SaasAssistantChat() {
   const [messages, setMessages] = useState<SaasAssistantMessage[]>([
     newMessage(
       'assistant',
-      `Bonjour${profile?.full_name ? ` ${profile.full_name.split(' ')[0]}` : ''} ! Je suis l’assistant My Butlr. Je peux vous guider dans l’application, répondre à vos questions et lire vos données live (réservations, messages, devis…).`,
+      `Bonjour${profile?.full_name ? ` ${profile.full_name.split(' ')[0]}` : ''} ! Je suis l’assistant My Butlr. Je peux vous guider dans l’application, répondre à vos questions et lire vos données live (réservations, messages, devis…).\n\nUtilisez le micro pour dicter une commande rapide, par exemple « ajoute une intervention pisciniste demain » (Entretien & travaux), « crée une tâche pour rappeler le client Dupont » ou « rédige un message au voyageur Martin ».`,
       {
         quickReplies: [...SAAS_ASSISTANT_STARTERS],
       },
     ),
   ])
   const [draft, setDraft] = useState('')
+  const [speechInterim, setSpeechInterim] = useState('')
+  const [autoSendVoice, setAutoSendVoice] = useState(
+    () => sessionStorage.getItem(VOICE_AUTO_SEND_KEY) === '1',
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [voiceError, setVoiceError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const draftRef = useRef(draft)
+  draftRef.current = draft
 
   useEffect(() => {
     sessionStorage.setItem(STORAGE_KEY, open ? '1' : '0')
   }, [open])
+
+  useEffect(() => {
+    sessionStorage.setItem(VOICE_AUTO_SEND_KEY, autoSendVoice ? '1' : '0')
+  }, [autoSendVoice])
 
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -104,6 +122,9 @@ export function SaasAssistantChat() {
         },
       )
 
+      const taskDraft = response.draft ?? parseAssistantTaskDraft(trimmed)
+      if (taskDraft) stashAssistantDraft(taskDraft)
+
       setMessages(prev => [
         ...prev,
         newMessage('assistant', response.reply, {
@@ -112,6 +133,19 @@ export function SaasAssistantChat() {
           liveData: Boolean(response.snapshot),
         }),
       ])
+
+      const createAction = response.actions?.find(action => {
+        try {
+          return new URL(action.path, window.location.origin).searchParams.get('create') === 'task'
+        } catch {
+          return action.path.includes('create=task')
+        }
+      }) ?? (taskDraft ? response.actions?.[0] : undefined)
+
+      if (taskDraft && createAction) {
+        navigate(createAction.path)
+        setOpen(false)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Envoi impossible.')
       setMessages(prev => prev.slice(0, -1))
@@ -119,7 +153,7 @@ export function SaasAssistantChat() {
     } finally {
       setBusy(false)
     }
-  }, [busy, location.pathname, messages, profile?.full_name, profile?.role])
+  }, [busy, location.pathname, messages, navigate, profile?.full_name, profile?.role])
 
   const handleNavigate = (path: string) => {
     navigate(path)
@@ -213,26 +247,56 @@ export function SaasAssistantChat() {
           </div>
 
           <div className="border-t border-border bg-card p-3">
-            {error && <p className="mb-2 text-xs text-destructive">{error}</p>}
+            {(error || voiceError) && (
+              <p className="mb-2 text-xs text-destructive">{error || voiceError}</p>
+            )}
+            <label className="mb-2 flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={autoSendVoice}
+                onChange={e => setAutoSendVoice(e.target.checked)}
+                className="rounded border-input"
+              />
+              Envoi automatique après dictée
+            </label>
             <div className="flex items-end gap-2">
+              <VoiceInputButton
+                disabled={busy}
+                onInterim={transcript => setSpeechInterim(transcript)}
+                onFinal={transcript => {
+                  setSpeechInterim('')
+                  const merged = appendSpeechTranscript(draftRef.current, transcript)
+                  if (autoSendVoice) {
+                    send(merged)
+                    return
+                  }
+                  setDraft(merged)
+                  inputRef.current?.focus()
+                }}
+                onError={message => setVoiceError(message)}
+              />
               <textarea
                 ref={inputRef}
                 rows={1}
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                placeholder="Posez une question sur My Butlr…"
+                value={speechInterim ? appendSpeechTranscript(draft, speechInterim) : draft}
+                onChange={e => {
+                  setSpeechInterim('')
+                  setVoiceError('')
+                  setDraft(e.target.value)
+                }}
+                placeholder="Posez une question ou dictez une commande…"
                 className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-info focus:ring-1 focus:ring-info/20"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    send(draft)
+                    send(speechInterim ? appendSpeechTranscript(draft, speechInterim) : draft)
                   }
                 }}
               />
               <button
                 type="button"
-                disabled={busy || !draft.trim()}
-                onClick={() => send(draft)}
+                disabled={busy || !(speechInterim ? appendSpeechTranscript(draft, speechInterim) : draft).trim()}
+                onClick={() => send(speechInterim ? appendSpeechTranscript(draft, speechInterim) : draft)}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-foreground text-background transition disabled:opacity-40"
                 aria-label="Envoyer"
               >

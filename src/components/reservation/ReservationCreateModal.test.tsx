@@ -30,6 +30,18 @@ vi.mock('@/lib/authContext', () => ({
   }),
 }))
 
+vi.mock('@/lib/permissionsContext', () => ({
+  usePermissions: () => ({
+    can: () => true,
+    canPath: () => true,
+    loading: false,
+    permissions: {},
+    ownerHouseManagerTemplate: null,
+    saveOwnerHouseManagerTemplate: async () => ({ error: null }),
+    refresh: async () => {},
+  }),
+}))
+
 vi.mock('@/lib/contractFiles', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/contractFiles')>()
   return {
@@ -235,6 +247,7 @@ describe('ReservationCreateModal', () => {
       expect(screen.getByLabelText(/Montant total/)).toHaveValue(1250)
     })
     expect(screen.getByText(/Données détectées et préremplies par Vision/)).toBeInTheDocument()
+    expect(screen.queryByText('Estimation automatique')).not.toBeInTheDocument()
   })
 
   it('crée un blocage de dates sans client, contrat ni paiement', async () => {

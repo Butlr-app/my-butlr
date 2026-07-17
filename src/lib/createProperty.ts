@@ -118,6 +118,9 @@ export interface UpdatePropertyInput {
   surfaceSqm?: number | null
   amenities?: string[]
   imageUrl?: string | null
+  marketplaceListed?: boolean
+  marketplaceBookingUrl?: string | null
+  marketplaceTagline?: string | null
 }
 
 export async function updateOwnerProperty(input: UpdatePropertyInput) {
@@ -153,6 +156,9 @@ export async function updateOwnerProperty(input: UpdatePropertyInput) {
   extras.surface_m2 = input.surfaceSqm && input.surfaceSqm > 0 ? Math.floor(input.surfaceSqm) : null
   extras.amenities = input.amenities ?? []
   if (input.imageUrl !== undefined) extras.image_url = input.imageUrl
+  extras.marketplace_listed = input.marketplaceListed ?? false
+  extras.marketplace_booking_url = input.marketplaceBookingUrl?.trim() || null
+  extras.marketplace_tagline = input.marketplaceTagline?.trim() || null
 
   const result = await updateExtrasResilient(input.id, input.ownerId, extras)
 

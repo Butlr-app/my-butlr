@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { fetchPartnersForTasks } from './partners'
 import { todayISO } from './dateFormat'
 
 export { todayISO }
@@ -18,9 +19,18 @@ export async function fetchOwnerProperties(_ownerId: string) {
     .order('created_at', { ascending: false })
 }
 
+export async function syncReservationLifecycle() {
+  return supabase.rpc('sync_reservation_lifecycle')
+}
+
 export async function fetchOwnerReservations(ownerId: string) {
   const propertyIds = await getOwnerPropertyIds(ownerId)
   if (propertyIds.length === 0) return { data: [], error: null }
+
+  const { error: syncError } = await syncReservationLifecycle()
+  if (syncError) {
+    console.warn('sync_reservation_lifecycle failed:', syncError.message)
+  }
 
   return supabase
     .from('reservations')
@@ -35,17 +45,6 @@ export async function fetchReservationById(reservationId: string) {
     .select('*, properties(name, max_guests)')
     .eq('id', reservationId)
     .maybeSingle()
-}
-
-export async function fetchOwnerTasks(ownerId: string) {
-  const propertyIds = await getOwnerPropertyIds(ownerId)
-  if (propertyIds.length === 0) return { data: [], error: null }
-
-  return supabase
-    .from('tasks')
-    .select('*, properties(name)')
-    .in('property_id', propertyIds)
-    .order('created_at', { ascending: false })
 }
 
 export async function fetchOwnerPayments(ownerId: string) {
@@ -104,10 +103,7 @@ export async function fetchServices() {
     .order('name', { ascending: true })
 }
 
-export async function fetchPartners() {
-  return supabase
-    .from('partners')
-    .select('*')
-    .order('name', { ascending: true })
+export async function fetchPartners(ownerId: string) {
+  return fetchPartnersForTasks(ownerId)
 }
 

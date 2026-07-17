@@ -17,11 +17,34 @@ vi.mock('@/lib/authContext', () => ({
   useAuth: () => ({ user: { id: 'owner-1' }, profile: { date_format: 'DD/MM/YYYY' } }),
 }))
 
+vi.mock('@/lib/permissionsContext', () => ({
+  usePermissions: () => ({
+    can: () => true,
+    canPath: () => true,
+    loading: false,
+    permissions: {},
+    ownerHouseManagerTemplate: null,
+    saveOwnerHouseManagerTemplate: async () => ({ error: null }),
+    refresh: async () => {},
+  }),
+}))
+
 vi.mock('@/lib/data', () => ({
   fetchOwnerReservations: mocks.fetchOwnerReservations,
   fetchOwnerProperties: mocks.fetchOwnerProperties,
   fetchReservationById: vi.fn(),
 }))
+
+function chainable(result: unknown = { data: null, error: null }) {
+  const query: Record<string, ReturnType<typeof vi.fn>> = {}
+  for (const method of ['select', 'eq', 'neq', 'order', 'limit', 'maybeSingle', 'single']) {
+    query[method] = vi.fn(() => query)
+  }
+  query.then = vi.fn((resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)) as never
+  query.maybeSingle = vi.fn(() => Promise.resolve(result))
+  query.single = vi.fn(() => Promise.resolve(result))
+  return query
+}
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -37,7 +60,19 @@ vi.mock('@/lib/supabase', () => ({
           })),
         }
       }
+      if (table === 'reservations') {
+        return {
+          select: vi.fn(() => chainable({ data: { portal_access_token: 'token-1' }, error: null })),
+          update: mocks.update,
+        }
+      }
+      if (table === 'stay_reserves') {
+        return {
+          select: vi.fn(() => chainable({ data: null, error: null })),
+        }
+      }
       return {
+        select: vi.fn(() => chainable()),
         update: mocks.update,
       }
     }),

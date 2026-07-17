@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ExternalLink, Pencil } from 'lucide-react'
+import { ExternalLink, FileText, Pencil, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
@@ -13,6 +13,12 @@ import { ReservationPaymentPanel } from '@/components/reservation/ReservationPay
 import { formatDateForDisplay } from '@/lib/dateFormat'
 import { paymentStatusLabel } from '@/lib/reservationPayments'
 import {
+  fetchStayReserveByReservation,
+  formatReserveAmount,
+  stayReserveStatusLabels,
+  type StayReserve,
+} from '@/lib/stayReserve'
+import {
   blockReasonLabels,
   buildReservationUpdatePayload,
   reservationStatusLabels,
@@ -21,6 +27,8 @@ import {
 } from '@/lib/reservationWorkflow'
 import { supabase } from '@/lib/supabase'
 import type { Reservation } from '@/lib/types'
+import { usePermissions } from '@/lib/permissionsContext'
+import { formatMaskedAmount } from '@/lib/permissions'
 
 const contractModeLabels: Record<string, string> = {
   to_prepare: 'À préparer',
@@ -50,11 +58,15 @@ export function ReservationDetailModal({
   onClose,
   onUpdated,
 }: ReservationDetailModalProps) {
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const canViewContracts = can('contracts')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState('')
   const [portalToken, setPortalToken] = useState<string | null>(null)
+  const [stayReserve, setStayReserve] = useState<StayReserve | null>(null)
   const [form, setForm] = useState({
     guestName: '',
     guestEmail: '',
@@ -65,6 +77,7 @@ export function ReservationDetailModal({
     totalAmount: '',
     notes: '',
     status: 'confirmed' as ReservationStatus,
+    guestLanguage: 'fr',
   })
 
   useEffect(() => {
@@ -84,10 +97,22 @@ export function ReservationDetailModal({
       totalAmount: String(reservation.total_amount ?? ''),
       notes: reservation.notes ?? '',
       status: reservation.status as ReservationStatus,
+      guestLanguage: reservation.guest_language ?? 'fr',
     })
     setEditing(false)
     setError('')
   }, [reservation?.id, open])
+
+  useEffect(() => {
+    if (!open || !reservation || !isGuestBooking(reservation)) {
+      setStayReserve(null)
+      return
+    }
+
+    fetchStayReserveByReservation(reservation.id).then(({ data }) => {
+      setStayReserve((data as StayReserve | null) ?? null)
+    })
+  }, [open, reservation?.id])
 
   useEffect(() => {
     if (!open || !reservation || !isGuestBooking(reservation)) {
@@ -137,7 +162,7 @@ export function ReservationDetailModal({
       .from('reservations')
       .select('id')
       .eq('property_id', reservation.property_id)
-      .neq('status', 'cancelled')
+      .not('status', 'in', '("cancelled","completed")')
       .neq('id', reservation.id)
       .lt('arrival', form.departure)
       .gt('departure', form.arrival)
@@ -278,13 +303,24 @@ export function ReservationDetailModal({
                     min={1}
                     max={(reservation.properties as { max_guests?: number } | null)?.max_guests ?? 50}
                   />
-                  <Input
-                    label="Montant total (€)"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.totalAmount}
-                    onChange={event => setForm(current => ({ ...current, totalAmount: event.target.value }))}
+                  {canViewAmounts && (
+                    <Input
+                      label="Montant total (€)"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.totalAmount}
+                      onChange={event => setForm(current => ({ ...current, totalAmount: event.target.value }))}
+                    />
+                  )}
+                  <Select
+                    label="Langue du voyageur"
+                    value={form.guestLanguage}
+                    onChange={event => setForm(current => ({ ...current, guestLanguage: event.target.value }))}
+                    options={[
+                      { value: 'fr', label: 'Français' },
+                      { value: 'en', label: 'English' },
+                    ]}
                   />
                 </div>
               )}
@@ -359,7 +395,15 @@ export function ReservationDetailModal({
                   </div>
                   <div>
                     <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Montant</p>
-                    <p className="mt-1 text-sm">{Number(reservation.total_amount).toLocaleString('fr-FR')} €</p>
+                    <p className="mt-1 text-sm">
+                      {formatMaskedAmount(reservation.total_amount, canViewAmounts)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Langue</p>
+                    <p className="mt-1 text-sm">
+                      {reservation.guest_language === 'en' ? 'English' : 'Français'}
+                    </p>
                   </div>
                   {reservation.guest_email && (
                     <p className="text-sm text-muted-foreground">{reservation.guest_email}</p>
@@ -381,43 +425,124 @@ export function ReservationDetailModal({
 
           {!editing && (
             <>
-              <div className="border-t border-border pt-4">
-                <p className="mb-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">Contrat</p>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <Badge variant={
-                    reservation.contract_mode === 'already_done' ? 'success'
-                      : reservation.contract_mode === 'concierge' ? 'info'
-                        : 'muted'
-                  }>
-                    {contractModeLabels[reservation.contract_mode] ?? reservation.contract_status}
-                  </Badge>
-                  {reservation.contract_mode === 'to_prepare' && (
-                    <Link
-                      to={`/app/contracts/generate?reservation=${reservation.id}`}
-                      className="text-sm font-medium text-foreground hover:underline"
-                      onClick={handleClose}
-                    >
-                      Préparer le contrat
-                    </Link>
-                  )}
-                  {(reservation.contract_mode === 'already_done' || reservation.contract_mode === 'concierge') && (
-                    <Link
-                      to="/app/contracts"
-                      className="text-sm font-medium text-foreground hover:underline"
-                      onClick={handleClose}
-                    >
-                      Voir les fichiers et l’analyse
-                    </Link>
-                  )}
+              {canViewContracts && (
+                <div className="border-t border-border pt-4">
+                  <p className="mb-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">Contrat</p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Badge variant={
+                      reservation.contract_mode === 'already_done' ? 'success'
+                        : reservation.contract_mode === 'concierge' ? 'info'
+                          : 'muted'
+                    }>
+                      {contractModeLabels[reservation.contract_mode] ?? reservation.contract_status}
+                    </Badge>
+                    {reservation.contract_mode === 'to_prepare' && (
+                      <Link
+                        to={`/app/contracts/generate?reservation=${reservation.id}`}
+                        className="text-sm font-medium text-foreground hover:underline"
+                        onClick={handleClose}
+                      >
+                        Préparer le contrat
+                      </Link>
+                    )}
+                    {(reservation.contract_mode === 'already_done' || reservation.contract_mode === 'concierge') && (
+                      <Link
+                        to="/app/contracts"
+                        className="text-sm font-medium text-foreground hover:underline"
+                        onClick={handleClose}
+                      >
+                        Voir les fichiers et l’analyse
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {isGuestBooking(reservation) && reservation.payment_status !== 'not_applicable' && (
+              {canViewAmounts && isGuestBooking(reservation) && reservation.payment_status !== 'not_applicable' && (
                 <ReservationPaymentPanel
                   reservation={reservation}
                   dateFormat={dateFormat}
                   onReservationChange={onUpdated}
                 />
+              )}
+
+              {isGuestBooking(reservation) && (
+                <div className="border-t border-border pt-4">
+                  <p className="mb-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                    Réserve séjour
+                  </p>
+                  {stayReserve ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Wallet className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm font-medium">
+                            {canViewAmounts
+                              ? `${formatReserveAmount(stayReserve.current_balance, stayReserve.currency)} disponibles`
+                              : 'Solde masqué'}
+                          </p>
+                          <Badge variant="muted">{stayReserveStatusLabels[stayReserve.status]}</Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {canViewAmounts
+                            ? (
+                              <>
+                                Versé {formatReserveAmount(stayReserve.initial_amount, stayReserve.currency)}
+                                {' · '}
+                                Dépensé {formatReserveAmount(stayReserve.spent_amount, stayReserve.currency)}
+                              </>
+                            )
+                            : 'Détails financiers masqués'}
+                        </p>
+                      </div>
+                      <Link
+                        to={`/app/stay-reserves?reserve=${stayReserve.id}`}
+                        className="text-sm font-medium text-foreground hover:underline"
+                        onClick={handleClose}
+                      >
+                        Gérer la réserve
+                      </Link>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Pas encore activée par le voyageur.
+                      {portalToken && (
+                        <>
+                          {' '}
+                          <a
+                            href={`/guest/stay/${portalToken}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-foreground hover:underline"
+                          >
+                            Ouvrir le portail client
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isGuestBooking(reservation) && (
+                <div className="border-t border-border pt-4">
+                  <p className="mb-2 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                    Facturation complémentaire
+                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      Pré-remplir une facture avec les services conciergerie et boutique du séjour.
+                    </p>
+                    <Link
+                      to={`/app/invoices/generate?reservation=${reservation.id}`}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+                      onClick={handleClose}
+                    >
+                      <FileText className="h-4 w-4" />
+                      Générer une facture
+                    </Link>
+                  </div>
+                </div>
               )}
 
               {isGuestBooking(reservation) && portalToken && (

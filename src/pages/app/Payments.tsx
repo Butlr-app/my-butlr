@@ -6,12 +6,27 @@ import { EmptyState, LoadingState } from '@/components/EmptyState'
 import { useAuth } from '@/lib/authContext'
 import { fetchOwnerPayments } from '@/lib/data'
 import { formatDateForDisplay } from '@/lib/dateFormat'
+import { formatMaskedAmount } from '@/lib/permissions'
+import { usePermissions } from '@/lib/permissionsContext'
 import { computeOwnerCollectedTotal } from '@/lib/reservationPayments'
 import type { Payment } from '@/lib/types'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  booking: 'Réservation',
+  deposit: 'Acompte',
+  commission: 'Commission',
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  paid: 'Payé',
+  pending: 'En attente',
+}
+
 export function Payments() {
   const { user, profile } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
   const { openReservation } = useReservationDetail()
   const [loading, setLoading] = useState(true)
   const [payments, setPayments] = useState<Payment[]>([])
@@ -36,19 +51,35 @@ export function Payments() {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Payments</p>
+      <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Paiements</p>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label="Total Received" value={totalPaid} prefix="€" />
-        <MetricCard label="Pending" value={totalPending} prefix="€" />
-        <MetricCard label="Deposits" value={deposits} prefix="€" />
-        <MetricCard label="Commissions" value={commissions} prefix="€" />
+        <MetricCard
+          label="Total encaissé"
+          value={canViewAmounts ? totalPaid : '•••'}
+          prefix={canViewAmounts ? '€' : undefined}
+        />
+        <MetricCard
+          label="En attente"
+          value={canViewAmounts ? totalPending : '•••'}
+          prefix={canViewAmounts ? '€' : undefined}
+        />
+        <MetricCard
+          label="Acomptes"
+          value={canViewAmounts ? deposits : '•••'}
+          prefix={canViewAmounts ? '€' : undefined}
+        />
+        <MetricCard
+          label="Commissions"
+          value={canViewAmounts ? commissions : '•••'}
+          prefix={canViewAmounts ? '€' : undefined}
+        />
       </div>
 
       {payments.length === 0 ? (
         <EmptyState
-          title="No payments yet"
-          description="Payment records will appear here once reservations are created."
+          title="Aucun paiement pour l'instant"
+          description="Les paiements apparaîtront ici dès la création de réservations."
         />
       ) : (
         <Card className="overflow-hidden">
@@ -56,11 +87,11 @@ export function Payments() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Guest</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Property</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Client</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Propriété</th>
                   <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Montant</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Statut</th>
                   <th className="px-4 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">Date</th>
                 </tr>
               </thead>
@@ -69,22 +100,36 @@ export function Payments() {
                   <tr
                     key={p.id}
                     className={`border-b border-border transition-colors h-14 ${
-                      p.reservation_id ? 'cursor-pointer hover:bg-muted/50' : ''
+                      p.reservation_id ? 'cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring' : ''
                     }`}
+                    role={p.reservation_id ? 'button' : undefined}
+                    tabIndex={p.reservation_id ? 0 : undefined}
+                    aria-label={p.reservation_id ? `Voir la réservation de ${p.guest_name}` : undefined}
                     onClick={() => {
                       if (p.reservation_id) openReservation(p.reservation_id)
+                    }}
+                    onKeyDown={event => {
+                      if (!p.reservation_id) return
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openReservation(p.reservation_id)
+                      }
                     }}
                   >
                     <td className="px-4 text-sm font-medium">{p.guest_name}</td>
                     <td className="px-4 text-sm text-muted-foreground">{p.property_name}</td>
                     <td className="px-4">
                       <Badge variant={p.type === 'booking' ? 'default' : p.type === 'deposit' ? 'info' : 'success'}>
-                        {p.type}
+                        {PAYMENT_TYPE_LABELS[p.type] ?? p.type}
                       </Badge>
                     </td>
-                    <td className="px-4 text-sm font-mono text-right">€{Number(p.amount).toLocaleString()}</td>
+                    <td className="px-4 text-sm font-mono text-right">
+                      {formatMaskedAmount(p.amount, canViewAmounts)}
+                    </td>
                     <td className="px-4">
-                      <Badge variant={p.status === 'paid' ? 'success' : 'warning'}>{p.status}</Badge>
+                      <Badge variant={p.status === 'paid' ? 'success' : 'warning'}>
+                        {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                      </Badge>
                     </td>
                     <td className="px-4 text-sm font-mono text-muted-foreground">
                       {p.date ? formatDateForDisplay(p.date, profile?.date_format) : '—'}

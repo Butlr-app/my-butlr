@@ -45,7 +45,8 @@ export const propertyTeamRoleLabels: Record<PropertyTeamRole, string> = {
 }
 
 export const propertyTeamRoleDescriptions: Record<PropertyTeamRole, string> = {
-  house_manager: 'Gère l’exploitation, l’équipe et les opérations quotidiennes de la propriété.',
+  house_manager:
+    'Par défaut : opérations villa sans montants, contrats, paiements/rapports, gestion d’équipe ni suppression. Configurable dans Paramètres → Rôles.',
   concierge: 'Relation voyageurs, services, demandes et coordination sur place.',
   maintenance: 'Interventions techniques, entretien et suivi des incidents.',
   partner: 'Prestataire externe (chef, ménage, spa…) avec accès limité.',
@@ -56,13 +57,22 @@ export const propertyTeamPermissions: {
   roles: Record<PropertyTeamRole, boolean>
 }[] = [
   { permission: 'Voir la propriété', roles: { house_manager: true, concierge: true, maintenance: true, partner: true } },
-  { permission: 'Gérer l’équipe', roles: { house_manager: true, concierge: false, maintenance: false, partner: false } },
+  { permission: 'Gérer l’équipe', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
   { permission: 'Gérer les réservations', roles: { house_manager: true, concierge: true, maintenance: false, partner: false } },
+  { permission: 'Voir les montants des réservations', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
+  { permission: 'Contrats', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
+  { permission: 'Supprimer une propriété', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
   { permission: 'Portail voyageur & services', roles: { house_manager: true, concierge: true, maintenance: false, partner: false } },
-  { permission: 'Paiements', roles: { house_manager: true, concierge: false, maintenance: false, partner: false } },
+  { permission: 'Paiements', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
   { permission: 'Maintenance & tâches', roles: { house_manager: true, concierge: false, maintenance: true, partner: false } },
   { permission: 'Accès prestataire limité', roles: { house_manager: false, concierge: false, maintenance: false, partner: true } },
 ]
+
+function profileRoleForTeamRole(role: PropertyTeamRole): string {
+  if (role === 'house_manager') return 'house_manager'
+  if (role === 'concierge') return 'concierge'
+  return 'partner'
+}
 
 export const PROPERTY_TEAM_ROLES = Object.keys(propertyTeamRoleLabels) as PropertyTeamRole[]
 
@@ -126,7 +136,7 @@ export async function fetchPropertyTeamInvitations(propertyId: string) {
 export async function findProfileByEmail(email: string) {
   return supabase
     .from('profiles')
-    .select('id, full_name, email')
+    .select('id, full_name, email, role')
     .ilike('email', normalizeEmail(email))
     .maybeSingle()
 }
@@ -154,6 +164,14 @@ export async function invitePropertyTeamMember(input: {
       .single()
 
     if (error || !data) return { data: null, error, kind: 'member' as const }
+
+    // Promote non-owner profiles to the invited team role (never demote an owner).
+    if (profileResult.data.role !== 'owner') {
+      await supabase
+        .from('profiles')
+        .update({ role: profileRoleForTeamRole(input.role) })
+        .eq('id', profileResult.data.id)
+    }
 
     const [member] = await attachProfiles([data])
     return { data: member as PropertyTeamMember, error: null, kind: 'member' as const }

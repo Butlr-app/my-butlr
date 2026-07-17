@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, company, role, onboarding_completed, date_format')
+      .select('id, full_name, email, phone, company, role, onboarding_completed, date_format, house_manager_permissions')
       .eq('id', userId)
       .single()
 

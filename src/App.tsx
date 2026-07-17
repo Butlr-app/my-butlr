@@ -1,7 +1,15 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { RoleProvider } from './lib/roleContext'
 import { AuthProvider } from './lib/authContext'
+import { PermissionsProvider } from './lib/permissionsContext'
 import { ProtectedRoute, OnboardingRoute } from './components/ProtectedRoute'
+import { PartnerRoute, PartnerOnboardingGate } from './components/PartnerRoute'
+import { PartnerLayout } from './components/partner/PartnerLayout'
+import { PartnerDashboard } from './pages/partner/PartnerDashboard'
+import { PartnerProfilePage } from './pages/partner/PartnerProfilePage'
+import { PartnerMissionsPage } from './pages/partner/PartnerMissionsPage'
+import { PartnerPlanningPage } from './pages/partner/PartnerPlanningPage'
+import { PartnerPaymentsPage } from './pages/partner/PartnerPaymentsPage'
 import { Landing } from './pages/Landing'
 import { EarlyAccess } from './pages/EarlyAccess'
 import { Login } from './pages/Login'
@@ -21,6 +29,7 @@ import { Reservations } from './pages/app/Reservations'
 import { GuestPortal } from './pages/app/GuestPortal'
 import { Services } from './pages/app/Services'
 import { Tasks } from './pages/app/Tasks'
+import { OperationsHub } from './pages/app/OperationsHub'
 import { CalendarPage } from './pages/app/CalendarPage'
 import { Partners } from './pages/app/Partners'
 import { Payments } from './pages/app/Payments'
@@ -46,6 +55,7 @@ export default function App() {
   return (
     <AuthProvider>
     <RoleProvider>
+    <PermissionsProvider>
     <BrowserRouter>
       <AuthCallbackRedirect />
       <Routes>
@@ -63,6 +73,58 @@ export default function App() {
         <Route path="/guest/preview" element={<GuestPortalPreviewPage />} />
         <Route path="/guest/stay/:token" element={<GuestStayPortalPage />} />
         <Route path="/onboarding" element={<OnboardingRoute><OwnerOnboarding /></OnboardingRoute>} />
+
+        {/* Partner portal */}
+        <Route path="/partner" element={<PartnerRoute><PartnerLayout /></PartnerRoute>}>
+          <Route
+            path="onboarding"
+            element={(
+              <PartnerOnboardingGate allowIncomplete>
+                <PartnerProfilePage mode="onboarding" />
+              </PartnerOnboardingGate>
+            )}
+          />
+          <Route
+            index
+            element={(
+              <PartnerOnboardingGate>
+                <PartnerDashboard />
+              </PartnerOnboardingGate>
+            )}
+          />
+          <Route
+            path="profile"
+            element={(
+              <PartnerOnboardingGate>
+                <PartnerProfilePage />
+              </PartnerOnboardingGate>
+            )}
+          />
+          <Route
+            path="missions"
+            element={(
+              <PartnerOnboardingGate>
+                <PartnerMissionsPage />
+              </PartnerOnboardingGate>
+            )}
+          />
+          <Route
+            path="planning"
+            element={(
+              <PartnerOnboardingGate>
+                <PartnerPlanningPage />
+              </PartnerOnboardingGate>
+            )}
+          />
+          <Route
+            path="payments"
+            element={(
+              <PartnerOnboardingGate>
+                <PartnerPaymentsPage />
+              </PartnerOnboardingGate>
+            )}
+          />
+        </Route>
 
         {/* Protected app pages */}
         <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -82,6 +144,7 @@ export default function App() {
           <Route path="guest-portal" element={<GuestPortal />} />
           <Route path="services" element={<Services />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="operations" element={<OperationsHub />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="payments" element={<Payments />} />
@@ -89,12 +152,14 @@ export default function App() {
           <Route path="contracts/templates" element={<ContractTemplates />} />
           <Route path="contracts/generate" element={<ContractGenerate />} />
           <Route path="contracts/:id" element={<ContractDetail />} />
+          <Route path="invoices" element={<InvoiceGenerate />} />
           <Route path="invoices/generate" element={<InvoiceGenerate />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
+    </PermissionsProvider>
     </RoleProvider>
     </AuthProvider>
   )

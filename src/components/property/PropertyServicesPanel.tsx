@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Switch, SwitchField } from '@/components/ui/Switch'
 import { GuideBlockEditor } from '@/components/guide/GuideBlockEditor'
 import { GuideContentRenderer } from '@/components/guide/GuideContentRenderer'
+import { ServiceOptionsEditor } from '@/components/services/ServiceOptionsEditor'
 import {
   countEnabledPropertyServices,
   fetchCatalogServices,
@@ -19,16 +20,22 @@ import {
   isGeneralServiceOffer,
   isServiceDetailed,
   mergePropertyServices,
+  normalizeServiceOptions,
   resolveServiceOffer,
+  resolveServiceOptions,
   resolveServicePricing,
   savePropertyServiceAssignment,
   serviceCategoryLabel,
   serviceOfferModeLabels,
   servicePricingModeLabels,
   DEFAULT_GENERAL_OFFER_MESSAGE,
+  canDirectBookService,
+  resolveServiceBookingMode,
   type PropertyServiceAssignment,
   type PropertyServiceItem,
+  type ServiceBookingMode,
   type ServiceOfferMode,
+  type ServiceOptionGroup,
   type ServicePricingMode,
 } from '@/lib/propertyServices'
 import { hasRichContent, parseGuideContent, serializeGuideContent } from '@/lib/guideContent'
@@ -71,7 +78,10 @@ export function PropertyServicesPanel({
     offerTitle: '',
     offerMode: 'specific' as ServiceOfferMode,
     generalNote: DEFAULT_GENERAL_OFFER_MESSAGE,
+    bookingMode: 'quote' as ServiceBookingMode,
     isDetailed: false,
+    overrideOptions: false,
+    options: [] as ServiceOptionGroup[],
     blocks: parseGuideContent(''),
   })
 
@@ -124,6 +134,7 @@ export function PropertyServicesPanel({
 
   const openEditModal = (item: PropertyServiceItem) => {
     const pricing = resolveServicePricing(item.service, item.assignment)
+    const hasOverride = Array.isArray(item.assignment?.options)
     setEditingItem(item)
     setEditForm({
       pricingMode: pricing.mode,
@@ -135,7 +146,12 @@ export function PropertyServicesPanel({
       offerTitle: item.assignment?.offer_title ?? '',
       offerMode: item.assignment?.offer_mode ?? 'specific',
       generalNote: item.assignment?.general_note ?? DEFAULT_GENERAL_OFFER_MESSAGE,
+      bookingMode: resolveServiceBookingMode(item.service, item.assignment),
       isDetailed: isServiceDetailed(item.assignment),
+      overrideOptions: hasOverride,
+      options: hasOverride
+        ? normalizeServiceOptions(item.assignment?.options)
+        : resolveServiceOptions(item.service, null),
       blocks: parseGuideContent(item.assignment?.custom_description ?? ''),
     })
   }
@@ -160,6 +176,7 @@ export function PropertyServicesPanel({
       is_detailed: assignment?.is_detailed ?? false,
       offer_mode: assignment?.offer_mode ?? 'specific',
       general_note: assignment?.general_note ?? null,
+      booking_mode: assignment?.booking_mode ?? null,
     })
 
     setSaving(false)
@@ -209,6 +226,12 @@ export function PropertyServicesPanel({
       is_detailed: editForm.isDetailed,
       offer_mode: editForm.offerMode,
       general_note: editForm.offerMode === 'general' ? editForm.generalNote : null,
+      booking_mode: editForm.offerMode === 'general' || editForm.pricingMode === 'quote'
+        ? 'quote'
+        : editForm.bookingMode,
+      options: editForm.overrideOptions
+        ? normalizeServiceOptions(editForm.options)
+        : null,
     })
 
     setSaving(false)
@@ -338,6 +361,18 @@ export function PropertyServicesPanel({
                             </Badge>
                           )}
                           {!isGeneral && offer.pricing.mode === 'quote' && <Badge variant="muted">Sur devis</Badge>}
+                          {!isGeneral && canDirectBookService(item.service, item.assignment) && (
+                            <Badge variant="info">Achat direct</Badge>
+                          )}
+                          {(() => {
+                            const optionCount = resolveServiceOptions(item.service, item.assignment).length
+                            if (optionCount === 0) return null
+                            return (
+                              <Badge variant="muted">
+                                {optionCount} option{optionCount > 1 ? 's' : ''}
+                              </Badge>
+                            )
+                          })()}
                           {!isGeneral && offer.pricing.isPartnerOffer && (
                             <Badge variant="muted">Prestataire My Butlr</Badge>
                           )}
@@ -504,8 +539,42 @@ export function PropertyServicesPanel({
               />
             )}
 
+            {editForm.offerMode === 'specific' && editForm.pricingMode !== 'quote' && (
+              <SwitchField
+                checked={editForm.bookingMode === 'direct'}
+                onCheckedChange={direct => setEditForm(current => ({
+                  ...current,
+                  bookingMode: direct ? 'direct' : 'quote',
+                }))}
+                label="Achat direct"
+                description="Le voyageur paie immédiatement via sa Réserve séjour, sans étape de devis."
+              />
+            )}
+
             {editForm.offerMode === 'specific' && (
               <>
+                <SwitchField
+                  checked={editForm.overrideOptions}
+                  onCheckedChange={override => setEditForm(current => ({
+                    ...current,
+                    overrideOptions: override,
+                    options: override
+                      ? (current.options.length
+                        ? current.options
+                        : resolveServiceOptions(editingItem.service, null))
+                      : resolveServiceOptions(editingItem.service, null),
+                  }))}
+                  label="Options spécifiques à cette villa"
+                  description="Sinon, les options du catalogue global sont utilisées (aéroport, modèle, etc.)."
+                />
+                {editForm.overrideOptions && (
+                  <ServiceOptionsEditor
+                    value={editForm.options}
+                    onChange={options => setEditForm(current => ({ ...current, options }))}
+                    disabled={saving}
+                  />
+                )}
+
                 <Input
                   label="Prestataire My Butlr (optionnel)"
                   value={editForm.providerName}

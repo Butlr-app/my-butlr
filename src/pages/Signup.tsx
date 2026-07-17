@@ -54,7 +54,7 @@ export function Signup() {
               { value: 'house_manager', label: 'House Manager' },
               { value: 'concierge', label: 'Concierge' },
               { value: 'agency', label: 'Agency' },
-              { value: 'partner', label: 'Partner' },
+              { value: 'partner', label: 'Prestataire' },
             ]}
           />
           {error && (

@@ -24,6 +24,7 @@ export interface ReservationFormInput {
   totalAmount: string
   blockTitle: string
   notes: string
+  guestLanguage?: string
   propertyMaxGuests?: number | null
 }
 
@@ -42,6 +43,7 @@ export interface ReservationInsertPayload {
   notes: string | null
   contract_mode: ContractMode
   booking_kind: BookingKind
+  guest_language: string | null
 }
 
 export function isCommercialReservation(reservation: {
@@ -57,6 +59,22 @@ export function isActiveGuestReservation(reservation: {
 }): boolean {
   return reservation.booking_kind === 'guest'
     && (reservation.status === 'confirmed' || reservation.status === 'in_progress')
+}
+
+export function isArchivedReservation(reservation: { status: string }): boolean {
+  return reservation.status === 'completed'
+}
+
+export function isActiveReservation(reservation: { status: string }): boolean {
+  return reservation.status !== 'completed' && reservation.status !== 'cancelled'
+}
+
+export function isBlockingReservationStatus(status: string): boolean {
+  return status !== 'cancelled' && status !== 'completed'
+}
+
+export function isPastStay(departure: string, today: string): boolean {
+  return departure < today
 }
 
 export function calendarEventCoversDate(event: {
@@ -145,6 +163,7 @@ export function buildReservationInsertPayload(
     notes: input.notes.trim() || null,
     contract_mode: input.contractMode,
     booking_kind: bookingKind,
+    guest_language: isDateBlock ? null : (input.guestLanguage?.trim() || null),
   }
 }
 
@@ -158,6 +177,7 @@ export interface ReservationUpdateInput {
   totalAmount: string
   notes: string
   status: ReservationStatus
+  guestLanguage?: string
   propertyMaxGuests?: number | null
 }
 
@@ -211,6 +231,7 @@ export function buildReservationUpdatePayload(
     total_amount: isGuestBooking ? Number(input.totalAmount) || 0 : 0,
     notes: input.notes.trim() || null,
     status: input.status,
+    guest_language: isGuestBooking ? (input.guestLanguage?.trim() || null) : null,
   }
 }
 
