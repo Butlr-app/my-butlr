@@ -773,6 +773,15 @@
     "settingUp": "Setting up...",
     "goToDashboard": "Go to Dashboard",
     "skipForNow": "Skip for now",
+    "skipConfirm": "Skip setup? You can complete your profile and property later.",
+    "confirmSkip": "Skip setup",
+    "cancel": "Cancel",
+    "errors": {
+      "required": "This field is required.",
+      "positiveNumber": "Enter a valid positive number.",
+      "saveFailed": "We couldn't finish setup. Review your information and try again.",
+      "skipFailed": "We couldn't skip setup. Please try again."
+    },
     "steps": {
       "welcome": "Welcome",
       "profile": "Profile",
@@ -867,12 +876,9 @@
       "phone": "Phone"
     },
     "company": {
-      "title": "Company Information",
-      "subtitle": "This information will appear on your invoices and contracts.",
-      "name": "Company Name",
-      "address": "Address",
-      "email": "Contact Email",
-      "phone": "Phone"
+      "title": "Name Your Workspace",
+      "subtitle": "Use your company or property group name. You can add legal details later in Settings.",
+      "name": "Workspace Name"
     },
     "property": {
       "title": "Your First Property",

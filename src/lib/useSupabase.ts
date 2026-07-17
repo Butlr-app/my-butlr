@@ -923,7 +923,7 @@ export function useProfile() {
   }, [])
 
   const updateProfile = async (changes: Partial<Profile>) => {
-    if (!profile) return
+    if (!profile) throw new Error('Profile is not available')
     const { data: updated, error } = await supabase
       .from('profiles')
       .update(changes)

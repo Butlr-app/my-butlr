@@ -773,6 +773,15 @@
     "settingUp": "Configuration...",
     "goToDashboard": "Accéder au tableau de bord",
     "skipForNow": "Passer cette étape pour le moment",
+    "skipConfirm": "Passer la configuration ? Vous pourrez compléter votre profil et votre propriété plus tard.",
+    "confirmSkip": "Passer la configuration",
+    "cancel": "Annuler",
+    "errors": {
+      "required": "Ce champ est obligatoire.",
+      "positiveNumber": "Saisissez un nombre positif valide.",
+      "saveFailed": "Impossible de terminer la configuration. Vérifiez vos informations et réessayez.",
+      "skipFailed": "Impossible de passer la configuration. Réessayez."
+    },
     "steps": {
       "welcome": "Bienvenue",
       "profile": "Profil",
@@ -867,12 +876,9 @@
       "phone": "Téléphone"
     },
     "company": {
-      "title": "Informations de la société",
-      "subtitle": "Ces informations apparaîtront sur vos factures et contrats.",
-      "name": "Nom de la société",
-      "address": "Adresse",
-      "email": "Email de contact",
-      "phone": "Téléphone"
+      "title": "Nommez votre espace",
+      "subtitle": "Utilisez le nom de votre société ou de votre groupe de propriétés. Les informations légales pourront être ajoutées plus tard dans les Paramètres.",
+      "name": "Nom de l'espace"
     },
     "property": {
       "title": "Votre première propriété",
