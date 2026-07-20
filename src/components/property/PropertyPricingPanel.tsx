@@ -16,12 +16,13 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { useAuth } from '@/lib/authContext'
+import { formatMaskedAmount } from '@/lib/permissions'
+import { usePermissions } from '@/lib/permissionsContext'
 import { formatDateForDisplay, localeForDateFormat } from '@/lib/dateFormat'
 import {
   deleteRateOverride,
   deleteRateSeason,
   fetchPropertyPricing,
-  formatPrice,
   getDateRange,
   getEffectiveNightRate,
   savePricingSettings,
@@ -101,6 +102,9 @@ export function PropertyPricingPanel({
   reservations,
 }: PropertyPricingPanelProps) {
   const { profile } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const price = (value: number) => formatMaskedAmount(value, canViewAmounts, settings.currency)
   const { openReservation } = useReservationDetail()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -373,12 +377,12 @@ export function PropertyPricingPanel({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="p-5">
           <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">Tarif de base</p>
-          <p className="mt-2 text-2xl font-mono font-semibold">{formatPrice(settings.base_rate, settings.currency)}</p>
+          <p className="mt-2 text-2xl font-mono font-semibold">{price(settings.base_rate)}</p>
           <p className="mt-1 text-xs text-muted-foreground">par nuit</p>
         </Card>
         <Card className="p-5">
           <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">Moyenne 30 jours</p>
-          <p className="mt-2 text-2xl font-mono font-semibold">{formatPrice(averageRate, settings.currency)}</p>
+          <p className="mt-2 text-2xl font-mono font-semibold">{price(averageRate)}</p>
           <p className="mt-1 text-xs text-muted-foreground">{availableNextThirtyDays.length} nuits disponibles</p>
         </Card>
         <Card className="p-5">
@@ -388,7 +392,7 @@ export function PropertyPricingPanel({
         </Card>
         <Card className="p-5">
           <p className="text-xs font-mono uppercase tracking-[.14em] text-muted-foreground">Frais de ménage</p>
-          <p className="mt-2 text-2xl font-mono font-semibold">{formatPrice(settings.cleaning_fee, settings.currency)}</p>
+          <p className="mt-2 text-2xl font-mono font-semibold">{price(settings.cleaning_fee)}</p>
           <p className="mt-1 text-xs text-muted-foreground">par séjour</p>
         </Card>
       </div>
@@ -416,12 +420,12 @@ export function PropertyPricingPanel({
                 onChange={event => setSettings({ ...settings, currency: event.target.value as PropertyPricingSettings['currency'] })}
                 options={['EUR', 'USD', 'GBP', 'CHF'].map(currency => ({ value: currency, label: currency }))}
               />
-              <Input label="Tarif de base" type="number" min="0" value={settings.base_rate} onChange={event => setSettings({ ...settings, base_rate: Number(event.target.value) })} />
-              <Input label="Tarif week-end" type="number" min="0" value={settings.weekend_rate ?? ''} onChange={event => setSettings({ ...settings, weekend_rate: event.target.value ? Number(event.target.value) : null })} />
-              <Input label="Frais de ménage" type="number" min="0" value={settings.cleaning_fee} onChange={event => setSettings({ ...settings, cleaning_fee: Number(event.target.value) })} />
-              <Input label="Dépôt de garantie" type="number" min="0" value={settings.security_deposit} onChange={event => setSettings({ ...settings, security_deposit: Number(event.target.value) })} />
-              <Input label="Taxe / personne / nuit" type="number" min="0" step="0.01" value={settings.tourist_tax_per_person} onChange={event => setSettings({ ...settings, tourist_tax_per_person: Number(event.target.value) })} />
-              <Input label="Supplément voyageur" type="number" min="0" value={settings.extra_guest_fee} onChange={event => setSettings({ ...settings, extra_guest_fee: Number(event.target.value) })} />
+              <Input label="Tarif de base" type="number" min="0" value={settings.base_rate} onChange={event => setSettings({ ...settings, base_rate: Number(event.target.value) })} disabled={!canViewAmounts} />
+              <Input label="Tarif week-end" type="number" min="0" value={settings.weekend_rate ?? ''} onChange={event => setSettings({ ...settings, weekend_rate: event.target.value ? Number(event.target.value) : null })} disabled={!canViewAmounts} />
+              <Input label="Frais de ménage" type="number" min="0" value={settings.cleaning_fee} onChange={event => setSettings({ ...settings, cleaning_fee: Number(event.target.value) })} disabled={!canViewAmounts} />
+              <Input label="Dépôt de garantie" type="number" min="0" value={settings.security_deposit} onChange={event => setSettings({ ...settings, security_deposit: Number(event.target.value) })} disabled={!canViewAmounts} />
+              <Input label="Taxe / personne / nuit" type="number" min="0" step="0.01" value={settings.tourist_tax_per_person} onChange={event => setSettings({ ...settings, tourist_tax_per_person: Number(event.target.value) })} disabled={!canViewAmounts} />
+              <Input label="Supplément voyageur" type="number" min="0" value={settings.extra_guest_fee} onChange={event => setSettings({ ...settings, extra_guest_fee: Number(event.target.value) })} disabled={!canViewAmounts} />
               <Input label="Après combien de voyageurs" type="number" min="1" value={settings.extra_guest_after} onChange={event => setSettings({ ...settings, extra_guest_after: Number(event.target.value) })} />
               <Input label="Séjour minimum" type="number" min="1" value={settings.minimum_stay} onChange={event => setSettings({ ...settings, minimum_stay: Number(event.target.value) })} />
               <Input label="Séjour maximum" type="number" min={settings.minimum_stay} value={settings.maximum_stay ?? ''} onChange={event => setSettings({ ...settings, maximum_stay: event.target.value ? Number(event.target.value) : null })} />
@@ -488,8 +492,8 @@ export function PropertyPricingPanel({
                       {' → '}
                       {formatDateForDisplay(season.end_date, profile?.date_format)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">{formatPrice(season.nightly_rate, settings.currency)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">{formatPrice(season.weekend_rate ?? season.nightly_rate, settings.currency)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-sm">{price(season.nightly_rate)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-sm">{price(season.weekend_rate ?? season.nightly_rate)}</td>
                     <td className="px-4 py-3 text-center text-sm">{season.minimum_stay} n.</td>
                     <td className="px-4 py-3 text-center text-sm">{season.weekly_discount}%</td>
                     <td className="px-4 py-3 text-center text-sm">{season.monthly_discount}%</td>
@@ -575,7 +579,7 @@ export function PropertyPricingPanel({
                   {effective.source === 'override' && <span className="h-1.5 w-1.5 rounded-full bg-info" title="Prix personnalisé" />}
                 </div>
                 <p className={`mt-2 text-sm font-mono font-semibold ${unavailable ? 'text-muted-foreground line-through' : ''}`}>
-                  {formatPrice(effective.rate, settings.currency)}
+                  {price(effective.rate)}
                 </p>
                 <p className="mt-1 truncate text-[10px] text-muted-foreground">
                   {effective.availability === 'booked'
@@ -602,8 +606,8 @@ export function PropertyPricingPanel({
             <Select label="Couleur" value={seasonForm.color} onChange={event => setSeasonForm({ ...seasonForm, color: event.target.value as SeasonColor })} options={seasonColors.map(color => ({ value: color, label: color.charAt(0).toUpperCase() + color.slice(1) }))} />
             <DateInput label="Du" value={seasonForm.startDate} onChange={value => setSeasonForm({ ...seasonForm, startDate: value })} required />
             <DateInput label="Au" min={seasonForm.startDate} value={seasonForm.endDate} onChange={value => setSeasonForm({ ...seasonForm, endDate: value })} required />
-            <Input label="Prix par nuit" type="number" min="0" value={seasonForm.nightlyRate} onChange={event => setSeasonForm({ ...seasonForm, nightlyRate: event.target.value })} />
-            <Input label="Prix week-end" type="number" min="0" value={seasonForm.weekendRate} onChange={event => setSeasonForm({ ...seasonForm, weekendRate: event.target.value })} placeholder="Même prix si vide" />
+            <Input label="Prix par nuit" type="number" min="0" value={seasonForm.nightlyRate} onChange={event => setSeasonForm({ ...seasonForm, nightlyRate: event.target.value })} disabled={!canViewAmounts} />
+            <Input label="Prix week-end" type="number" min="0" value={seasonForm.weekendRate} onChange={event => setSeasonForm({ ...seasonForm, weekendRate: event.target.value })} placeholder="Même prix si vide" disabled={!canViewAmounts} />
             <Input label="Séjour minimum" type="number" min="1" value={seasonForm.minimumStay} onChange={event => setSeasonForm({ ...seasonForm, minimumStay: event.target.value })} />
             <Input label="Priorité" type="number" value={seasonForm.priority} onChange={event => setSeasonForm({ ...seasonForm, priority: event.target.value })} />
             <Input label="Remise 7+ nuits (%)" type="number" min="0" max="100" value={seasonForm.weeklyDiscount} onChange={event => setSeasonForm({ ...seasonForm, weeklyDiscount: event.target.value })} />
@@ -644,7 +648,7 @@ export function PropertyPricingPanel({
           <div className="grid gap-4 sm:grid-cols-2">
             <DateInput label="Du" value={rangeStart} onChange={setRangeStart} required />
             <DateInput label="Au" min={rangeStart} value={rangeEnd} onChange={setRangeEnd} required />
-            <Input label="Prix par nuit" type="number" min="0" value={overrideRate} onChange={event => setOverrideRate(event.target.value)} placeholder="Laisser vide pour le tarif de saison" />
+            <Input label="Prix par nuit" type="number" min="0" value={overrideRate} onChange={event => setOverrideRate(event.target.value)} placeholder="Laisser vide pour le tarif de saison" disabled={!canViewAmounts} />
             <Input label="Séjour minimum" type="number" min="1" value={overrideMinimumStay} onChange={event => setOverrideMinimumStay(event.target.value)} placeholder="Règle de saison" />
             <Select label="Disponibilité" value={overrideAvailability} onChange={event => setOverrideAvailability(event.target.value as RateAvailability)} options={Object.entries(availabilityLabels).map(([value, label]) => ({ value, label }))} />
             <Input label="Note interne" value={overrideNote} onChange={event => setOverrideNote(event.target.value)} placeholder="Pont, événement local…" />

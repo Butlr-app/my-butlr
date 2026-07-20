@@ -24,6 +24,8 @@ import { ProviderInvoiceFormModal } from '@/components/partners/ProviderInvoiceF
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { TaskFormModal } from '@/components/tasks/TaskFormModal'
 import { useAuth } from '@/lib/authContext'
+import { formatMaskedAmount } from '@/lib/permissions'
+import { usePermissions } from '@/lib/permissionsContext'
 import { fetchOwnerProperties } from '@/lib/data'
 import { formatDateForDisplay } from '@/lib/dateFormat'
 import {
@@ -116,6 +118,8 @@ function parseHubTab(value: string | null): HubTab | null {
 
 export function OperationsHub() {
   const { user, profile } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
   const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -521,11 +525,7 @@ export function OperationsHub() {
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Montant impayé</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
-            {new Intl.NumberFormat('fr-FR', {
-              style: 'currency',
-              currency: 'EUR',
-              maximumFractionDigits: 0,
-            }).format(kpis.unpaidAmount)}
+            {formatMaskedAmount(kpis.unpaidAmount, canViewAmounts)}
           </p>
         </Card>
       </div>
@@ -739,10 +739,7 @@ export function OperationsHub() {
                           {formatDateForDisplay(invoice.issue_date, profile?.date_format)}
                         </p>
                         <p className="mt-2 text-sm font-semibold tabular-nums">
-                          {new Intl.NumberFormat('fr-FR', {
-                            style: 'currency',
-                            currency: invoice.currency || 'EUR',
-                          }).format(Number(invoice.amount || 0))}
+                          {formatMaskedAmount(Number(invoice.amount || 0), canViewAmounts, invoice.currency || 'EUR')}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">

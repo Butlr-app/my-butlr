@@ -19,6 +19,7 @@ import { ImageUpload } from '@/components/ui/ImageUpload'
 import { uploadImageAsset } from '@/lib/uploadImageAsset'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
 import { ServiceOptionsEditor } from '@/components/services/ServiceOptionsEditor'
 import {
   normalizeServiceOptions,
@@ -56,9 +57,10 @@ const PRICING_MODE_OPTIONS = [
   { value: 'quote', label: 'Sur devis' },
 ]
 
-function formatServicePrice(service: Service): string {
+function formatServicePrice(service: Service, canViewAmounts: boolean): string {
   const mode = service.pricing_mode ?? 'fixed'
   if (mode === 'quote' || service.starting_price == null) return 'Sur devis'
+  if (!canViewAmounts) return '•••'
   const amount = `€${service.starting_price.toFixed(0)}`
   if (mode === 'per_person') return `${amount} / pers.`
   return `dès ${amount}`
@@ -100,6 +102,8 @@ const EMPTY_FORM: FormState = {
 
 export function Services() {
   const { user } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -394,7 +398,9 @@ export function Services() {
                       <p className="truncate text-xs text-muted-foreground">par {service.provider_name}</p>
                     )}
                   </div>
-                  <span className="shrink-0 text-sm font-semibold">{formatServicePrice(service)}</span>
+                  <span className="shrink-0 text-sm font-semibold">
+                    {formatServicePrice(service, canViewAmounts)}
+                  </span>
                 </div>
 
                 {service.description && (
@@ -422,7 +428,7 @@ export function Services() {
                       </Badge>
                     )
                   })()}
-                  {service.commission != null && (
+                  {canViewAmounts && service.commission != null && (
                     <span className="text-[10px] font-mono text-muted-foreground">
                       {service.commission}% comm.
                     </span>
@@ -528,7 +534,7 @@ export function Services() {
               value={form.price}
               onChange={e => patch({ price: e.target.value })}
               placeholder="150"
-              disabled={form.pricingMode === 'quote'}
+              disabled={form.pricingMode === 'quote' || !canViewAmounts}
             />
             <Input
               label="Commission (%)"
@@ -536,6 +542,7 @@ export function Services() {
               value={form.commission}
               onChange={e => patch({ commission: e.target.value })}
               placeholder="10"
+              disabled={!canViewAmounts}
             />
           </div>
 

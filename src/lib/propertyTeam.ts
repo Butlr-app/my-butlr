@@ -148,8 +148,41 @@ export async function findProfileByEmail(email: string) {
     .maybeSingle()
 }
 
+async function sendTeamInviteEmail(input: {
+  email: string
+  propertyName: string
+  role: PropertyTeamRole
+  inviteId: string
+}): Promise<string | undefined> {
+  const { data, error } = await supabase.functions.invoke('send-team-invite', {
+    body: {
+      email: input.email,
+      propertyName: input.propertyName,
+      role: input.role,
+      inviteId: input.inviteId,
+    },
+  })
+
+  if (error) {
+    console.warn('send-team-invite failed', error)
+    return error.message || 'Invitation saved but the email could not be sent.'
+  }
+
+  const result = data as { error?: string; sent?: boolean; fallback?: boolean } | null
+  if (result?.error) {
+    console.warn('send-team-invite failed', result.error)
+    return result.error
+  }
+  if (result?.fallback && result.sent === false) {
+    return 'Invitation saved but email delivery is not configured.'
+  }
+
+  return undefined
+}
+
 export async function invitePropertyTeamMember(input: {
   propertyId: string
+  propertyName?: string
   fullName: string
   email: string
   role: PropertyTeamRole
@@ -199,7 +232,23 @@ export async function invitePropertyTeamMember(input: {
     .select('*')
     .single()
 
-  return { data: data as PropertyTeamInvitation | null, error, kind: 'invitation' as const }
+  if (error || !data) {
+    return { data: data as PropertyTeamInvitation | null, error, kind: 'invitation' as const }
+  }
+
+  const emailWarning = await sendTeamInviteEmail({
+    email,
+    propertyName: input.propertyName?.trim() || '',
+    role: input.role,
+    inviteId: data.id,
+  })
+
+  return {
+    data: data as PropertyTeamInvitation,
+    error: null,
+    kind: 'invitation' as const,
+    emailWarning,
+  }
 }
 
 export async function updatePropertyTeamMemberRole(

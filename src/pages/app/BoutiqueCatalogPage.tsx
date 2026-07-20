@@ -9,8 +9,11 @@ import {
   formatCatalogPrice,
   type CatalogItem,
 } from '@/lib/boutique'
+import { usePermissions } from '@/lib/permissionsContext'
 
 export function BoutiqueCatalogPage() {
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<(CatalogItem & { catalog_categories?: { name: string; slug: string } })[]>([])
 
@@ -88,7 +91,7 @@ export function BoutiqueCatalogPage() {
                 {item.short_description}
               </p>
               <p className="mt-2 text-sm font-semibold">
-                {formatCatalogPrice(item, null)}
+                {canViewAmounts ? formatCatalogPrice(item, null) : '•••'}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Produit physique</p>
               <Link

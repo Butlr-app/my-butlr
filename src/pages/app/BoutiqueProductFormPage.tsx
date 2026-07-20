@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { SwitchField } from '@/components/ui/Switch'
 import { CatalogImagesEditor } from '@/components/boutique/CatalogImagesEditor'
 import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
 import { fetchOwnerProperties } from '@/lib/data'
 import {
   createCatalogItem,
@@ -35,6 +36,8 @@ export function BoutiqueProductFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
   const isEdit = Boolean(id)
 
   const [form, setForm] = useState(defaultForm)
@@ -106,8 +109,12 @@ export function BoutiqueProductFormPage() {
       setError('Le titre et la catégorie sont obligatoires.')
       return
     }
-    if (!form.base_price.trim() || Number(form.base_price) < 0) {
+    if (canViewAmounts && (!form.base_price.trim() || Number(form.base_price) < 0)) {
       setError('Indiquez le prix unitaire du produit.')
+      return
+    }
+    if (!canViewAmounts && !isEdit) {
+      setError('Création de produit avec prix réservée au propriétaire.')
       return
     }
 
@@ -213,16 +220,22 @@ export function BoutiqueProductFormPage() {
             />
           </div>
 
-          <Input
-            label="Prix unitaire (€)"
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.base_price}
-            onChange={e => setForm(f => ({ ...f, base_price: e.target.value }))}
-            placeholder="95"
-            required
-          />
+          {canViewAmounts ? (
+            <Input
+              label="Prix unitaire (€)"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.base_price}
+              onChange={e => setForm(f => ({ ...f, base_price: e.target.value }))}
+              placeholder="95"
+              required
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Prix masqué — demandez l’accès aux montants au propriétaire pour modifier le tarif.
+            </p>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input

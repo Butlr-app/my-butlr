@@ -135,6 +135,7 @@ export function PropertyTeamPanel({
 
     const result = await invitePropertyTeamMember({
       propertyId,
+      propertyName,
       fullName: inviteForm.fullName,
       email: inviteForm.email,
       role: inviteForm.role,
@@ -159,7 +160,11 @@ export function PropertyTeamPanel({
       setSuccess(`${memberDisplayName(result.data)} a été ajouté à l’équipe.`)
     } else if (result.data) {
       setInvitations(current => [result.data!, ...current.filter(inv => inv.id !== result.data!.id)])
-      setSuccess(`Invitation envoyée à ${result.data.email}.`)
+      setSuccess(
+        result.emailWarning
+          ? `Invitation enregistrée pour ${result.data.email}. ${result.emailWarning}`
+          : `Invitation envoyée à ${result.data.email}.`,
+      )
     }
 
     setInviteForm({ fullName: '', email: '', role: 'house_manager', message: '' })

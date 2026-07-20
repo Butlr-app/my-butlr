@@ -17,6 +17,7 @@ import {
   type StoreOrder,
   type StoreOrderItem,
 } from '@/lib/boutique'
+import { usePermissions } from '@/lib/permissionsContext'
 import { formatReserveAmount } from '@/lib/stayReserve'
 
 interface StoreOrderWithMeta extends StoreOrder {
@@ -28,6 +29,11 @@ interface StoreOrderWithMeta extends StoreOrder {
 
 export function BoutiqueOrdersPage() {
   const { user, profile } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const money = (amount: number | null | undefined, currency?: string) => (
+    canViewAmounts ? formatReserveAmount(amount, currency) : '•••'
+  )
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<StoreOrderWithMeta[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -115,7 +121,7 @@ export function BoutiqueOrdersPage() {
                 </p>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-sm font-semibold">
-                    {order.total_amount > 0 ? formatReserveAmount(order.total_amount, order.currency) : 'Sur devis'}
+                    {order.total_amount > 0 ? money(order.total_amount, order.currency) : 'Sur devis'}
                   </span>
                   <Badge variant="muted">{storeOrderStatusLabels[order.status]}</Badge>
                 </div>
@@ -141,7 +147,7 @@ export function BoutiqueOrdersPage() {
                   <div className="text-right">
                     <p className="text-muted-foreground text-sm">Total</p>
                     <p className="text-2xl font-semibold">
-                      {formatReserveAmount(selected.total_amount, selected.currency)}
+                      {money(selected.total_amount, selected.currency)}
                     </p>
                   </div>
                 </div>
@@ -167,12 +173,16 @@ export function BoutiqueOrdersPage() {
                       </div>
                       {(item.total_price ?? item.quoted_amount) != null && (
                         <p className="font-semibold">
-                          {formatReserveAmount(Number(item.total_price ?? item.quoted_amount), selected.currency)}
+                          {money(Number(item.total_price ?? item.quoted_amount), selected.currency)}
                         </p>
                       )}
                     </div>
                     {item.status === 'pending_quote' && (
-                      quoteForm?.itemId === item.id ? (
+                      !canViewAmounts ? (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Chiffrage masqué — demandez l’accès aux montants au propriétaire.
+                        </p>
+                      ) : quoteForm?.itemId === item.id ? (
                         <div className="mt-3 flex gap-2">
                           <Input
                             label="Montant devis (€)"
