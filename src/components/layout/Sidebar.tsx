@@ -52,6 +52,7 @@ const navSections: NavSection[] = [
       { to: '/app/properties', icon: Building2, label: 'Propriétés' },
       { to: '/app/reservations', icon: CalendarDays, label: 'Réservations' },
       { to: '/app/calendar', icon: CalendarRange, label: 'Calendrier' },
+      { to: '/app/client-requests', icon: CalendarDays, label: 'Demandes clients' },
       { to: '/app/tasks', icon: ClipboardList, label: 'Tâches' },
       { to: '/app/operations', icon: Wrench, label: 'Entretien & travaux' },
     ],

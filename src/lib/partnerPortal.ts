@@ -289,5 +289,6 @@ export async function fetchPropertyOwnerId(propertyId: string) {
 
 export function homePathForRole(role: string | null | undefined): string {
   if (role === 'partner') return '/partner'
+  if (role === 'agency') return '/app/calendar'
   return '/app'
 }

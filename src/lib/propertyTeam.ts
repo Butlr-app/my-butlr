@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export type PropertyTeamRole = 'house_manager' | 'concierge' | 'maintenance' | 'partner'
+export type PropertyTeamRole = 'house_manager' | 'concierge' | 'maintenance' | 'partner' | 'agency'
 
 export interface PropertyTeamMember {
   id: string
@@ -42,35 +42,42 @@ export const propertyTeamRoleLabels: Record<PropertyTeamRole, string> = {
   concierge: 'Concierge',
   maintenance: 'Maintenance',
   partner: 'Partenaire / prestataire',
+  agency: 'Agence immobilière',
 }
 
 export const propertyTeamRoleDescriptions: Record<PropertyTeamRole, string> = {
   house_manager:
     'Par défaut : opérations villa sans montants, contrats, paiements/rapports, gestion d’équipe ni suppression. Configurable dans Paramètres → Rôles.',
-  concierge: 'Relation voyageurs, services, demandes et coordination sur place.',
+  concierge:
+    'Portail voyageur, messages, services, boutique et réserve — sans montants ni contrats.',
   maintenance: 'Interventions techniques, entretien et suivi des incidents.',
-  partner: 'Prestataire externe (chef, ménage, spa…) avec accès limité.',
+  partner: 'Prestataire externe (chef, ménage, spa…) — espace /partner pour les comptes marketplace.',
+  agency:
+    'Calendrier des disponibilités et demandes de séjour pour ses clients — validation par le propriétaire.',
 }
 
 export const propertyTeamPermissions: {
   permission: string
   roles: Record<PropertyTeamRole, boolean>
 }[] = [
-  { permission: 'Voir la propriété', roles: { house_manager: true, concierge: true, maintenance: true, partner: true } },
-  { permission: 'Gérer l’équipe', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
-  { permission: 'Gérer les réservations', roles: { house_manager: true, concierge: true, maintenance: false, partner: false } },
-  { permission: 'Voir les montants des réservations', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
-  { permission: 'Contrats', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
-  { permission: 'Supprimer une propriété', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
-  { permission: 'Portail voyageur & services', roles: { house_manager: true, concierge: true, maintenance: false, partner: false } },
-  { permission: 'Paiements', roles: { house_manager: false, concierge: false, maintenance: false, partner: false } },
-  { permission: 'Maintenance & tâches', roles: { house_manager: true, concierge: false, maintenance: true, partner: false } },
-  { permission: 'Accès prestataire limité', roles: { house_manager: false, concierge: false, maintenance: false, partner: true } },
+  { permission: 'Voir la propriété', roles: { house_manager: true, concierge: true, maintenance: true, partner: true, agency: true } },
+  { permission: 'Gérer l’équipe', roles: { house_manager: false, concierge: false, maintenance: false, partner: false, agency: false } },
+  { permission: 'Gérer les réservations', roles: { house_manager: true, concierge: true, maintenance: false, partner: false, agency: false } },
+  { permission: 'Demandes clients (calendrier)', roles: { house_manager: false, concierge: false, maintenance: false, partner: false, agency: true } },
+  { permission: 'Voir les montants des réservations', roles: { house_manager: false, concierge: false, maintenance: false, partner: false, agency: false } },
+  { permission: 'Contrats', roles: { house_manager: false, concierge: false, maintenance: false, partner: false, agency: false } },
+  { permission: 'Supprimer une propriété', roles: { house_manager: false, concierge: false, maintenance: false, partner: false, agency: false } },
+  { permission: 'Portail voyageur & services', roles: { house_manager: true, concierge: true, maintenance: false, partner: false, agency: false } },
+  { permission: 'Paiements / rapports', roles: { house_manager: false, concierge: false, maintenance: false, partner: false, agency: false } },
+  { permission: 'Entretien & travaux', roles: { house_manager: true, concierge: false, maintenance: true, partner: false, agency: false } },
+  { permission: 'Tâches', roles: { house_manager: true, concierge: true, maintenance: true, partner: false, agency: false } },
+  { permission: 'Accès prestataire limité', roles: { house_manager: false, concierge: false, maintenance: false, partner: true, agency: false } },
 ]
 
 function profileRoleForTeamRole(role: PropertyTeamRole): string {
   if (role === 'house_manager') return 'house_manager'
   if (role === 'concierge') return 'concierge'
+  if (role === 'agency') return 'agency'
   return 'partner'
 }
 
@@ -165,8 +172,9 @@ export async function invitePropertyTeamMember(input: {
 
     if (error || !data) return { data: null, error, kind: 'member' as const }
 
-    // Promote non-owner profiles to the invited team role (never demote an owner).
-    if (profileResult.data.role !== 'owner') {
+    // Promote only blank/guest profiles. Never overwrite owner or an existing staff role.
+    const currentRole = profileResult.data.role
+    if (!currentRole || currentRole === 'guest') {
       await supabase
         .from('profiles')
         .update({ role: profileRoleForTeamRole(input.role) })

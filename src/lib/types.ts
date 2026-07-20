@@ -52,6 +52,7 @@ export interface Reservation {
   notes: string | null
   guest_language?: string | null
   portal_access_token?: string | null
+  requested_by?: string | null
   properties?: { name: string; max_guests?: number } | null
 }
 

@@ -61,7 +61,14 @@ export function Reservations() {
   }, [user])
 
   const activeReservations = useMemo(
-    () => reservations.filter(isActiveReservation),
+    () => reservations
+      .filter(isActiveReservation)
+      .sort((a, b) => {
+        const aAgency = a.status === 'pending' && a.requested_by ? 0 : 1
+        const bAgency = b.status === 'pending' && b.requested_by ? 0 : 1
+        if (aAgency !== bAgency) return aAgency - bAgency
+        return a.arrival.localeCompare(b.arrival)
+      }),
     [reservations],
   )
   const archivedReservations = useMemo(
@@ -103,7 +110,12 @@ export function Reservations() {
       </td>
       <td className="px-4 text-right font-mono text-sm">{r.guests_count}</td>
       <td className="px-4">
-        <Badge variant={statusBadgeVariant(r.status)}>{statusLabel(r.status)}</Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={statusBadgeVariant(r.status)}>{statusLabel(r.status)}</Badge>
+          {r.status === 'pending' && r.requested_by && (
+            <Badge variant="info">Agence</Badge>
+          )}
+        </div>
       </td>
       <td className="px-4">
         <Badge variant={r.payment_status === 'paid' ? 'success' : r.payment_status === 'partial' ? 'warning' : 'muted'}>

@@ -31,6 +31,7 @@ import { Services } from './pages/app/Services'
 import { Tasks } from './pages/app/Tasks'
 import { OperationsHub } from './pages/app/OperationsHub'
 import { CalendarPage } from './pages/app/CalendarPage'
+import { ClientRequestsPage } from './pages/app/ClientRequestsPage'
 import { Partners } from './pages/app/Partners'
 import { Payments } from './pages/app/Payments'
 import { Contracts } from './pages/app/Contracts'
@@ -146,6 +147,7 @@ export default function App() {
           <Route path="tasks" element={<Tasks />} />
           <Route path="operations" element={<OperationsHub />} />
           <Route path="calendar" element={<CalendarPage />} />
+          <Route path="client-requests" element={<ClientRequestsPage />} />
           <Route path="partners" element={<Partners />} />
           <Route path="payments" element={<Payments />} />
           <Route path="contracts" element={<Contracts />} />

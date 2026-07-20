@@ -153,6 +153,13 @@ export function useGuestStayReserve({
     createReserve,
     topUp,
     createRequest,
+    bookDirectService: undefined as undefined | ((input: {
+      propertyServiceId: string
+      quantity?: number
+      requestedDate?: string
+      clientNotes?: string
+      selectedOptions?: Record<string, string>
+    }) => Promise<void>),
     approveRequest,
     reload: load,
   }

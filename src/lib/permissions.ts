@@ -9,6 +9,7 @@ export type AppCapability =
   | 'reservations'
   | 'reservation_amounts'
   | 'calendar'
+  | 'client_requests'
   | 'tasks'
   | 'operations'
   | 'guest_portal'
@@ -34,6 +35,7 @@ export const APP_CAPABILITIES: AppCapability[] = [
   'reservations',
   'reservation_amounts',
   'calendar',
+  'client_requests',
   'tasks',
   'operations',
   'guest_portal',
@@ -58,6 +60,7 @@ export const capabilityLabels: Record<AppCapability, string> = {
   reservations: 'Réservations',
   reservation_amounts: 'Montants des réservations',
   calendar: 'Calendrier',
+  client_requests: 'Demandes clients',
   tasks: 'Tâches',
   operations: 'Entretien & travaux',
   guest_portal: 'Portail voyageur',
@@ -85,10 +88,13 @@ export const capabilityDescriptions: Partial<Record<AppCapability, string>> = {
   invoices: 'Requiert aussi « Montants des réservations ».',
 }
 
-/** Full owner access. */
-export const OWNER_PERMISSIONS: PermissionMap = Object.fromEntries(
-  APP_CAPABILITIES.map(key => [key, true]),
-) as PermissionMap
+/** Full owner access (client_requests is agency submit surface — owners validate via Réservations). */
+export const OWNER_PERMISSIONS: PermissionMap = {
+  ...(Object.fromEntries(
+    APP_CAPABILITIES.map(key => [key, true]),
+  ) as PermissionMap),
+  client_requests: false,
+}
 
 /**
  * Default house manager = same as owner, except:
@@ -106,6 +112,67 @@ export const DEFAULT_HOUSE_MANAGER_PERMISSIONS: PermissionMap = {
   reports: false,
   invoices: false,
   team_manage: false,
+  client_requests: false,
+}
+
+const DENY_ALL: PermissionMap = Object.fromEntries(
+  APP_CAPABILITIES.map(key => [key, false]),
+) as PermissionMap
+
+/**
+ * Conciergerie — expérience voyageur & coordination terrain.
+ * Pas de finance propriétaire (montants, contrats, paiements, rapports).
+ */
+export const DEFAULT_CONCIERGE_PERMISSIONS: PermissionMap = {
+  ...DENY_ALL,
+  dashboard: true,
+  properties: true,
+  reservations: true,
+  calendar: true,
+  tasks: true,
+  guest_portal: true,
+  messages: true,
+  stay_reserves: true,
+  services: true,
+  boutique: true,
+  settings: true,
+}
+
+/**
+ * Agence immobilière — calendrier des disponibilités + demandes de séjour pour ses clients.
+ * Pas de finance, contrats, opérations ni gestion complète des réservations.
+ */
+export const DEFAULT_AGENCY_PERMISSIONS: PermissionMap = {
+  ...DENY_ALL,
+  calendar: true,
+  client_requests: true,
+}
+
+/** Prestataire marketplace — shell /partner (capabilities /app volontairement vides). */
+export const DEFAULT_PARTNER_APP_PERMISSIONS: PermissionMap = { ...DENY_ALL }
+
+export const roleLabelsFr: Record<Role, string> = {
+  owner: 'Propriétaire',
+  house_manager: 'House manager',
+  concierge: 'Conciergerie',
+  agency: 'Agence immobilière',
+  partner: 'Prestataire',
+  guest: 'Voyageur',
+}
+
+export const roleVisibilityBlurb: Record<Role, string> = {
+  owner:
+    'Accès complet : propriétés, finance, contrats, équipe et suppression.',
+  house_manager:
+    'Exploitation villa sans montants ni contrats (configurable). Suppression et équipe interdites.',
+  concierge:
+    'Portail voyageur, messages, services, boutique et réserve séjour — sans finance propriétaire.',
+  agency:
+    'Calendrier des disponibilités et demandes de séjour pour ses clients — sans finance ni opérations.',
+  partner:
+    'Espace dédié /partner (missions, planning, factures). Pas d’accès au tableau de bord propriétaire.',
+  guest:
+    'Accès portail séjour uniquement — pas d’espace /app.',
 }
 
 /** Money-heavy surfaces that also require reservation_amounts. */
@@ -159,26 +226,11 @@ export function permissionsForRole(
   if (role === 'house_manager') {
     return normalizePermissionMap(ownerHouseManagerTemplate, DEFAULT_HOUSE_MANAGER_PERMISSIONS)
   }
-  // Other roles: start restrictive; can be expanded later.
-  return {
-    ...Object.fromEntries(APP_CAPABILITIES.map(key => [key, false])) as PermissionMap,
-    dashboard: true,
-    properties: true,
-    reservations: role === 'concierge' || role === 'agency',
-    calendar: role === 'concierge' || role === 'agency',
-    tasks: true,
-    operations: role === 'agency',
-    guest_portal: role === 'concierge' || role === 'agency',
-    messages: role === 'concierge' || role === 'agency',
-    stay_reserves: role === 'concierge' || role === 'agency',
-    services: role === 'concierge' || role === 'agency',
-    boutique: role === 'concierge' || role === 'agency',
-    partners: role === 'agency',
-    settings: false,
-    properties_delete: false,
-    reservation_amounts: false,
-    contracts: false,
-  }
+  if (role === 'concierge') return { ...DEFAULT_CONCIERGE_PERMISSIONS }
+  if (role === 'agency') return { ...DEFAULT_AGENCY_PERMISSIONS }
+  if (role === 'partner') return { ...DEFAULT_PARTNER_APP_PERMISSIONS }
+  // guest / unknown
+  return { ...DENY_ALL }
 }
 
 /** Map sidebar / route paths to a required capability. */
@@ -188,6 +240,7 @@ export function capabilityForPath(pathname: string): AppCapability | null {
   if (pathname.startsWith('/app/properties')) return 'properties'
   if (pathname.startsWith('/app/reservations')) return 'reservations'
   if (pathname.startsWith('/app/calendar')) return 'calendar'
+  if (pathname.startsWith('/app/client-requests')) return 'client_requests'
   if (pathname.startsWith('/app/tasks')) return 'tasks'
   if (pathname.startsWith('/app/operations')) return 'operations'
   if (pathname.startsWith('/app/guest-portal')) return 'guest_portal'
@@ -217,6 +270,23 @@ export function canAccessPath(permissions: PermissionMap, pathname: string): boo
   return true
 }
 
+/** First /app route the role can open (avoids CapabilityRoute loops). */
+export function firstAccessibleAppPath(permissions: PermissionMap): string {
+  const candidates = [
+    '/app',
+    '/app/calendar',
+    '/app/client-requests',
+    '/app/reservations',
+    '/app/properties',
+    '/app/tasks',
+    '/app/settings',
+  ]
+  for (const path of candidates) {
+    if (canAccessPath(permissions, path)) return path
+  }
+  return '/'
+}
+
 /** Sidebar / capability checks that also respect amount-dependent surfaces. */
 export function canCapability(
   permissions: PermissionMap,
@@ -244,4 +314,8 @@ export function formatMaskedAmount(
     currency,
     maximumFractionDigits: value % 1 === 0 ? 0 : 2,
   }).format(value)
+}
+
+export function enabledCapabilities(permissions: PermissionMap): AppCapability[] {
+  return APP_CAPABILITIES.filter(key => canCapability(permissions, key))
 }

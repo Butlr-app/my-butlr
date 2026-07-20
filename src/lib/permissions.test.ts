@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_AGENCY_PERMISSIONS,
+  DEFAULT_CONCIERGE_PERMISSIONS,
   DEFAULT_HOUSE_MANAGER_PERMISSIONS,
   OWNER_PERMISSIONS,
   canAccessPath,
   canCapability,
+  firstAccessibleAppPath,
   formatMaskedAmount,
   intersectPermissionMaps,
   normalizePermissionMap,
@@ -15,6 +18,8 @@ describe('permissions', () => {
     expect(permissionsForRole('owner').contracts).toBe(true)
     expect(permissionsForRole('owner').reservation_amounts).toBe(true)
     expect(permissionsForRole('owner').properties_delete).toBe(true)
+    expect(permissionsForRole('owner').client_requests).toBe(false)
+    expect(canAccessPath(OWNER_PERMISSIONS, '/app/client-requests')).toBe(false)
   })
 
   it('applique les défauts house manager sans montants, contrats, finance ni équipe', () => {
@@ -27,6 +32,7 @@ describe('permissions', () => {
     expect(perms.reports).toBe(false)
     expect(perms.invoices).toBe(false)
     expect(perms.team_manage).toBe(false)
+    expect(perms.client_requests).toBe(false)
     expect(perms.properties).toBe(true)
   })
 
@@ -79,5 +85,44 @@ describe('permissions', () => {
   it('masque les montants quand non autorisé', () => {
     expect(formatMaskedAmount(1200, false)).toBe('•••')
     expect(formatMaskedAmount(1200, true)).toContain('1')
+  })
+
+  it('donne à la conciergerie le parcours voyageur sans finance', () => {
+    const perms = permissionsForRole('concierge')
+    expect(perms).toEqual(DEFAULT_CONCIERGE_PERMISSIONS)
+    expect(perms.services).toBe(true)
+    expect(perms.boutique).toBe(true)
+    expect(perms.stay_reserves).toBe(true)
+    expect(perms.reservation_amounts).toBe(false)
+    expect(perms.contracts).toBe(false)
+    expect(perms.payments).toBe(false)
+    expect(canAccessPath(perms, '/app/services')).toBe(true)
+    expect(canAccessPath(perms, '/app/contracts')).toBe(false)
+  })
+
+  it('limite l’agence immo au calendrier et aux demandes clients', () => {
+    const perms = permissionsForRole('agency')
+    expect(perms).toEqual(DEFAULT_AGENCY_PERMISSIONS)
+    expect(perms.calendar).toBe(true)
+    expect(perms.client_requests).toBe(true)
+    expect(perms.dashboard).toBe(false)
+    expect(perms.reservations).toBe(false)
+    expect(perms.contracts).toBe(false)
+    expect(perms.reservation_amounts).toBe(false)
+    expect(perms.payments).toBe(false)
+    expect(perms.reports).toBe(false)
+    expect(perms.partners).toBe(false)
+    expect(canAccessPath(perms, '/app/calendar')).toBe(true)
+    expect(canAccessPath(perms, '/app/client-requests')).toBe(true)
+    expect(canAccessPath(perms, '/app/contracts')).toBe(false)
+    expect(canAccessPath(perms, '/app/payments')).toBe(false)
+    expect(canAccessPath(perms, '/app')).toBe(false)
+    expect(firstAccessibleAppPath(perms)).toBe('/app/calendar')
+  })
+
+  it('bloque /app pour le partenaire marketplace', () => {
+    const perms = permissionsForRole('partner')
+    expect(perms.dashboard).toBe(false)
+    expect(canAccessPath(perms, '/app')).toBe(false)
   })
 })

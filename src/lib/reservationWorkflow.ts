@@ -44,6 +44,91 @@ export interface ReservationInsertPayload {
   contract_mode: ContractMode
   booking_kind: BookingKind
   guest_language: string | null
+  requested_by?: string | null
+}
+
+export interface AgencyClientRequestInput {
+  propertyId: string
+  arrival: string
+  departure: string
+  guestName: string
+  guestEmail: string
+  guestPhone: string
+  guestsCount: number
+  notes: string
+  guestLanguage?: string
+  propertyMaxGuests?: number | null
+  requestedBy: string
+}
+
+export function validateAgencyClientRequest(input: AgencyClientRequestInput): string | null {
+  if (!input.propertyId || !input.arrival || !input.departure) {
+    return 'Sélectionnez une propriété et les dates du séjour.'
+  }
+  if (input.departure <= input.arrival) {
+    return 'La date de départ doit être postérieure à la date d’arrivée.'
+  }
+  if (!input.guestName.trim()) {
+    return 'Renseignez le nom du client.'
+  }
+  if (input.guestsCount < 1 || input.guestsCount > 50) {
+    return 'Le nombre de voyageurs doit être compris entre 1 et 50.'
+  }
+  if (
+    input.propertyMaxGuests
+    && input.guestsCount > input.propertyMaxGuests
+  ) {
+    return `Cette propriété accepte au maximum ${input.propertyMaxGuests} voyageurs.`
+  }
+  if (!input.requestedBy) {
+    return 'Session invalide — reconnectez-vous pour envoyer la demande.'
+  }
+  return null
+}
+
+/** Pending stay request submitted by an agency for owner validation. */
+export function buildAgencyClientRequestPayload(
+  input: AgencyClientRequestInput,
+): ReservationInsertPayload {
+  const noteParts = ['Demande agence immobilière']
+  if (input.notes.trim()) noteParts.push(input.notes.trim())
+
+  return {
+    property_id: input.propertyId,
+    guest_name: input.guestName.trim(),
+    guest_email: input.guestEmail.trim() || null,
+    guest_phone: input.guestPhone.trim() || null,
+    arrival: input.arrival,
+    departure: input.departure,
+    guests_count: input.guestsCount,
+    status: 'pending',
+    payment_status: 'pending',
+    contract_status: 'draft',
+    total_amount: 0,
+    notes: noteParts.join(' — '),
+    contract_mode: 'to_prepare',
+    booking_kind: 'guest',
+    guest_language: input.guestLanguage?.trim() || null,
+    requested_by: input.requestedBy,
+  }
+}
+
+export function isPendingAgencyClientRequest(reservation: {
+  status: string
+  requested_by?: string | null
+  booking_kind?: string
+}): boolean {
+  return reservation.status === 'pending'
+    && Boolean(reservation.requested_by)
+    && (reservation.booking_kind == null || reservation.booking_kind === 'guest')
+}
+
+export type AgencyRequestDecision = 'approve' | 'reject'
+
+export function buildAgencyRequestDecisionPayload(
+  decision: AgencyRequestDecision,
+): { status: ReservationStatus } {
+  return { status: decision === 'approve' ? 'confirmed' : 'cancelled' }
 }
 
 export function isCommercialReservation(reservation: {

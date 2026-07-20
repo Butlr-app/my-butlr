@@ -47,16 +47,17 @@ export function Signup() {
           <Input label="Email" name="email" type="email" placeholder="you@company.com" required />
           <Input label="Password" name="password" type="password" placeholder="••••••••" required />
           <Select
-            label="Role"
+            label="Profil"
             name="role"
             options={[
-              { value: 'owner', label: 'Owner' },
-              { value: 'house_manager', label: 'House Manager' },
-              { value: 'concierge', label: 'Concierge' },
-              { value: 'agency', label: 'Agency' },
+              { value: 'owner', label: 'Propriétaire' },
               { value: 'partner', label: 'Prestataire' },
+              { value: 'agency', label: 'Agence immobilière' },
             ]}
           />
+          <p className="text-xs text-muted-foreground">
+            House manager et conciergerie : invitation par le propriétaire depuis une villa.
+          </p>
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}

@@ -75,6 +75,7 @@ describe('partnerPortal helpers', () => {
 
   it('routes partners to /partner and others to /app', () => {
     expect(homePathForRole('partner')).toBe('/partner')
+    expect(homePathForRole('agency')).toBe('/app/calendar')
     expect(homePathForRole('owner')).toBe('/app')
     expect(homePathForRole('house_manager')).toBe('/app')
     expect(homePathForRole(null)).toBe('/app')

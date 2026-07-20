@@ -47,16 +47,16 @@ export function EarlyAccess() {
           <Input label="Email" type="email" placeholder="jean@company.com" required />
           <PhoneInput label="Phone" value={phone} onChange={setPhone} />
           <Select
-            label="Profile type"
+            label="Type de profil"
             options={[
-              { value: '', label: 'Select a profile' },
-              { value: 'villa_owner', label: 'Villa owner' },
+              { value: '', label: 'Choisir un profil' },
+              { value: 'villa_owner', label: 'Propriétaire de villa' },
               { value: 'house_manager', label: 'House manager' },
-              { value: 'concierge', label: 'Concierge' },
+              { value: 'concierge', label: 'Conciergerie' },
               { value: 'family_office', label: 'Family office' },
-              { value: 'real_estate', label: 'Real estate agency' },
-              { value: 'partner', label: 'Service partner' },
-              { value: 'other', label: 'Other' },
+              { value: 'agency', label: 'Agence immobilière' },
+              { value: 'partner', label: 'Prestataire de services' },
+              { value: 'other', label: 'Autre' },
             ]}
           />
           <Input label="Number of properties" type="number" placeholder="1" min={1} />

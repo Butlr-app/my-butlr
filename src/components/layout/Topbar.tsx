@@ -1,21 +1,13 @@
 import { Menu, Moon, Sun, User, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useRole, type Role } from '@/lib/roleContext'
+import { useRole } from '@/lib/roleContext'
 import { useAuth } from '@/lib/authContext'
+import { roleLabelsFr } from '@/lib/permissions'
 
 interface TopbarProps {
   title: string
   onOpenMobileMenu: () => void
-}
-
-const roleLabels: Record<Role, string> = {
-  owner: 'Owner',
-  house_manager: 'House Manager',
-  concierge: 'Concierge',
-  agency: 'Agency',
-  partner: 'Partner',
-  guest: 'Guest',
 }
 
 const THEME_KEY = 'my-butlr-theme'
@@ -25,6 +17,7 @@ export function Topbar({ title, onOpenMobileMenu }: TopbarProps) {
   const { role } = useRole()
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
+  const roleLabel = roleLabelsFr[role] ?? role
 
   const handleSignOut = async () => {
     await signOut()
@@ -54,7 +47,7 @@ export function Topbar({ title, onOpenMobileMenu }: TopbarProps) {
 
       <div className="flex items-center gap-3">
         <span className="h-8 px-2 bg-muted rounded-md text-xs font-mono uppercase tracking-wider flex items-center">
-          {roleLabels[role]}
+          {roleLabel}
         </span>
 
         <button

@@ -191,6 +191,7 @@ export function useGuestPortalPreviewSimulation(propertyId?: string | null) {
     setTransactions(current => [{
       id: makeId('preview-tx'),
       stay_reserve_id: reserve.id,
+      service_request_id: null,
       type: 'authorization',
       amount,
       currency: 'EUR',

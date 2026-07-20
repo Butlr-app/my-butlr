@@ -20,14 +20,18 @@ import {
 } from '@/lib/stayReserve'
 import {
   blockReasonLabels,
+  buildAgencyRequestDecisionPayload,
   buildReservationUpdatePayload,
+  isPendingAgencyClientRequest,
   reservationStatusLabels,
   validateReservationUpdate,
+  type AgencyRequestDecision,
   type ReservationStatus,
 } from '@/lib/reservationWorkflow'
 import { supabase } from '@/lib/supabase'
 import type { Reservation } from '@/lib/types'
 import { usePermissions } from '@/lib/permissionsContext'
+import { useRole } from '@/lib/roleContext'
 import { formatMaskedAmount } from '@/lib/permissions'
 
 const contractModeLabels: Record<string, string> = {
@@ -59,11 +63,13 @@ export function ReservationDetailModal({
   onUpdated,
 }: ReservationDetailModalProps) {
   const { can } = usePermissions()
+  const { role } = useRole()
   const canViewAmounts = can('reservation_amounts')
   const canViewContracts = can('contracts')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [deciding, setDeciding] = useState(false)
   const [error, setError] = useState('')
   const [portalToken, setPortalToken] = useState<string | null>(null)
   const [stayReserve, setStayReserve] = useState<StayReserve | null>(null)
@@ -134,10 +140,44 @@ export function ReservationDetailModal({
   }, [open, reservation?.id, reservation?.portal_access_token])
 
   const handleClose = () => {
-    if (saving || cancelling) return
+    if (saving || cancelling || deciding) return
     setEditing(false)
     setError('')
     onClose()
+  }
+
+  const decideAgencyRequest = async (decision: AgencyRequestDecision) => {
+    if (!reservation || !isPendingAgencyClientRequest(reservation)) return
+    if (role === 'agency') return
+
+    const confirmLabel = decision === 'approve'
+      ? 'Confirmer cette demande agence ?'
+      : 'Refuser cette demande agence ?'
+    if (!confirm(confirmLabel)) return
+
+    setDeciding(true)
+    setError('')
+
+    const { data, error: updateError } = await supabase
+      .from('reservations')
+      .update(buildAgencyRequestDecisionPayload(decision))
+      .eq('id', reservation.id)
+      .select('*, properties(name, max_guests)')
+      .single()
+
+    setDeciding(false)
+
+    if (updateError || !data) {
+      setError(
+        updateError?.message
+          ?? (decision === 'approve'
+            ? 'Impossible de confirmer cette demande.'
+            : 'Impossible de refuser cette demande.'),
+      )
+      return
+    }
+
+    onUpdated(data as Reservation)
   }
 
   const handleSave = async () => {
@@ -241,6 +281,9 @@ export function ReservationDetailModal({
               <Badge variant={reservation.status === 'confirmed' ? 'success' : reservation.status === 'cancelled' ? 'destructive' : 'warning'}>
                 {reservationStatusLabels[reservation.status as ReservationStatus] ?? reservation.status}
               </Badge>
+              {isPendingAgencyClientRequest(reservation) && (
+                <Badge variant="info">Demande agence</Badge>
+              )}
               {isGuestBooking(reservation) && (
                 <Badge variant={
                   reservation.payment_status === 'paid' ? 'success'
@@ -251,13 +294,45 @@ export function ReservationDetailModal({
                 </Badge>
               )}
             </div>
-            {reservation.status !== 'cancelled' && !editing && (
+            {reservation.status !== 'cancelled' && !editing && role !== 'agency' && (
               <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
                 <Pencil className="mr-1.5 h-4 w-4" />
                 Modifier
               </Button>
             )}
           </div>
+
+          {isPendingAgencyClientRequest(reservation) && !editing && (
+            <div className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium">Demande agence immobilière</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {role === 'agency'
+                    ? 'En attente de validation par le propriétaire.'
+                    : 'Validez ou refusez cette demande de séjour client.'}
+                </p>
+              </div>
+              {role !== 'agency' && (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => decideAgencyRequest('reject')}
+                    disabled={deciding || saving || cancelling}
+                  >
+                    {deciding ? 'Traitement…' : 'Refuser'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => decideAgencyRequest('approve')}
+                    disabled={deciding || saving || cancelling}
+                  >
+                    {deciding ? 'Traitement…' : 'Confirmer'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {editing ? (
             <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
@@ -562,12 +637,14 @@ export function ReservationDetailModal({
                 </div>
               )}
 
-              {reservation.status !== 'cancelled' && (
+              {reservation.status !== 'cancelled'
+                && !isPendingAgencyClientRequest(reservation)
+                && role !== 'agency' && (
                 <div className="flex justify-end border-t border-border pt-4">
                   <Button
                     variant="secondary"
                     onClick={cancelReservation}
-                    disabled={cancelling || saving}
+                    disabled={cancelling || saving || deciding}
                   >
                     {cancelling ? 'Annulation…' : 'Annuler la réservation'}
                   </Button>

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAgencyClientRequestPayload,
+  buildAgencyRequestDecisionPayload,
   buildReservationInsertPayload,
   calendarEventCoversDate,
   isActiveGuestReservation,
@@ -8,6 +10,8 @@ import {
   isBlockingReservationStatus,
   isCommercialReservation,
   isPastStay,
+  isPendingAgencyClientRequest,
+  validateAgencyClientRequest,
   validateReservationInput,
   type ContractMode,
   type ReservationFormInput,
@@ -160,5 +164,72 @@ describe('effets transverses', () => {
       end_date: '2026-08-03',
       reservation_id: null,
     }, '2026-08-03')).toBe(true)
+  })
+})
+
+describe('agency client requests', () => {
+  const agencyInput = {
+    propertyId: 'property-1',
+    arrival: '2026-09-01',
+    departure: '2026-09-08',
+    guestName: '  Client Agence  ',
+    guestEmail: ' client@agence.fr ',
+    guestPhone: ' 0600000000 ',
+    guestsCount: 2,
+    notes: ' VIP ',
+    guestLanguage: 'fr',
+    propertyMaxGuests: 6,
+    requestedBy: 'agency-user-1',
+  }
+
+  it('valide une demande agence', () => {
+    expect(validateAgencyClientRequest(agencyInput)).toBeNull()
+    expect(validateAgencyClientRequest({ ...agencyInput, guestName: ' ' })).toBe(
+      'Renseignez le nom du client.',
+    )
+  })
+
+  it('construit un payload pending pour validation propriétaire', () => {
+    expect(buildAgencyClientRequestPayload(agencyInput)).toEqual({
+      property_id: 'property-1',
+      guest_name: 'Client Agence',
+      guest_email: 'client@agence.fr',
+      guest_phone: '0600000000',
+      arrival: '2026-09-01',
+      departure: '2026-09-08',
+      guests_count: 2,
+      status: 'pending',
+      payment_status: 'pending',
+      contract_status: 'draft',
+      total_amount: 0,
+      notes: 'Demande agence immobilière — VIP',
+      contract_mode: 'to_prepare',
+      booking_kind: 'guest',
+      guest_language: 'fr',
+      requested_by: 'agency-user-1',
+    })
+  })
+
+  it('détecte une demande agence en attente', () => {
+    expect(isPendingAgencyClientRequest({
+      status: 'pending',
+      requested_by: 'agency-user-1',
+      booking_kind: 'guest',
+    })).toBe(true)
+    expect(isPendingAgencyClientRequest({
+      status: 'confirmed',
+      requested_by: 'agency-user-1',
+      booking_kind: 'guest',
+    })).toBe(false)
+    expect(isPendingAgencyClientRequest({
+      status: 'pending',
+      requested_by: null,
+      booking_kind: 'guest',
+    })).toBe(false)
+  })
+
+  it('approuve ou refuse une demande agence', () => {
+    expect(buildAgencyRequestDecisionPayload('approve')).toEqual({ status: 'confirmed' })
+    expect(buildAgencyRequestDecisionPayload('reject')).toEqual({ status: 'cancelled' })
   })
 })

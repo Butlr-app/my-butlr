@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { usePermissions } from '@/lib/permissionsContext'
+import { firstAccessibleAppPath } from '@/lib/permissions'
 
 function PermissionsLoading() {
   return (
@@ -17,11 +18,13 @@ function PermissionsLoading() {
 /** Redirects away from routes the current role cannot access. */
 export function CapabilityRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const { canPath, loading } = usePermissions()
+  const { canPath, loading, permissions } = usePermissions()
 
   if (loading) return <PermissionsLoading />
   if (!canPath(location.pathname)) {
-    return <Navigate to="/app" replace />
+    const fallback = firstAccessibleAppPath(permissions)
+    if (fallback === location.pathname) return <>{children}</>
+    return <Navigate to={fallback} replace />
   }
 
   return <>{children}</>

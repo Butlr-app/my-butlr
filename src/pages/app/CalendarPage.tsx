@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { EmptyState, LoadingState } from '@/components/EmptyState'
+import { AgencyClientRequestModal } from '@/components/reservation/AgencyClientRequestModal'
 import { useAuth } from '@/lib/authContext'
-import { fetchOwnerCalendarEvents } from '@/lib/data'
+import { usePermissions } from '@/lib/permissionsContext'
+import { fetchOwnerCalendarEvents, fetchOwnerProperties } from '@/lib/data'
 import { calendarEventCoversDate } from '@/lib/reservationWorkflow'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 import { formatDateForDisplay, localeForDateFormat } from '@/lib/dateFormat'
-import type { CalendarEvent } from '@/lib/types'
+import type { CalendarEvent, Property, Reservation } from '@/lib/types'
 
 const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -40,9 +43,14 @@ function getMonthStartOffset(year: number, month: number) {
 
 export function CalendarPage() {
   const { user, profile } = useAuth()
+  const { can } = usePermissions()
+  const canOpenReservations = can('reservations')
+  const canRequestForClients = can('client_requests')
   const { openReservation } = useReservationDetail()
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [properties, setProperties] = useState<Property[]>([])
+  const [showRequest, setShowRequest] = useState(false)
 
   const now = new Date()
   const year = now.getFullYear()
@@ -53,18 +61,23 @@ export function CalendarPage() {
   useEffect(() => {
     if (!user) return
 
-    fetchOwnerCalendarEvents(user.id).then(({ data }) => {
-      setEvents((data as CalendarEvent[]) ?? [])
+    Promise.all([
+      fetchOwnerCalendarEvents(user.id),
+      canRequestForClients ? fetchOwnerProperties(user.id) : Promise.resolve({ data: [] }),
+    ]).then(([eventsResult, propertiesResult]) => {
+      setEvents((eventsResult.data as CalendarEvent[]) ?? [])
+      setProperties((propertiesResult.data as Property[]) ?? [])
       setLoading(false)
     })
-  }, [user])
+  }, [user, canRequestForClients])
 
   if (loading) return <LoadingState />
 
+  const activeProperties = properties.filter(property => property.status === 'active')
+
   const handleEventClick = (event: CalendarEvent) => {
-    if (event.reservation_id) {
-      openReservation(event.reservation_id)
-    }
+    if (!canOpenReservations || !event.reservation_id) return
+    openReservation(event.reservation_id)
   }
 
   const dateStr = (day: number) =>
@@ -72,11 +85,20 @@ export function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
           {getCurrentMonthLabel(profile?.date_format)}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canRequestForClients && (
+            <Button
+              size="sm"
+              onClick={() => setShowRequest(true)}
+              disabled={activeProperties.length === 0}
+            >
+              Demande client
+            </Button>
+          )}
           <Badge variant="default">Reservations</Badge>
           <Badge variant="warning">Maintenance</Badge>
           <Badge variant="info">Cleaning</Badge>
@@ -84,10 +106,21 @@ export function CalendarPage() {
         </div>
       </div>
 
+      {canRequestForClients && activeProperties.length === 0 && (
+        <EmptyState
+          title="Aucune propriété accessible"
+          description="Demandez au propriétaire de vous inviter sur une villa (rôle Agence immobilière)."
+        />
+      )}
+
       {events.length === 0 ? (
         <EmptyState
-          title="No calendar events"
-          description="Events from reservations and maintenance will appear on your calendar."
+          title="Aucun événement"
+          description={
+            canRequestForClients
+              ? 'Les séjours et demandes apparaissent ici. Utilisez « Demande client » pour proposer des dates.'
+              : 'Les événements des réservations et de la maintenance apparaîtront sur le calendrier.'
+          }
         />
       ) : (
         <>
@@ -115,10 +148,10 @@ export function CalendarPage() {
                           key={event.id}
                           type="button"
                           onClick={() => handleEventClick(event)}
-                          disabled={!event.reservation_id}
+                          disabled={!canOpenReservations || !event.reservation_id}
                           className={`block w-full truncate rounded px-1 py-0.5 text-left text-[10px] ${
                             eventColors[event.type] || ''
-                          } ${event.reservation_id ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                          } ${canOpenReservations && event.reservation_id ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                         >
                           {event.title}
                         </button>
@@ -134,16 +167,16 @@ export function CalendarPage() {
           </Card>
 
           <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-4">Upcoming Events</h3>
+            <h3 className="text-sm font-semibold mb-4">Événements à venir</h3>
             <div className="space-y-3">
               {events.map(event => (
                 <button
                   key={event.id}
                   type="button"
                   onClick={() => handleEventClick(event)}
-                  disabled={!event.reservation_id}
+                  disabled={!canOpenReservations || !event.reservation_id}
                   className={`flex w-full items-center justify-between border-b border-border py-2 text-left last:border-0 ${
-                    event.reservation_id ? 'cursor-pointer hover:bg-muted/30' : 'cursor-default'
+                    canOpenReservations && event.reservation_id ? 'cursor-pointer hover:bg-muted/30' : 'cursor-default'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -174,6 +207,20 @@ export function CalendarPage() {
             </div>
           </Card>
         </>
+      )}
+
+      {canRequestForClients && (
+        <AgencyClientRequestModal
+          open={showRequest}
+          onClose={() => setShowRequest(false)}
+          properties={activeProperties}
+          onCreated={(_reservation: Reservation) => {
+            if (!user) return
+            fetchOwnerCalendarEvents(user.id).then(({ data }) => {
+              setEvents((data as CalendarEvent[]) ?? [])
+            })
+          }}
+        />
       )}
     </div>
   )

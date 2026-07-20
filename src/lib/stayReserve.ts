@@ -235,12 +235,16 @@ export function mapCatalogCategoryToStayCategory(category: string | null | undef
   return map[category ?? ''] ?? 'other'
 }
 
-export function formatReserveAmount(amount: number, currency = 'EUR'): string {
+export function formatReserveAmount(
+  amount: number | null | undefined,
+  currency = 'EUR',
+): string {
+  const value = Number(amount ?? 0)
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency,
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount)
+    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+  }).format(value)
 }
 
 export function computeRevenueSplit(

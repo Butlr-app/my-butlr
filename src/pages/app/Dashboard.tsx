@@ -17,10 +17,15 @@ import {
 } from '@/lib/data'
 import { fetchOwnerTasks } from '@/lib/tasks'
 import type { Reservation, Task, Payment } from '@/lib/types'
-import { isCommercialReservation } from '@/lib/reservationWorkflow'
+import {
+  isCommercialReservation,
+  isPendingAgencyClientRequest,
+  reservationStatusLabels,
+} from '@/lib/reservationWorkflow'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
 
 const RESERVATION_STATUS_LABELS: Record<string, string> = {
+  pending: reservationStatusLabels.pending,
   confirmed: 'Confirmée',
   in_progress: 'En cours',
   completed: 'Terminée',
@@ -76,6 +81,7 @@ export function Dashboard() {
 
   const today = todayISO()
   const commercialReservations = reservations.filter(isCommercialReservation)
+  const pendingAgencyRequests = reservations.filter(isPendingAgencyClientRequest)
   const activeStays = commercialReservations.filter(r => r.status === 'in_progress').length
   const upcomingArrivals = commercialReservations.filter(
     r => r.arrival >= today && r.status === 'confirmed',
@@ -85,12 +91,16 @@ export function Dashboard() {
     .filter(p => p.status === 'paid' && p.type === 'service')
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
+  const handleReservationUpdated = (updated: Reservation) => {
+    setReservations(current => current.map(r => (r.id === updated.id ? updated : r)))
+  }
+
   const roleLabels: Record<string, string> = {
     owner: 'Tableau de bord propriétaire',
     house_manager: 'Tableau de bord house manager',
     concierge: 'Tableau de bord conciergerie',
-    agency: 'Tableau de bord agence',
-    partner: 'Tableau de bord partenaire',
+    agency: 'Tableau de bord agence immobilière',
+    partner: 'Tableau de bord prestataire',
     guest: 'Tableau de bord voyageur',
   }
 
@@ -124,6 +134,7 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <MetricCard label="Séjours en cours" value={activeStays} />
         <MetricCard label="Arrivées à venir" value={upcomingArrivals} />
+        <MetricCard label="Demandes agence" value={pendingAgencyRequests.length} />
         <MetricCard label="Propriétés" value={propertyCount} />
         <MetricCard
           label="Revenu conciergerie"
@@ -131,10 +142,42 @@ export function Dashboard() {
           prefix={canViewAmounts ? '€' : undefined}
         />
         <MetricCard label="Tâches en attente" value={pendingTasks} />
-        <MetricCard label="Réservations" value={commercialReservations.length} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {(role === 'owner' || pendingAgencyRequests.length > 0) && (
+          <Card className="p-5 lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">Demandes agence à valider</h3>
+              <Link to="/app/reservations" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                Tout voir <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            {pendingAgencyRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune demande en attente</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingAgencyRequests.slice(0, 5).map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => openReservation(r, { onUpdated: handleReservationUpdated })}
+                    className="flex w-full cursor-pointer items-center justify-between border-b border-border py-2 text-left last:border-0 hover:bg-muted/30"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{r.guest_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.properties?.name} · {r.arrival} → {r.departure}
+                      </p>
+                    </div>
+                    <Badge variant="warning">À valider</Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold">Arrivées à venir</h3>
@@ -150,7 +193,7 @@ export function Dashboard() {
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => openReservation(r)}
+                  onClick={() => openReservation(r, { onUpdated: handleReservationUpdated })}
                   className="flex w-full cursor-pointer items-center justify-between border-b border-border py-2 text-left last:border-0 hover:bg-muted/30"
                 >
                   <div>

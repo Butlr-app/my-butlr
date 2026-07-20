@@ -96,6 +96,15 @@ export async function fetchOwnerCalendarEvents(ownerId: string) {
     .order('start_date', { ascending: true })
 }
 
+/** Agency (or staff) stay requests created by the current user. */
+export async function fetchMyClientRequests(userId: string) {
+  return supabase
+    .from('reservations')
+    .select('*, properties(name, max_guests)')
+    .eq('requested_by', userId)
+    .order('created_at', { ascending: false })
+}
+
 export async function fetchServices() {
   return supabase
     .from('services')

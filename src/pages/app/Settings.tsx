@@ -4,21 +4,29 @@ import { Input } from '@/components/ui/Input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/Select'
 import { Switch } from '@/components/ui/Switch'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
 import { usePermissions } from '@/lib/permissionsContext'
 import {
+  DEFAULT_AGENCY_PERMISSIONS,
+  DEFAULT_CONCIERGE_PERMISSIONS,
   DEFAULT_HOUSE_MANAGER_PERMISSIONS,
+  DEFAULT_PARTNER_APP_PERMISSIONS,
   HOUSE_MANAGER_CONFIGURABLE_CAPABILITIES,
+  OWNER_PERMISSIONS,
   capabilityDescriptions,
   capabilityLabels,
+  enabledCapabilities,
   formatMaskedAmount,
+  roleLabelsFr,
+  roleVisibilityBlurb,
   type AppCapability,
   type PermissionMap,
 } from '@/lib/permissions'
+import type { Role } from '@/lib/roleContext'
 import {
   dateFormatLabels,
   dateFormats,
@@ -26,16 +34,6 @@ import {
 } from '@/lib/dateFormat'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface Profile {
-  id: string
-  full_name: string | null
-  email: string | null
-  phone: string | null
-  company: string | null
-  role: string | null
-  avatar_url: string | null
-}
 
 interface Payment {
   id: string
@@ -128,10 +126,23 @@ const settingsTabs = [
 
 export function Settings() {
   const { user, refreshProfile } = useAuth()
+  const { role } = useRole()
+  const { can } = usePermissions()
+  const visibleTabs = settingsTabs.filter(tab => {
+    if (tab.id === 'Team' || tab.id === 'Roles') return role === 'owner'
+    if (tab.id === 'Payments') return can('payments') || can('reservation_amounts')
+    return true
+  })
   const [activeTab, setActiveTab] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') === 'Roles' ? 'Roles' : 'Account'
   })
+
+  useEffect(() => {
+    if (!visibleTabs.some(tab => tab.id === activeTab)) {
+      setActiveTab('Account')
+    }
+  }, [activeTab, visibleTabs])
 
   return (
     <div className="space-y-6">
@@ -139,7 +150,7 @@ export function Settings() {
 
       <div className="border-b border-border">
         <div className="flex gap-0 overflow-x-auto">
-          {settingsTabs.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -158,8 +169,8 @@ export function Settings() {
       {activeTab === 'Account' && (
         <AccountTab userId={user?.id} refreshProfile={refreshProfile} />
       )}
-      {activeTab === 'Team' && <TeamTab />}
-      {activeTab === 'Roles' && <RolesTab />}
+      {activeTab === 'Team' && role === 'owner' && <TeamTab />}
+      {activeTab === 'Roles' && role === 'owner' && <RolesTab />}
       {activeTab === 'Payments' && <PaymentsTab />}
       {activeTab === 'Notifications' && <NotificationsTab userId={user?.id} />}
 
@@ -274,165 +285,32 @@ function AccountTab({
 
 // ─── 2. Team Tab ────────────────────────────────────────────────────────────
 
-const ROLES = ['Owner', 'House Manager', 'Concierge', 'Agency', 'Partner', 'Guest']
-
 function TeamTab() {
-  const [members, setMembers] = useState<Profile[]>([])
-  const [loading, setLoading] = useState(true)
-  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [showInvite, setShowInvite] = useState(false)
-  const [inviteName, setInviteName] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState('Concierge')
-  const [inviteLoading, setInviteLoading] = useState(false)
+  const { role } = useRole()
 
-  const fetchMembers = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone, company, role, avatar_url')
-      .order('full_name', { ascending: true })
-    if (!error && data) setMembers(data as Profile[])
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    fetchMembers()
-  }, [fetchMembers])
-
-  const handleRoleChange = async (id: string, newRole: string) => {
-    setFeedback(null)
-    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', id)
-    if (error) {
-      setFeedback({ message: `Error updating role: ${error.message}`, type: 'error' })
-    } else {
-      setFeedback({ message: 'Role updated.', type: 'success' })
-      fetchMembers()
-    }
-  }
-
-  const handleRemove = async (id: string) => {
-    if (!confirm('Remove this team member?')) return
-    setFeedback(null)
-    const { error } = await supabase.from('profiles').delete().eq('id', id)
-    if (error) {
-      setFeedback({ message: `Error removing member: ${error.message}`, type: 'error' })
-    } else {
-      setFeedback({ message: 'Member removed.', type: 'success' })
-      fetchMembers()
-    }
-  }
-
-  const handleInvite = async () => {
-    if (!inviteName.trim() || !inviteEmail.trim()) {
-      setFeedback({ message: 'Name and email are required.', type: 'error' })
-      return
-    }
-    setInviteLoading(true)
-    setFeedback(null)
-    const { error } = await supabase.from('profiles').insert({
-      full_name: inviteName.trim(),
-      email: inviteEmail.trim(),
-      role: inviteRole,
-    })
-    setInviteLoading(false)
-    if (error) {
-      setFeedback({ message: `Error inviting member: ${error.message}`, type: 'error' })
-    } else {
-      setFeedback({ message: 'Member invited successfully.', type: 'success' })
-      setInviteName('')
-      setInviteEmail('')
-      setInviteRole('Concierge')
-      setShowInvite(false)
-      fetchMembers()
-    }
-  }
-
-  if (loading) {
+  if (role !== 'owner') {
     return (
-      <Card className="p-6">
-        <div className="flex items-center gap-3">
-          <Spinner />
-          <span className="text-sm text-muted-foreground">Loading team…</span>
-        </div>
+      <Card className="p-6 space-y-2">
+        <h3 className="text-base font-semibold">Équipe</h3>
+        <p className="text-sm text-muted-foreground">
+          Seul le propriétaire peut gérer les accès. Les invitations se font villa par villa
+          depuis la fiche propriété → Équipe.
+        </p>
       </Card>
     )
   }
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-base font-semibold">Team Members</h3>
-        <Button size="sm" onClick={() => setShowInvite(!showInvite)}>
-          {showInvite ? 'Cancel' : 'Invite member'}
-        </Button>
-      </div>
-
-      {showInvite && (
-        <div className="mb-6 p-4 border border-border rounded-lg space-y-3 bg-muted/20">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Invite New Member</p>
-          <Input
-            label="Full name"
-            value={inviteName}
-            onChange={e => setInviteName(e.target.value)}
-            placeholder="Jane Smith"
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={inviteEmail}
-            onChange={e => setInviteEmail(e.target.value)}
-            placeholder="jane@mybutlr.com"
-          />
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-foreground">Role</label>
-            <select
-              value={inviteRole}
-              onChange={e => setInviteRole(e.target.value)}
-              className="w-full h-10 px-3 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-foreground"
-            >
-              {ROLES.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
-          <Button size="sm" onClick={handleInvite} disabled={inviteLoading}>
-            {inviteLoading && <Spinner className="mr-2" />}
-            {inviteLoading ? 'Sending…' : 'Send Invite'}
-          </Button>
-        </div>
-      )}
-
-      {feedback && <Feedback message={feedback.message} type={feedback.type} />}
-
-      <div className="space-y-0 divide-y divide-border">
-        {members.length === 0 && (
-          <p className="text-sm text-muted-foreground py-6 text-center">No team members found.</p>
-        )}
-        {members.map(member => (
-          <div key={member.id} className="flex items-center justify-between py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{member.full_name || '—'}</p>
-              <p className="text-xs text-muted-foreground truncate">{member.email || '—'}</p>
-            </div>
-            <div className="flex items-center gap-3 ml-4">
-              <select
-                value={member.role || ''}
-                onChange={e => handleRoleChange(member.id, e.target.value)}
-                className="h-8 px-2 bg-card border border-input rounded-sm text-xs focus:outline-none focus:border-foreground"
-              >
-                <option value="">Select role</option>
-                {ROLES.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-              <Button variant="destructive" size="sm" onClick={() => handleRemove(member.id)}>
-                Remove
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+    <Card className="p-6 space-y-3">
+      <h3 className="text-base font-semibold">Équipe par propriété</h3>
+      <p className="text-sm text-muted-foreground">
+        Invitez house managers, conciergeries, agences ou prestataires depuis chaque villa
+        (Propriétés → détail → Équipe). Les invitations en attente sont acceptées
+        automatiquement à la création du compte.
+      </p>
+      <Link to="/app/properties">
+        <Button size="sm">Ouvrir les propriétés</Button>
+      </Link>
     </Card>
   )
 }
@@ -454,14 +332,33 @@ function RolesTab() {
     if (ownerHouseManagerTemplate) setDraft(ownerHouseManagerTemplate)
   }, [ownerHouseManagerTemplate])
 
+  const roleCards: Array<{ role: Role; permissions: PermissionMap }> = [
+    { role: 'owner', permissions: OWNER_PERMISSIONS },
+    { role: 'house_manager', permissions: draft },
+    { role: 'concierge', permissions: DEFAULT_CONCIERGE_PERMISSIONS },
+    { role: 'agency', permissions: DEFAULT_AGENCY_PERMISSIONS },
+    { role: 'partner', permissions: DEFAULT_PARTNER_APP_PERMISSIONS },
+  ]
+
   if (role !== 'owner') {
     return (
-      <Card className="p-6">
-        <h3 className="text-base font-semibold mb-2">Rôles & permissions</h3>
-        <p className="text-sm text-muted-foreground">
-          Seul le propriétaire peut définir ce que voit le house manager.
-        </p>
-      </Card>
+      <div className="space-y-4">
+        <Card className="p-6">
+          <h3 className="text-base font-semibold mb-2">Rôles & permissions</h3>
+          <p className="text-sm text-muted-foreground">
+            Seul le propriétaire peut configurer les droits du house manager.
+            Voici la visibilité par défaut de chaque profil.
+          </p>
+        </Card>
+        <RoleVisibilityGrid
+          cards={[
+            { role: 'concierge', permissions: DEFAULT_CONCIERGE_PERMISSIONS },
+            { role: 'agency', permissions: DEFAULT_AGENCY_PERMISSIONS },
+            { role: 'house_manager', permissions: DEFAULT_HOUSE_MANAGER_PERMISSIONS },
+            { role: 'partner', permissions: DEFAULT_PARTNER_APP_PERMISSIONS },
+          ]}
+        />
+      </div>
     )
   }
 
@@ -496,8 +393,8 @@ function RolesTab() {
         <div>
           <h3 className="text-base font-semibold mb-1">Droits du house manager</h3>
           <p className="text-sm text-muted-foreground">
-            Par défaut : mêmes accès que vous, sauf les montants des réservations et les contrats.
-            La suppression de propriété est toujours interdite.
+            Par défaut : exploitation villa sans montants ni contrats.
+            La suppression de propriété et la gestion d’équipe restent interdites.
           </p>
         </div>
 
@@ -527,7 +424,12 @@ function RolesTab() {
                   Toujours désactivé pour le house manager.
                 </p>
               </div>
-              <Switch checked={false} disabled aria-label="Suppression propriété interdite" />
+              <Switch
+                checked={false}
+                disabled
+                onCheckedChange={() => {}}
+                aria-label="Suppression propriété interdite"
+              />
             </div>
           </div>
         )}
@@ -543,20 +445,57 @@ function RolesTab() {
         {feedback && <Feedback message={feedback.message} type={feedback.type} />}
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-4">
-          <p className="text-sm font-semibold mb-1">Propriétaire</p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Accès complet à toutes les fonctionnalités, y compris contrats, montants et suppression.
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm font-semibold mb-1">House manager</p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Invité avec les droits ci-dessus. Configurez la visibilité selon votre organisation.
-          </p>
-        </Card>
+      <div>
+        <h3 className="mb-3 text-base font-semibold">Visibilité par profil</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Conciergerie et agence immobilière ont des accès fixes. Le prestataire utilise l’espace{' '}
+          <code className="text-xs">/partner</code>.
+        </p>
+        <RoleVisibilityGrid cards={roleCards} />
       </div>
+    </div>
+  )
+}
+
+function RoleVisibilityGrid({
+  cards,
+}: {
+  cards: Array<{ role: Role; permissions: PermissionMap }>
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {cards.map(({ role, permissions }) => {
+        const enabled = enabledCapabilities(permissions)
+        return (
+          <Card key={role} className="p-4">
+            <p className="text-sm font-semibold">{roleLabelsFr[role]}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {roleVisibilityBlurb[role]}
+            </p>
+            {role === 'partner' ? (
+              <p className="mt-3 text-xs font-medium text-foreground">
+                Shell dédié : tableau de bord, missions, planning, paiements, fiche.
+              </p>
+            ) : (
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {enabled.slice(0, 12).map(key => (
+                  <li
+                    key={key}
+                    className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                  >
+                    {capabilityLabels[key]}
+                  </li>
+                ))}
+                {enabled.length > 12 && (
+                  <li className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                    +{enabled.length - 12}
+                  </li>
+                )}
+              </ul>
+            )}
+          </Card>
+        )
+      })}
     </div>
   )
 }
