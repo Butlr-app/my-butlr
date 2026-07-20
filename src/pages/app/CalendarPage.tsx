@@ -9,7 +9,7 @@ import { usePermissions } from '@/lib/permissionsContext'
 import { fetchOwnerCalendarEvents, fetchOwnerProperties } from '@/lib/data'
 import { calendarEventCoversDate } from '@/lib/reservationWorkflow'
 import { useReservationDetail } from '@/lib/reservationDetailContext'
-import { formatDateForDisplay, localeForDateFormat } from '@/lib/dateFormat'
+import { formatDateForDisplay } from '@/lib/dateFormat'
 import type { CalendarEvent, Property, Reservation } from '@/lib/types'
 
 const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -22,13 +22,6 @@ const eventColors: Record<string, string> = {
   owner: 'bg-muted text-muted-foreground',
   marketing: 'bg-warning-soft text-warning-foreground',
   blocked: 'bg-muted text-muted-foreground',
-}
-
-function getCurrentMonthLabel(dateFormat?: string | null) {
-  return new Date().toLocaleDateString(localeForDateFormat(dateFormat), {
-    month: 'long',
-    year: 'numeric',
-  })
 }
 
 function generateCalendarDays(year: number, month: number) {
@@ -52,11 +45,24 @@ export function CalendarPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [showRequest, setShowRequest] = useState(false)
 
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
+  const [cursor, setCursor] = useState(() => {
+    const now = new Date()
+    return { year: now.getFullYear(), month: now.getMonth() }
+  })
+  const { year, month } = cursor
   const days = generateCalendarDays(year, month)
   const offset = getMonthStartOffset(year, month)
+  const monthLabel = new Date(year, month, 1).toLocaleDateString('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+  })
+
+  const shiftMonth = (delta: number) => {
+    setCursor(current => {
+      const next = new Date(current.year, current.month + delta, 1)
+      return { year: next.getFullYear(), month: next.getMonth() }
+    })
+  }
 
   useEffect(() => {
     if (!user) return
@@ -86,9 +92,17 @@ export function CalendarPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
-          {getCurrentMonthLabel(profile?.date_format)}
-        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => shiftMonth(-1)} aria-label="Mois précédent">
+            ←
+          </Button>
+          <p className="min-w-[10rem] text-center text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+            {monthLabel}
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => shiftMonth(1)} aria-label="Mois suivant">
+            →
+          </Button>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {canRequestForClients && (
             <Button
@@ -113,17 +127,7 @@ export function CalendarPage() {
         />
       )}
 
-      {events.length === 0 ? (
-        <EmptyState
-          title="Aucun événement"
-          description={
-            canRequestForClients
-              ? 'Les séjours et demandes apparaissent ici. Utilisez « Demande client » pour proposer des dates.'
-              : 'Les événements des réservations et de la maintenance apparaîtront sur le calendrier.'
-          }
-        />
-      ) : (
-        <>
+      <>
           <Card className="overflow-hidden">
             <div className="grid grid-cols-7 border-b border-border">
               {daysOfWeek.map(day => (
@@ -168,46 +172,53 @@ export function CalendarPage() {
 
           <Card className="p-5">
             <h3 className="text-sm font-semibold mb-4">Événements à venir</h3>
-            <div className="space-y-3">
-              {events.map(event => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => handleEventClick(event)}
-                  disabled={!canOpenReservations || !event.reservation_id}
-                  className={`flex w-full items-center justify-between border-b border-border py-2 text-left last:border-0 ${
-                    canOpenReservations && event.reservation_id ? 'cursor-pointer hover:bg-muted/30' : 'cursor-default'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      event.type === 'reservation' ? 'bg-foreground' :
-                      event.type === 'maintenance' ? 'bg-warning' :
-                      event.type === 'cleaning' ? 'bg-info' : 'bg-success'
-                    }`} />
-                    <div>
-                      <p className="text-sm font-medium">{event.title}</p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {formatDateForDisplay(event.start_date, profile?.date_format)}
-                        {event.end_date !== event.start_date
-                          ? ` → ${formatDateForDisplay(event.end_date, profile?.date_format)}`
-                          : ''}
-                      </p>
+            {events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {canRequestForClients
+                  ? 'Aucun événement ce mois-ci. Utilisez « Demande client » pour proposer des dates.'
+                  : 'Aucun événement ce mois-ci.'}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {events.map(event => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => handleEventClick(event)}
+                    disabled={!canOpenReservations || !event.reservation_id}
+                    className={`flex w-full items-center justify-between border-b border-border py-2 text-left last:border-0 ${
+                      canOpenReservations && event.reservation_id ? 'cursor-pointer hover:bg-muted/30' : 'cursor-default'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        event.type === 'reservation' ? 'bg-foreground' :
+                        event.type === 'maintenance' ? 'bg-warning' :
+                        event.type === 'cleaning' ? 'bg-info' : 'bg-success'
+                      }`} />
+                      <div>
+                        <p className="text-sm font-medium">{event.title}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {formatDateForDisplay(event.start_date, profile?.date_format)}
+                          {event.end_date !== event.start_date
+                            ? ` → ${formatDateForDisplay(event.end_date, profile?.date_format)}`
+                            : ''}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <Badge variant={
-                    event.type === 'reservation' ? 'default' :
-                    event.type === 'maintenance' ? 'warning' :
-                    event.type === 'cleaning' ? 'info' : 'success'
-                  }>
-                    {event.type}
-                  </Badge>
-                </button>
-              ))}
-            </div>
+                    <Badge variant={
+                      event.type === 'reservation' ? 'default' :
+                      event.type === 'maintenance' ? 'warning' :
+                      event.type === 'cleaning' ? 'info' : 'success'
+                    }>
+                      {event.type}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            )}
           </Card>
         </>
-      )}
 
       {canRequestForClients && (
         <AgencyClientRequestModal

@@ -32,6 +32,13 @@ import {
   dateFormats,
   type DateFormat,
 } from '@/lib/dateFormat'
+import {
+  BillingNotConfiguredError,
+  fetchMySubscription,
+  startCheckout,
+  type Subscription,
+  type SubscriptionPlan,
+} from '@/lib/billing'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -167,7 +174,7 @@ export function Settings() {
       </div>
 
       {activeTab === 'Account' && (
-        <AccountTab userId={user?.id} refreshProfile={refreshProfile} />
+        <AccountTab userId={user?.id} refreshProfile={refreshProfile} isOwner={role === 'owner'} />
       )}
       {activeTab === 'Team' && role === 'owner' && <TeamTab />}
       {activeTab === 'Roles' && role === 'owner' && <RolesTab />}
@@ -191,9 +198,11 @@ export function Settings() {
 function AccountTab({
   userId,
   refreshProfile,
+  isOwner,
 }: {
   userId: string | undefined
   refreshProfile: (options?: { silent?: boolean }) => Promise<void>
+  isOwner: boolean
 }) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -254,31 +263,159 @@ function AccountTab({
   }
 
   return (
-    <Card className="p-6 max-w-xl">
-      <h3 className="text-base font-semibold mb-6">Paramètres du compte</h3>
-      <div className="space-y-4">
-        <Input label="Nom complet" value={fullName} onChange={e => setFullName(e.target.value)} />
-        <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-        <PhoneInput label="Téléphone" value={phone} onChange={setPhone} />
-        <Input label="Société" value={company} onChange={e => setCompany(e.target.value)} />
-        <Select
-          label="Format des dates"
-          value={dateFormat}
-          onChange={event => setDateFormat(event.target.value as DateFormat)}
-          options={dateFormats.map(format => ({
-            value: format,
-            label: dateFormatLabels[format],
-          }))}
-        />
-        <p className="text-xs text-muted-foreground">
-          Ce format sera utilisé dans les formulaires, les réservations et le calendrier.
-        </p>
-        <Button size="sm" onClick={handleSave} disabled={saving}>
-          {saving && <Spinner className="mr-2" />}
-          {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
-        </Button>
-        {feedback && <Feedback message={feedback.message} type={feedback.type} />}
-      </div>
+    <div className="space-y-6 max-w-xl">
+      <Card className="p-6">
+        <h3 className="text-base font-semibold mb-6">Paramètres du compte</h3>
+        <div className="space-y-4">
+          <Input label="Nom complet" value={fullName} onChange={e => setFullName(e.target.value)} />
+          <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <PhoneInput label="Téléphone" value={phone} onChange={setPhone} />
+          <Input label="Société" value={company} onChange={e => setCompany(e.target.value)} />
+          <Select
+            label="Format des dates"
+            value={dateFormat}
+            onChange={event => setDateFormat(event.target.value as DateFormat)}
+            options={dateFormats.map(format => ({
+              value: format,
+              label: dateFormatLabels[format],
+            }))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Ce format sera utilisé dans les formulaires, les réservations et le calendrier.
+          </p>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving && <Spinner className="mr-2" />}
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          </Button>
+          {feedback && <Feedback message={feedback.message} type={feedback.type} />}
+        </div>
+      </Card>
+      {isOwner && <BillingCard />}
+    </div>
+  )
+}
+
+const PLAN_LABELS: Record<SubscriptionPlan, string> = {
+  starter: 'Starter',
+  pro: 'Pro',
+}
+
+const STATUS_LABELS: Record<Subscription['status'], string> = {
+  trialing: 'Essai',
+  active: 'Actif',
+  past_due: 'Paiement en retard',
+  canceled: 'Annulé',
+  incomplete: 'Incomplet',
+}
+
+function BillingCard() {
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [checkoutPlan, setCheckoutPlan] = useState<SubscriptionPlan | null>(null)
+  const [billingConfigured, setBillingConfigured] = useState(true)
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      try {
+        const sub = await fetchMySubscription()
+        if (!cancelled) setSubscription(sub)
+      } catch (error) {
+        if (!cancelled) {
+          setFeedback({
+            message: error instanceof Error ? error.message : 'Impossible de charger l’abonnement.',
+            type: 'error',
+          })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleCheckout = async (plan: SubscriptionPlan) => {
+    setCheckoutPlan(plan)
+    setFeedback(null)
+    try {
+      await startCheckout(plan)
+    } catch (error) {
+      if (error instanceof BillingNotConfiguredError) {
+        setBillingConfigured(false)
+      }
+      setFeedback({
+        message: error instanceof Error ? error.message : 'Impossible de démarrer le paiement.',
+        type: 'error',
+      })
+      setCheckoutPlan(null)
+    }
+  }
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-base font-semibold mb-2">Abonnement</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Gérez votre formule My Butlr. Le paiement se fait via Stripe Checkout.
+      </p>
+
+      {loading ? (
+        <div className="flex items-center gap-3">
+          <Spinner />
+          <span className="text-sm text-muted-foreground">Chargement de l’abonnement…</span>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Formule</p>
+              <p className="mt-1 text-sm font-medium">
+                {subscription ? PLAN_LABELS[subscription.plan] : 'Aucun abonnement actif'}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Statut</p>
+              <p className="mt-1 text-sm font-medium">
+                {subscription ? STATUS_LABELS[subscription.status] : '—'}
+              </p>
+            </div>
+          </div>
+
+          {!billingConfigured && (
+            <p className="text-xs text-muted-foreground rounded-md border border-dashed border-border p-3">
+              La facturation n’est pas configurée sur cet environnement. Ajoutez les secrets Stripe
+              côté Supabase pour activer Checkout.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={subscription?.plan === 'starter' ? 'primary' : 'secondary'}
+              disabled={checkoutPlan !== null}
+              onClick={() => void handleCheckout('starter')}
+            >
+              {checkoutPlan === 'starter' && <Spinner className="mr-2" />}
+              Starter
+            </Button>
+            <Button
+              size="sm"
+              variant={subscription?.plan === 'pro' ? 'primary' : 'secondary'}
+              disabled={checkoutPlan !== null}
+              onClick={() => void handleCheckout('pro')}
+            >
+              {checkoutPlan === 'pro' && <Spinner className="mr-2" />}
+              Pro
+            </Button>
+          </div>
+
+          {feedback && <Feedback message={feedback.message} type={feedback.type} />}
+        </div>
+      )}
     </Card>
   )
 }
