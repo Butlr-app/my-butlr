@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { usePermissions } from '@/lib/permissionsContext'
 import { capabilityForPath } from '@/lib/permissions'
+import { useRoleFilter } from '@/lib/useRoleFilter'
 import {
   LayoutDashboard,
   Building2,
@@ -25,6 +26,24 @@ import {
   Smartphone,
   Wrench,
   X,
+  Inbox,
+  CalendarCheck2,
+  Users,
+  Clock,
+  AlertTriangle,
+  Package,
+  Banknote,
+  PiggyBank,
+  Award,
+  FolderOpen,
+  History,
+  CalendarClock,
+  BookOpen,
+  ClipboardCheck,
+  Briefcase,
+  BookUser,
+  Bell,
+  FilePlus,
 } from 'lucide-react'
 
 interface NavItem {
@@ -32,6 +51,8 @@ interface NavItem {
   icon: LucideIcon
   label: string
   end?: boolean
+  /** Visibility key from useRoleFilter().isVisible, for items without a capabilityForPath mapping. */
+  page?: string
 }
 
 interface NavSection {
@@ -54,7 +75,15 @@ const navSections: NavSection[] = [
       { to: '/app/calendar', icon: CalendarRange, label: 'Calendrier' },
       { to: '/app/client-requests', icon: CalendarDays, label: 'Demandes clients' },
       { to: '/app/tasks', icon: ClipboardList, label: 'Tâches' },
+      { to: '/app/day-sheet', icon: CalendarCheck2, label: 'Feuille de route', page: 'day-sheet' },
+      { to: '/app/team-planning', icon: Users, label: 'Planning équipe', page: 'team-planning' },
+      { to: '/app/time-clock', icon: Clock, label: 'Pointage', page: 'time-clock' },
       { to: '/app/operations', icon: Wrench, label: 'Entretien & travaux' },
+      { to: '/app/incidents', icon: AlertTriangle, label: 'Incidents', page: 'incidents' },
+      { to: '/app/work-orders', icon: Wrench, label: 'Ordres de travail', page: 'work-orders' },
+      { to: '/app/maintenance', icon: CalendarClock, label: 'Maintenance', page: 'maintenance' },
+      { to: '/app/inventory', icon: Package, label: 'Inventaire', page: 'inventory' },
+      { to: '/app/inspections', icon: ClipboardCheck, label: 'Inspections', page: 'inspections' },
     ],
   },
   {
@@ -64,15 +93,22 @@ const navSections: NavSection[] = [
       { to: '/app/messages', icon: MessageSquare, label: 'Messages' },
       { to: '/app/stay-reserves', icon: Wallet, label: 'Réserve séjour' },
       { to: '/app/services', icon: ConciergeBell, label: 'Services conciergerie' },
+      { to: '/app/service-requests', icon: Inbox, label: 'Demandes de service', page: 'service-requests' },
       { to: '/app/boutique', icon: ShoppingBag, label: 'Boutique produits' },
+      { to: '/app/guides', icon: BookOpen, label: 'Guides', page: 'guides' },
     ],
   },
   {
     title: 'Finance & documents',
     items: [
       { to: '/app/payments', icon: CreditCard, label: 'Paiements' },
+      { to: '/app/apa', icon: Wallet, label: 'APA', page: 'apa' },
       { to: '/app/contracts', icon: FileText, label: 'Contrats' },
-      { to: '/app/invoices/generate', icon: Receipt, label: 'Factures' },
+      { to: '/app/invoices', icon: Receipt, label: 'Factures', page: 'invoices' },
+      { to: '/app/invoices/generate', icon: FilePlus, label: 'Créer une facture', page: 'invoices' },
+      { to: '/app/expenses', icon: Banknote, label: 'Dépenses', page: 'expenses' },
+      { to: '/app/budgets', icon: PiggyBank, label: 'Budgets', page: 'budgets' },
+      { to: '/app/documents', icon: FolderOpen, label: 'Documents', page: 'documents' },
       { to: '/app/reports', icon: BarChart3, label: 'Rapports' },
     ],
   },
@@ -80,11 +116,16 @@ const navSections: NavSection[] = [
     title: 'Réseau',
     items: [
       { to: '/app/partners', icon: Handshake, label: 'Prestataires de services' },
+      { to: '/app/service-providers', icon: BookUser, label: 'Carnet prestataires', page: 'service-providers' },
+      { to: '/app/provider-ratings', icon: Award, label: 'Évaluations', page: 'provider-ratings' },
+      { to: '/app/concierge-portal', icon: Briefcase, label: 'Portail conciergerie', page: 'concierge-portal' },
     ],
   },
   {
     title: '',
     items: [
+      { to: '/app/activity', icon: History, label: 'Activité', page: 'activity' },
+      { to: '/app/notifications', icon: Bell, label: 'Notifications', page: 'notifications' },
       { to: '/app/settings', icon: Settings, label: 'Paramètres' },
     ],
   },
@@ -92,32 +133,34 @@ const navSections: NavSection[] = [
 
 interface SidebarProps {
   collapsed: boolean
-  onToggleCollapsed: () => void
+  setCollapsed: (v: boolean) => void
   mobileOpen: boolean
-  onCloseMobile: () => void
+  setMobileOpen: (v: boolean) => void
 }
 
-export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile }: SidebarProps) {
+export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { can } = usePermissions()
+  const { isVisible } = useRoleFilter()
 
   const visibleSections = useMemo(() => (
     navSections
       .map(section => ({
         ...section,
         items: section.items.filter(item => {
+          if (item.page) return isVisible(item.page)
           const capability = capabilityForPath(item.to)
           return !capability || can(capability)
         }),
       }))
       .filter(section => section.items.length > 0)
-  ), [can])
+  ), [can, isVisible])
 
   return (
     <>
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/32 md:hidden"
-          onClick={onCloseMobile}
+          onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
       )}
@@ -134,7 +177,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobil
           <span className={cn('text-base font-bold tracking-tight', collapsed && 'md:hidden')}>butlr</span>
           <button
             type="button"
-            onClick={onToggleCollapsed}
+            onClick={() => setCollapsed(!collapsed)}
             className={cn(
               'hidden rounded p-1.5 transition-colors hover:bg-muted md:inline-flex',
               collapsed ? 'mx-auto' : 'ml-auto',
@@ -145,7 +188,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobil
           </button>
           <button
             type="button"
-            onClick={onCloseMobile}
+            onClick={() => setMobileOpen(false)}
             className="ml-auto rounded p-1.5 transition-colors hover:bg-muted md:hidden"
             aria-label="Fermer le menu"
           >
@@ -173,7 +216,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobil
                     key={item.to}
                     to={item.to}
                     end={item.end}
-                    onClick={onCloseMobile}
+                    onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
                       cn(
                         'relative flex h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors',

@@ -1,5 +1,6 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/lib/authContext'
+import { useRole, roleHome, type Role } from '@/lib/roleContext'
 import { homePathForRole } from '@/lib/partnerPortal'
 
 function AuthLoading() {
@@ -13,10 +14,18 @@ function AuthLoading() {
   )
 }
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function ProtectedRoute({
+  children,
+  allow,
+}: {
+  children: React.ReactNode
+  allow?: Role[]
+}) {
+  const location = useLocation()
   const { user, profile, loading, profileLoading } = useAuth()
+  const { actualRole, roleLoading } = useRole()
 
-  if (loading || profileLoading) return <AuthLoading />
+  if (loading || profileLoading || (user && roleLoading)) return <AuthLoading />
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -26,12 +35,20 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/verify-email" state={{ email: user.email }} replace />
   }
 
-  if (profile?.role === 'partner') {
+  if (profile?.role === 'partner' && !allow?.includes('partner')) {
     return <Navigate to="/partner" replace />
   }
 
-  if (profile?.role === 'owner' && !profile.onboarding_completed) {
+  if (
+    profile?.role === 'owner'
+    && !profile.onboarding_completed
+    && !location.pathname.startsWith('/app/onboarding')
+  ) {
     return <Navigate to="/onboarding" replace />
+  }
+
+  if (allow && !allow.includes(actualRole)) {
+    return <Navigate to={roleHome(actualRole)} replace />
   }
 
   return <>{children}</>

@@ -21,7 +21,6 @@ export function Signup() {
     const fullName = form.get('fullName') as string
     const email = form.get('email') as string
     const password = form.get('password') as string
-
     const role = form.get('role') as Role
 
     const { error } = await signUp(email, password, fullName, role)
