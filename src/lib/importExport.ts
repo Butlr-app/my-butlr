@@ -3,6 +3,7 @@
  * No external libraries for CSV — manual parsing/generation.
  * jsPDF is used for PDF export (already in project dependencies).
  */
+import { jsPDF } from 'jspdf'
 
 // ─── CSV Export ───────────────────────────────────────────────
 
@@ -104,7 +105,6 @@ export async function exportReportPdf(
   sections: { heading: string; content: string }[],
   metadata?: { date: string; generatedBy?: string }
 ): Promise<void> {
-  const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
 

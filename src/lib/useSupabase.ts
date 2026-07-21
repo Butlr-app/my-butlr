@@ -49,13 +49,43 @@ export interface Reservation {
   departure: string
   guests_count: number
   status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
-  payment_status: 'pending' | 'partial' | 'paid' | 'refunded'
+  booking_kind: 'guest' | 'owner_stay' | 'marketing_event' | 'blocked_dates' | 'other'
+  contract_mode: 'to_prepare' | 'already_done' | 'concierge' | 'none'
+  payment_status: 'pending' | 'partial' | 'paid' | 'refunded' | 'not_applicable'
   contract_status: 'none' | 'draft' | 'sent' | 'signed'
   total_amount: number
   notes: string | null
   created_at: string
   updated_at: string
   property?: Property
+}
+
+// Derives a set of reservation workflow fields that satisfy the database
+// `reservations_workflow_consistency_check` constraint. Guest bookings require a
+// real contract mode/status and an applicable payment status; every other
+// booking kind is a non-billable hold with no contract.
+export function reservationWorkflowFields(
+  bookingKind: Reservation['booking_kind'],
+  contractMode: Reservation['contract_mode'],
+  totalAmount: number,
+): Pick<Reservation, 'booking_kind' | 'contract_mode' | 'contract_status' | 'payment_status' | 'total_amount'> {
+  if (bookingKind === 'guest') {
+    const mode = contractMode && contractMode !== 'none' ? contractMode : 'to_prepare'
+    return {
+      booking_kind: 'guest',
+      contract_mode: mode,
+      contract_status: mode === 'already_done' ? 'signed' : 'draft',
+      payment_status: 'pending',
+      total_amount: Number.isFinite(totalAmount) ? totalAmount : 0,
+    }
+  }
+  return {
+    booking_kind: bookingKind,
+    contract_mode: 'none',
+    contract_status: 'none',
+    payment_status: 'not_applicable',
+    total_amount: 0,
+  }
 }
 
 export interface Service {
@@ -124,6 +154,7 @@ export interface ServiceProvider {
 export interface Payment {
   id: string
   reservation_id: string | null
+  property_id: string | null
   guest_name: string
   property_name: string | null
   type: 'booking' | 'deposit' | 'service' | 'commission'
@@ -152,6 +183,7 @@ export interface Payout {
 export interface Contract {
   id: string
   reservation_id: string | null
+  property_id: string | null
   guest_name: string
   property_name: string | null
   type: 'rental' | 'service' | 'partnership'
@@ -349,6 +381,18 @@ export function useReservations() {
   const [enriching, setEnriching] = useState(true)
   const [propertiesMap, setPropertiesMap] = useState<Record<string, Property>>({})
 
+  // Normalize workflow fields on every insert path (form, iCal, CSV) so the row
+  // always satisfies the DB workflow-consistency constraint.
+  const insert = (row: Partial<Reservation>) =>
+    base.insert({
+      ...row,
+      ...reservationWorkflowFields(
+        row.booking_kind ?? 'guest',
+        row.contract_mode ?? 'to_prepare',
+        Number(row.total_amount ?? 0),
+      ),
+    })
+
   useEffect(() => {
     async function enrich() {
       if (base.loading) return
@@ -376,7 +420,7 @@ export function useReservations() {
     enrich()
   }, [base.data, base.loading])
 
-  return { ...base, loading: base.loading || enriching, data: withProperty, propertiesMap }
+  return { ...base, insert, loading: base.loading || enriching, data: withProperty, propertiesMap }
 }
 
 export function useServices() {

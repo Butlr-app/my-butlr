@@ -24,25 +24,36 @@ interface RoleContextType {
   setRole: (role: Role) => void
 }
 
+// Least-privileged fallback: a user whose role cannot be determined gets guest
+// access only. Elevated access must come from an explicit `profiles.role`.
+const DEFAULT_ROLE: Role = 'guest'
+
 const RoleContext = createContext<RoleContextType>({
-  role: 'owner',
-  actualRole: 'owner',
+  role: DEFAULT_ROLE,
+  actualRole: DEFAULT_ROLE,
   canPreviewRoles: false,
   roleLoading: true,
   setRole: () => {},
 })
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
-  const [actualRole, setActualRole] = useState<Role>('owner')
+  const { user, loading: authLoading } = useAuth()
+  const [actualRole, setActualRole] = useState<Role>(DEFAULT_ROLE)
   const [previewRole, setPreviewRole] = useState<Role | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     async function loadRole() {
+      // Wait until auth has settled. Resolving the role while `user` is still
+      // undefined would briefly expose the least-privileged default and make
+      // ProtectedRoute redirect a legitimate user before their real role loads.
+      if (authLoading) {
+        setRoleLoading(true)
+        return
+      }
       if (!user) {
-        setActualRole('owner')
+        setActualRole(DEFAULT_ROLE)
         setPreviewRole(null)
         setRoleLoading(false)
         return
@@ -61,13 +72,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       } else if (dbRole) {
         try { localStorage.setItem(cacheKey, dbRole) } catch { /* best-effort */ }
       }
-      setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : 'owner')
+      setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : DEFAULT_ROLE)
       setPreviewRole(null)
       setRoleLoading(false)
     }
     loadRole()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, authLoading])
 
   const canPreviewRoles = actualRole === 'owner'
   const role = canPreviewRoles && previewRole ? previewRole : actualRole

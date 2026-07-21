@@ -72,6 +72,10 @@ INSERT INTO payments (guest_name, property_name, type, amount, status, date) VAL
   ('Mme Tanaka', 'Villa Mauritius', 'deposit', 6600, 'pending', '2026-07-01')
 ON CONFLICT DO NOTHING;
 
+-- Link seeded payments to their property so ownership-based RLS can scope them.
+UPDATE payments p SET property_id = pr.id
+  FROM properties pr WHERE p.property_id IS NULL AND p.property_name = pr.name;
+
 -- Contracts
 INSERT INTO contracts (guest_name, property_name, type, status, date) VALUES
   ('M. & Mme Laurent', 'Villa French Way', 'rental', 'signed', '2026-05-15'),
@@ -83,6 +87,10 @@ INSERT INTO contracts (guest_name, property_name, type, status, date) VALUES
   ('Chef Martin', 'Villa French Way', 'partnership', 'signed', '2026-01-15'),
   ('Spa Prestige', 'Villa Mauritius', 'service', 'signed', '2026-03-01')
 ON CONFLICT DO NOTHING;
+
+-- Link seeded contracts to their property so ownership-based RLS can scope them.
+UPDATE contracts c SET property_id = pr.id
+  FROM properties pr WHERE c.property_id IS NULL AND c.property_name = pr.name;
 
 -- Calendar Events
 INSERT INTO calendar_events (property_id, title, type, start_date, end_date, notes) VALUES

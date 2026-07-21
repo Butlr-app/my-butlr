@@ -11,6 +11,7 @@ import {
   useContracts,
   useNotifications,
   useReservations,
+  useProperties,
   revokeContractSigningToken,
   type Contract,
 } from '@/lib/useSupabase'
@@ -26,6 +27,7 @@ const TOKEN_TTL_DAYS = 14
 
 const emptyForm = {
   guest_name: '',
+  property_id: null as string | null,
   property_name: '',
   type: 'rental' as Contract['type'],
   status: 'draft' as Contract['status'],
@@ -40,6 +42,7 @@ export function Contracts() {
   const navigate = useNavigate()
   const { data: contracts, loading, insert, update, remove, refetch } = useContracts()
   const { data: reservations } = useReservations()
+  const { data: properties } = useProperties()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query } = useSearch()
@@ -87,6 +90,7 @@ export function Contracts() {
     setEditingId(c.id)
     setForm({
       guest_name: c.guest_name,
+      property_id: c.property_id,
       property_name: c.property_name ?? '',
       type: c.type,
       status: c.status,
@@ -208,7 +212,7 @@ export function Contracts() {
       await revokeContractSigningToken(contract.id)
       toast('Signing link revoked')
       await refetch()
-    } catch (err) {
+    } catch {
       try {
         await update(contract.id, { signing_token: null, signing_expires_at: null })
         toast('Signing link revoked')
@@ -463,7 +467,16 @@ export function Contracts() {
               <Input label="Guest Name" required value={form.guest_name} onChange={e => setForm(f => ({ ...f, guest_name: e.target.value }))} />
               {errors.guest_name && <p className="text-xs text-destructive mt-1">{errors.guest_name}</p>}
             </div>
-            <Input label="Property" value={form.property_name} onChange={e => setForm(f => ({ ...f, property_name: e.target.value }))} />
+            <Select
+              label="Property"
+              value={form.property_id ?? ''}
+              onChange={e => {
+                const id = e.target.value
+                const prop = properties.find(p => p.id === id)
+                setForm(f => ({ ...f, property_id: id || null, property_name: prop?.name ?? '' }))
+              }}
+              options={[{ value: '', label: '— No property —' }, ...properties.map(p => ({ value: p.id, label: p.name }))]}
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select

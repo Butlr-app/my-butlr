@@ -26,6 +26,8 @@ const emptyForm = {
   departure: '',
   guests_count: 1,
   status: 'pending' as Reservation['status'],
+  booking_kind: 'guest' as Reservation['booking_kind'],
+  contract_mode: 'to_prepare' as Reservation['contract_mode'],
   total_amount: 0,
   notes: '',
 }
@@ -94,11 +96,28 @@ export function Reservations() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.property_id) {
+      toast('Please select a property', 'error')
+      return
+    }
+    if (form.arrival >= form.departure) {
+      toast('Departure must be after arrival', 'error')
+      return
+    }
     setSaving(true)
     try {
       await insert({
-        ...form,
-        property_id: form.property_id || null,
+        guest_name: form.guest_name,
+        guest_email: form.guest_email,
+        guest_phone: form.guest_phone,
+        property_id: form.property_id,
+        arrival: form.arrival,
+        departure: form.departure,
+        guests_count: form.guests_count,
+        status: form.status,
+        notes: form.notes,
+        booking_kind: form.booking_kind,
+        contract_mode: form.contract_mode,
         total_amount: Number(form.total_amount),
       })
       await insertNotification({
@@ -372,6 +391,7 @@ export function Reservations() {
           </div>
           <Select
             label="Property"
+            required
             value={form.property_id}
             onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}
             options={[
@@ -379,6 +399,32 @@ export function Reservations() {
               ...properties.map(p => ({ value: p.id, label: p.name })),
             ]}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Booking type"
+              value={form.booking_kind}
+              onChange={e => setForm(f => ({ ...f, booking_kind: e.target.value as Reservation['booking_kind'] }))}
+              options={[
+                { value: 'guest', label: 'Guest booking' },
+                { value: 'owner_stay', label: 'Owner stay' },
+                { value: 'marketing_event', label: 'Marketing event' },
+                { value: 'blocked_dates', label: 'Blocked dates' },
+                { value: 'other', label: 'Other' },
+              ]}
+            />
+            {form.booking_kind === 'guest' && (
+              <Select
+                label="Contract"
+                value={form.contract_mode === 'none' ? 'to_prepare' : form.contract_mode}
+                onChange={e => setForm(f => ({ ...f, contract_mode: e.target.value as Reservation['contract_mode'] }))}
+                options={[
+                  { value: 'to_prepare', label: 'To prepare' },
+                  { value: 'concierge', label: 'Concierge handles it' },
+                  { value: 'already_done', label: 'Already signed' },
+                ]}
+              />
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Arrival" type="date" required value={form.arrival} onChange={e => setForm(f => ({ ...f, arrival: e.target.value }))} />
             <Input label="Departure" type="date" required value={form.departure} onChange={e => setForm(f => ({ ...f, departure: e.target.value }))} />
