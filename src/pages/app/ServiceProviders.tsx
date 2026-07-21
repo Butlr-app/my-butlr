@@ -140,16 +140,15 @@ export function ServiceProviders() {
     if (!validate()) return
     setSaving(true)
     try {
-      const payload = {
+      const base = {
         ...form,
         property_id: form.property_id || null,
-        updated_at: new Date().toISOString(),
       }
       if (editingId) {
-        await update(editingId, payload)
+        await update(editingId, { ...base, updated_at: new Date().toISOString() })
         toast(t('serviceProviders.updated'))
       } else {
-        await insert(payload)
+        await insert(base)
         toast(t('serviceProviders.added'))
       }
       setShowForm(false)

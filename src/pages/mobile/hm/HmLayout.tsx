@@ -28,8 +28,11 @@ export function HmLayout() {
 
   useEffect(() => {
     if (!online || getQueue().length === 0) return
-    flushQueue().then(synced => {
+    flushQueue().then(({ synced, errors }) => {
       if (synced > 0) toast(`${t('hm.backOnline')} — ${synced} ${t('hm.changesSynced')}`)
+      if (errors.length > 0) {
+        toast(`${t('hm.syncFailed')}: ${errors.slice(0, 2).join('; ')}`, 'error')
+      }
     })
   }, [online, toast, t])
 

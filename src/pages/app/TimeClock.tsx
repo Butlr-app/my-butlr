@@ -86,7 +86,7 @@ export function TimeClock() {
     try {
       const today = new Date().toISOString().slice(0, 10)
       const shift = shifts.find(s => s.user_id === user?.id && s.property_id === propertyId && s.shift_date === today)
-      await insert({ property_id: propertyId, user_id: user?.id ?? '', shift_id: shift?.id ?? null })
+      await insert({ property_id: propertyId, user_id: user?.id ?? '', shift_id: shift?.id ?? null, clock_in: new Date().toISOString() })
       toast(t('timeclock.clockedIn'))
     } catch (err) {
       toast((err as Error).message, 'error')

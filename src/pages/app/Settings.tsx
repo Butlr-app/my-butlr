@@ -7,6 +7,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { useState, useEffect } from 'react'
 import { useProfile, useProperties, useServices, usePayments, type Property, type Service } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
+import { useAuth } from '@/lib/authContext'
 import { supabase } from '@/lib/supabase'
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
 import { ImageUpload } from '@/components/ui/ImageUpload'
@@ -326,6 +327,7 @@ function TeamTab({ profile, toast }: {
 
 function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void }) {
   const { data: properties, loading, insert, update, remove } = useProperties()
+  const { user } = useAuth()
   const [editProp, setEditProp] = useState<Property | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Property | null>(null)
@@ -368,7 +370,7 @@ function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | '
         await update(editProp.id, payload)
         toast('Property updated')
       } else {
-        await insert(payload)
+        await insert({ ...payload, owner_id: user?.id ?? null })
         toast('Property created')
       }
       setEditProp(null)
