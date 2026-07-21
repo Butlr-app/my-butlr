@@ -37,7 +37,7 @@ const RoleContext = createContext<RoleContextType>({
 })
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [actualRole, setActualRole] = useState<Role>(DEFAULT_ROLE)
   const [previewRole, setPreviewRole] = useState<Role | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
@@ -45,6 +45,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     async function loadRole() {
+      // Wait until auth has settled. Resolving the role while `user` is still
+      // undefined would briefly expose the least-privileged default and make
+      // ProtectedRoute redirect a legitimate user before their real role loads.
+      if (authLoading) {
+        setRoleLoading(true)
+        return
+      }
       if (!user) {
         setActualRole(DEFAULT_ROLE)
         setPreviewRole(null)
@@ -71,7 +78,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     }
     loadRole()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, authLoading])
 
   const canPreviewRoles = actualRole === 'owner'
   const role = canPreviewRoles && previewRole ? previewRole : actualRole
