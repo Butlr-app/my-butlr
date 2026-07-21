@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { FilterSidebar } from '@/components/FilterSidebar'
-import { usePayments, useNotifications, type Payment } from '@/lib/useSupabase'
+import { usePayments, useProperties, useNotifications, type Payment } from '@/lib/useSupabase'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
@@ -18,6 +18,7 @@ const PAGE_SIZE = 20
 
 const emptyForm = {
   guest_name: '',
+  property_id: null as string | null,
   property_name: '',
   type: 'booking' as Payment['type'],
   amount: 0,
@@ -27,6 +28,7 @@ const emptyForm = {
 
 export function Payments() {
   const { data: rawPayments, loading, insert, update, remove } = usePayments()
+  const { data: properties } = useProperties()
   const { insertNotification } = useNotifications()
   const { toast } = useToast()
   const { query, filters } = useSearch()
@@ -84,6 +86,7 @@ export function Payments() {
     setEditingId(p.id)
     setForm({
       guest_name: p.guest_name,
+      property_id: p.property_id,
       property_name: p.property_name ?? '',
       type: p.type,
       amount: p.amount,
@@ -345,7 +348,16 @@ export function Payments() {
               )}
               {errors.guest_name && <p className="text-xs text-destructive mt-1">{errors.guest_name}</p>}
             </div>
-            <Input label="Property" value={form.property_name} onChange={e => setForm(f => ({ ...f, property_name: e.target.value }))} />
+            <Select
+              label="Property"
+              value={form.property_id ?? ''}
+              onChange={e => {
+                const id = e.target.value
+                const prop = properties.find(p => p.id === id)
+                setForm(f => ({ ...f, property_id: id || null, property_name: prop?.name ?? '' }))
+              }}
+              options={[{ value: '', label: '— No property —' }, ...properties.map(p => ({ value: p.id, label: p.name }))]}
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
