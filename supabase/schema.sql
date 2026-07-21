@@ -147,6 +147,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE service_requests;
 CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reservation_id UUID REFERENCES reservations(id),
+  property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
   guest_name TEXT NOT NULL,
   property_name TEXT,
   type TEXT DEFAULT 'booking' CHECK (type IN ('booking', 'deposit', 'service', 'commission')),
@@ -161,6 +162,7 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS contracts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reservation_id UUID REFERENCES reservations(id),
+  property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
   guest_name TEXT NOT NULL,
   property_name TEXT,
   type TEXT DEFAULT 'rental' CHECK (type IN ('rental', 'service', 'partnership')),

@@ -124,6 +124,7 @@ export interface ServiceProvider {
 export interface Payment {
   id: string
   reservation_id: string | null
+  property_id: string | null
   guest_name: string
   property_name: string | null
   type: 'booking' | 'deposit' | 'service' | 'commission'
@@ -152,6 +153,7 @@ export interface Payout {
 export interface Contract {
   id: string
   reservation_id: string | null
+  property_id: string | null
   guest_name: string
   property_name: string | null
   type: 'rental' | 'service' | 'partnership'

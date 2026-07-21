@@ -24,9 +24,13 @@ interface RoleContextType {
   setRole: (role: Role) => void
 }
 
+// Least-privileged fallback: a user whose role cannot be determined gets guest
+// access only. Elevated access must come from an explicit `profiles.role`.
+const DEFAULT_ROLE: Role = 'guest'
+
 const RoleContext = createContext<RoleContextType>({
-  role: 'owner',
-  actualRole: 'owner',
+  role: DEFAULT_ROLE,
+  actualRole: DEFAULT_ROLE,
   canPreviewRoles: false,
   roleLoading: true,
   setRole: () => {},
@@ -34,7 +38,7 @@ const RoleContext = createContext<RoleContextType>({
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
-  const [actualRole, setActualRole] = useState<Role>('owner')
+  const [actualRole, setActualRole] = useState<Role>(DEFAULT_ROLE)
   const [previewRole, setPreviewRole] = useState<Role | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
 
@@ -42,7 +46,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     async function loadRole() {
       if (!user) {
-        setActualRole('owner')
+        setActualRole(DEFAULT_ROLE)
         setPreviewRole(null)
         setRoleLoading(false)
         return
@@ -61,7 +65,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       } else if (dbRole) {
         try { localStorage.setItem(cacheKey, dbRole) } catch { /* best-effort */ }
       }
-      setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : 'owner')
+      setActualRole(dbRole && VALID_ROLES.includes(dbRole) ? dbRole : DEFAULT_ROLE)
       setPreviewRole(null)
       setRoleLoading(false)
     }

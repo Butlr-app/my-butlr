@@ -8,30 +8,21 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('RoleContext', () => {
-  it('defaults to owner role', () => {
+  it('falls back to the least-privileged guest role when unauthenticated', () => {
     const { result } = renderHook(() => useRole(), { wrapper })
-    expect(result.current.role).toBe('owner')
+    expect(result.current.role).toBe('guest')
   })
 
-  it('allows changing role', () => {
+  it('does not allow role preview for non-owner roles', () => {
     const { result } = renderHook(() => useRole(), { wrapper })
+
+    expect(result.current.canPreviewRoles).toBe(false)
 
     act(() => {
       result.current.setRole('concierge')
     })
 
-    expect(result.current.role).toBe('concierge')
-  })
-
-  it('supports all defined roles', () => {
-    const roles = ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest'] as const
-    const { result } = renderHook(() => useRole(), { wrapper })
-
-    for (const role of roles) {
-      act(() => {
-        result.current.setRole(role)
-      })
-      expect(result.current.role).toBe(role)
-    }
+    // Preview is gated to owners, so the role must not change.
+    expect(result.current.role).toBe('guest')
   })
 })

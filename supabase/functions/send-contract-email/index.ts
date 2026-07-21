@@ -70,6 +70,23 @@ Deno.serve(async (req) => {
     })
   }
 
+  // Authorization: the caller may only act on a contract they can access.
+  // Reading through the RLS-scoped user client enforces the
+  // contract → reservation → property ownership/assignment chain, so a user
+  // cannot rotate the signing token of an arbitrary contract (IDOR).
+  const { data: allowed, error: accessErr } = await userClient
+    .from('contracts')
+    .select('id')
+    .eq('id', payload.contract_id)
+    .maybeSingle()
+
+  if (accessErr || !allowed) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
+
   const { data: contract, error: cErr } = await admin
     .from('contracts')
     .select('*')

@@ -6,6 +6,7 @@ function makePayment(overrides: Partial<Payment> = {}): Payment {
   return {
     id: 'pay-1',
     reservation_id: 'res-1',
+    property_id: 'prop-1',
     guest_name: 'M. & Mme Laurent',
     property_name: 'Villa French Way',
     type: 'booking',

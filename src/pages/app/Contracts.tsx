@@ -208,7 +208,7 @@ export function Contracts() {
       await revokeContractSigningToken(contract.id)
       toast('Signing link revoked')
       await refetch()
-    } catch (err) {
+    } catch {
       try {
         await update(contract.id, { signing_token: null, signing_expires_at: null })
         toast('Signing link revoked')
