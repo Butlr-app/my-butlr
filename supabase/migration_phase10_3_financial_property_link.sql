@@ -46,8 +46,14 @@ UPDATE public.contracts c
   WHERE c.property_id IS NULL AND c.property_name = pr.name;
 
 -- ─── Payments RLS ──────────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "Payment access by reservation property" ON public.payments;
-
+-- This policy is ADDITIVE. RLS permissive policies combine with OR, so it layers
+-- the direct property_id path on top of the existing owner/staff policies from
+-- migration_phase1_2_rls.sql / migration_partners_phase1.sql ("Owner staff or
+-- partner read payments", "Owner or assigned staff manage payments") rather than
+-- replacing them. We intentionally do NOT drop those here: the partner-read grant
+-- they carry is not reproduced by this owner/staff-scoped policy, so dropping it
+-- would remove partner payment visibility in a fresh rebuild.
+DROP POLICY IF EXISTS "Payment access by property or reservation" ON public.payments;
 CREATE POLICY "Payment access by property or reservation"
   ON public.payments FOR ALL
   TO authenticated
@@ -69,8 +75,9 @@ CREATE POLICY "Payment access by property or reservation"
   );
 
 -- ─── Contracts RLS ───────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "Contract access by reservation property" ON public.contracts;
-
+-- Additive, same rationale as payments above: layered via OR on top of the
+-- existing "Owner or assigned staff read/manage contracts" policies.
+DROP POLICY IF EXISTS "Contract access by property or reservation" ON public.contracts;
 CREATE POLICY "Contract access by property or reservation"
   ON public.contracts FOR ALL
   TO authenticated
