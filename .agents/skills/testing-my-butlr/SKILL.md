@@ -7,7 +7,8 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 
 ## Prerequisites
 
-- Dev server running: `cd /home/ubuntu/my-butlr && npx vite --port 5177`
+- Repo path is `/home/ubuntu/repos/my-butlr` (NOT `/home/ubuntu/my-butlr`).
+- Dev server running: `cd /home/ubuntu/repos/my-butlr && npx vite --port 5177` (Vite 8 needs Node 20.19+/22.12+; use Node 22.12).
 - Supabase project accessible (project ID: `kpcahtliadmsaoespwpv`)
 - Seed data loaded via `supabase/seed.sql`
 - Chrome browser running with CDP at `http://localhost:29229`
@@ -23,7 +24,7 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 
 ## How to Run Tests
 
-1. Start dev server: `cd /home/ubuntu/my-butlr && npx vite --port 5177 &`
+1. Start dev server: `cd /home/ubuntu/repos/my-butlr && npx vite --port 5177 &`
 2. Open Chrome to `http://localhost:5177/login`
 3. Log in with test credentials via computer tool or Playwright CDP
 4. Navigate through dashboard pages via sidebar links
@@ -277,6 +278,19 @@ description: Test the My Butlr SaaS dashboard end-to-end against live Supabase. 
 - **Year filter is data-derived** (years present in payments/reservations + current year). With all seed data in 2026, the `Select` only offers 2026 — you CANNOT reach an empty/other year through the UI alone.
   - Workaround to make the filter test adversarial: inject ONE distinctive paid payment in another year via the Supabase Management API, then **delete it after the test**. Example: `insert into payments (guest_name, property_name, type, amount, status, date) values ('E2E YearFilter 2025','Villa French Way','service',1234.56,'paid','2025-08-10');` then `delete from payments where id='<returned id>';`
   - This is STRONGER than an empty year: a broken filter would show the same number for both years (or the combined total). Verify: 2025 → Total €1,234.56, Booking €0, single Aug bar, donut "No data for this period", and 2026's €79,050 is GONE (no leakage); switch back to 2026 → values restored.
+
+### 24. Full stay simulation (reservation → check-in → service/boutique purchase → messaging → financial recap)
+- Tag all data with a unique marker (e.g. `E2E-SIM`, message tokens `SIM-GUEST-<ts>` / `SIM-MGR-<ts>`) so cleanup is precise. Baselines to restore: payments=14, reservations=12, service_requests=6, messages=5, checkins=1 (re-query live before starting; these drift as seed/tests change).
+- **Reservation creation via UI may be BROKEN**: `Reservations.tsx`'s "New reservation" form omits the workflow fields (`booking_kind`, `contract_mode`, `contract_status`, `payment_status`), violating the DB `reservations_workflow_consistency_check` constraint → insert rejected. Workaround to unblock downstream steps: provision the reservation via Management API with a consistent combo, e.g. `booking_kind='guest', contract_mode='to_prepare', contract_status='draft', payment_status='pending', total_amount>0`. Report the UI step as a FAILURE regardless of the workaround. (May be fixed later — re-test the UI form first.)
+- "Boutique/shopping" purchase has **no dedicated e-commerce module**; map it to a Services request (e.g. **Personal Shopper**). Both service and boutique purchases = Guest Portal service request → manager approval (assign partner + quote) → a `service` payment recorded in Payments linked to the property.
+- Service purchase flow: Guest Portal → Services tab → Request Service (native select includes services not shown as cards, e.g. Private Chef). Submit → shows under "My Requests" pending. Manager `/app/service-requests` → Approve modal (partner optional + quoted price) → counts shift pending→approved.
+- Payments form: for `type=service` the "Guest Name" label becomes "Partner Name"; set Property (dropdown captures `property_id`), Status=Paid, Amount, Date. Recording a payment updates Total Revenue + Transactions live and appears in Reports → Service Revenue Breakdown.
+- Messaging in a single-owner login: send from Guest Portal Messages tab, verify staff `/app/messages` conversation, reply from manager — both show "You/Owner" (same user). Delivery + per-conversation scoping ARE provable; cross-account RLS isolation and unread badge are NOT (see Realtime learnings).
+
+### Cleanup order & known deletion issues
+- **Payments delete via the UI trash icon may be inoperative** (no confirm dialog, row persists). Fall back to Management API deletion and note the deviation.
+- FK-safe delete order for a tagged reservation: `messages` → `checkins` → `service_requests` → `payments` → **`contracts`** → `reservations`. A reservation created with `contract_mode!='none'` auto-creates a `draft` contract; deleting the reservation fails with `contracts_reservation_id_fkey` until the contract is removed.
+- After cleanup, re-query counts AND confirm residual tagged rows = 0.
 
 ### Supabase Management API (writing test data despite RLS)
 - The anon key is blocked by RLS for writes, so to seed/clean adversarial test data use the Management API with `SUPABASE_ACCESS_TOKEN`:
