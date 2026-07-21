@@ -51,9 +51,13 @@ DROP POLICY IF EXISTS "Authenticated users can view properties" ON properties;
 DROP POLICY IF EXISTS "Authenticated manage properties" ON properties;
 DROP POLICY IF EXISTS "Owners can manage properties" ON properties;
 
+-- owner_id is checked directly (in addition to can_access_property) so that
+-- INSERT ... RETURNING succeeds: the SECURITY DEFINER function cannot see the
+-- just-inserted row within the same statement snapshot, but the row's own
+-- owner_id column is available on the returned tuple.
 CREATE POLICY "Owner or assigned staff read properties"
   ON properties FOR SELECT TO authenticated
-  USING (can_access_property(id));
+  USING (owner_id = auth.uid() OR can_access_property(id));
 
 CREATE POLICY "Owner inserts properties"
   ON properties FOR INSERT TO authenticated
