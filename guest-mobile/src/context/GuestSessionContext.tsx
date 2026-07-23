@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import {
   createContext,
   type PropsWithChildren,
@@ -12,6 +11,11 @@ import {
 import { getGuestPortal } from '@/lib/guestApi';
 import { normalizeLanguage } from '@/lib/i18n';
 import { extractInvitationToken } from '@/lib/invitation';
+import {
+  getSecureItem,
+  removeSecureItem,
+  setSecureItem,
+} from '@/lib/secureStorage';
 import type { GuestLanguage, GuestPortalPayload } from '@/types/guest';
 
 const STORAGE_KEY = 'my-butlr-guest-stay-token';
@@ -41,14 +45,14 @@ export function GuestSessionProvider({ children }: PropsWithChildren) {
     let cancelled = false;
     const bootstrap = async () => {
       try {
-        const savedToken = await SecureStore.getItemAsync(STORAGE_KEY);
+        const savedToken = await getSecureItem(STORAGE_KEY);
         if (!savedToken) return;
         const payload = await getGuestPortal(savedToken);
         if (cancelled) return;
         setToken(savedToken);
         setPortal(payload);
       } catch {
-        await SecureStore.deleteItemAsync(STORAGE_KEY);
+        await removeSecureItem(STORAGE_KEY);
         if (!cancelled) setBootstrapError(true);
       } finally {
         if (!cancelled) setLoading(false);
@@ -66,9 +70,7 @@ export function GuestSessionProvider({ children }: PropsWithChildren) {
     setActivating(true);
     try {
       const payload = await getGuestPortal(parsedToken);
-      await SecureStore.setItemAsync(STORAGE_KEY, parsedToken, {
-        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-      });
+      await setSecureItem(STORAGE_KEY, parsedToken);
       setToken(parsedToken);
       setPortal(payload);
       setBootstrapError(false);
@@ -78,7 +80,7 @@ export function GuestSessionProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync(STORAGE_KEY);
+    await removeSecureItem(STORAGE_KEY);
     setToken(null);
     setPortal(null);
   }, []);
