@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   bookText: { color: colors.white },
   pressed: { opacity: 0.78 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.overlay },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlay },
   sheet: {
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
