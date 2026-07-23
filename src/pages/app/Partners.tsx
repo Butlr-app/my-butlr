@@ -1,336 +1,361 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Globe, Handshake, Pencil, Plus, Star, Wrench } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
-import { Modal } from '@/components/ui/Modal'
-import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { ExportButton } from '@/components/ExportButton'
-import { usePartners, type Partner } from '@/lib/useSupabase'
-import { useToast } from '@/components/ui/Toast'
-import { useSearch } from '@/lib/searchContext'
-import { useTranslation } from '@/i18n/LanguageContext'
-import { Star, Plus, Loader2, Trash2, Pencil } from 'lucide-react'
-import { useRoleFilter } from '@/lib/useRoleFilter'
+import { EmptyState, LoadingState } from '@/components/EmptyState'
+import { PartnerDetailModal } from '@/components/partners/PartnerDetailModal'
+import { PartnerFormModal } from '@/components/partners/PartnerFormModal'
+import { useAuth } from '@/lib/authContext'
+import {
+  canManageManualPartner,
+  fetchManualPartners,
+  fetchMarketplacePartners,
+  isIntervenantPartnerCategory,
+  partnerDisplayContact,
+  partnerSourceLabels,
+  partnerStatusLabels,
+  type PartnerRecord,
+} from '@/lib/partners'
 
-const PAGE_SIZE = 20
+type PartnerTab = 'all' | 'manual' | 'marketplace'
 
-const emptyForm = {
-  name: '',
-  category: 'Private Chef',
-  location: '',
-  contact: '',
-  email: '',
-  phone: '',
-  commission: 10,
+const tabs: Array<{ id: PartnerTab; label: string; icon: typeof Handshake }> = [
+  { id: 'all', label: 'Tous', icon: Handshake },
+  { id: 'manual', label: 'Partenaires habituels', icon: Handshake },
+  { id: 'marketplace', label: 'Plateforme', icon: Globe },
+]
+
+function PartnerCard({
+  partner,
+  ownerId,
+  onClick,
+  onEdit,
+}: {
+  partner: PartnerRecord
+  ownerId?: string
+  onClick: (partner: PartnerRecord) => void
+  onEdit?: (partner: PartnerRecord) => void
+}) {
+  const isManual = partner.source === 'manual'
+  const manageable = canManageManualPartner(partner, ownerId)
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/20">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <button type="button" onClick={() => onClick(partner)} className="min-w-0 flex-1 text-left">
+          <p className="text-sm font-semibold">{partner.name}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{partnerDisplayContact(partner)}</p>
+        </button>
+        <Badge variant={isManual ? 'info' : 'warning'}>
+          {isManual ? 'Habituel' : 'En ligne'}
+        </Badge>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {partner.category && <Badge variant="muted">{partner.category}</Badge>}
+        <Badge variant={partner.status === 'active' ? 'success' : 'muted'}>
+          {partnerStatusLabels[partner.status]}
+        </Badge>
+        <span className="text-xs font-mono text-muted-foreground">{partner.commission} % commission</span>
+        {partner.rating > 0 && (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Star className="h-3 w-3 fill-current text-warning" />
+            {partner.rating.toFixed(1)}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-t border-dashed border-border pt-3">
+        <Button type="button" variant="secondary" size="sm" onClick={() => onClick(partner)}>
+          Voir la fiche
+        </Button>
+        {manageable && onEdit && (
+          <Button type="button" size="sm" onClick={() => onEdit(partner)}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Configurer
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PartnerSection({
+  title,
+  description,
+  partners,
+  ownerId,
+  emptyTitle,
+  emptyDescription,
+  onPartnerClick,
+  onPartnerEdit,
+  action,
+}: {
+  title: string
+  description: string
+  partners: PartnerRecord[]
+  ownerId?: string
+  emptyTitle: string
+  emptyDescription: string
+  onPartnerClick: (partner: PartnerRecord) => void
+  onPartnerEdit?: (partner: PartnerRecord) => void
+  action?: React.ReactNode
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
+        <div>
+          <h2 className="text-base font-semibold">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+        {action}
+      </div>
+
+      {partners.length === 0 ? (
+        <EmptyState title={emptyTitle} description={emptyDescription} action={action} />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {partners.map(partner => (
+            <PartnerCard
+              key={partner.id}
+              partner={partner}
+              ownerId={ownerId}
+              onClick={onPartnerClick}
+              onEdit={onPartnerEdit}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
 }
 
 export function Partners() {
-  const { data: rawPartners, loading, insert, update, remove } = usePartners()
-  const { toast } = useToast()
-  const { query } = useSearch()
-  const { t } = useTranslation()
-  const { filterPartners, canEdit } = useRoleFilter()
-  const partners = filterPartners(rawPartners)
-  const editable = canEdit('partners')
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
-  const [page, setPage] = useState(0)
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<PartnerTab>('manual')
+  const [manualPartners, setManualPartners] = useState<PartnerRecord[]>([])
+  const [marketplacePartners, setMarketplacePartners] = useState<PartnerRecord[]>([])
+  const [formOpen, setFormOpen] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [editingPartner, setEditingPartner] = useState<PartnerRecord | null>(null)
+  const [selectedPartner, setSelectedPartner] = useState<PartnerRecord | null>(null)
 
-  useEffect(() => { setPage(0) }, [query])
+  const loadPartners = async () => {
+    if (!user) return
+    setLoading(true)
 
-  const filtered = partners.filter(p => {
-    if (!query) return true
-    const q = query.toLowerCase()
-    return p.name.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q) || (p.location ?? '').toLowerCase().includes(q)
-  })
+    const [manualResult, marketplaceResult] = await Promise.all([
+      fetchManualPartners(user.id),
+      fetchMarketplacePartners(),
+    ])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-
-  const validate = () => {
-    const errs: Record<string, string> = {}
-    if (!form.name.trim()) errs.name = 'Name is required'
-    if (form.commission < 0 || form.commission > 100) errs.commission = '0-100%'
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Invalid email'
-    setErrors(errs)
-    return Object.keys(errs).length === 0
+    setManualPartners((manualResult.data as PartnerRecord[]) ?? [])
+    setMarketplacePartners((marketplaceResult.data as PartnerRecord[]) ?? [])
+    setLoading(false)
   }
+
+  useEffect(() => {
+    loadPartners()
+  }, [user?.id])
+
+  const serviceManualPartners = useMemo(
+    () => manualPartners.filter(partner => !isIntervenantPartnerCategory(partner.category)),
+    [manualPartners],
+  )
+
+  const serviceMarketplacePartners = useMemo(
+    () => marketplacePartners.filter(partner => !isIntervenantPartnerCategory(partner.category)),
+    [marketplacePartners],
+  )
+
+  const intervenantCount = useMemo(
+    () => [...manualPartners, ...marketplacePartners]
+      .filter(partner => isIntervenantPartnerCategory(partner.category)).length,
+    [manualPartners, marketplacePartners],
+  )
+
+  const visibleManual = useMemo(() => {
+    if (tab === 'marketplace') return []
+    return serviceManualPartners
+  }, [serviceManualPartners, tab])
+
+  const visibleMarketplace = useMemo(() => {
+    if (tab === 'manual') return []
+    return serviceMarketplacePartners
+  }, [serviceMarketplacePartners, tab])
 
   const openCreate = () => {
-    setEditingId(null)
-    setForm(emptyForm)
-    setErrors({})
-    setShowForm(true)
+    setEditingPartner(null)
+    setFormOpen(true)
   }
 
-  const openEdit = (p: Partner) => {
-    setEditingId(p.id)
-    setForm({
-      name: p.name,
-      category: p.category ?? 'Private Chef',
-      location: p.location ?? '',
-      contact: p.contact ?? '',
-      email: p.email ?? '',
-      phone: p.phone ?? '',
-      commission: p.commission,
-    })
-    setErrors({})
-    setShowForm(true)
+  const openDetail = (partner: PartnerRecord) => {
+    setSelectedPartner(partner)
+    setDetailOpen(true)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
-    setSaving(true)
-    try {
-      if (editingId) {
-        await update(editingId, form)
-        toast('Partner updated')
-      } else {
-        await insert({ ...form, status: 'active', rating: 0, bookings_count: 0 })
-        toast('Partner added')
+  const openEdit = (partner: PartnerRecord) => {
+    setEditingPartner(partner)
+    setDetailOpen(false)
+    setFormOpen(true)
+  }
+
+  const handleSaved = (partner: PartnerRecord) => {
+    setManualPartners(current => {
+      const exists = current.some(item => item.id === partner.id)
+      if (exists) {
+        return current.map(item => item.id === partner.id ? partner : item)
       }
-      setShowForm(false)
-      setForm(emptyForm)
-      setEditingId(null)
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setSaving(false)
+      return [partner, ...current]
+    })
+    setSelectedPartner(partner)
+    setEditingPartner(null)
   }
 
-  const toggleStatus = async (id: string, current: string) => {
-    try {
-      await update(id, { status: current === 'active' ? 'inactive' : 'active' })
-      toast('Status updated')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
+  const handleDeleted = (partnerId: string) => {
+    setManualPartners(current => current.filter(item => item.id !== partnerId))
+    setSelectedPartner(null)
   }
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await remove(deleteTarget.id)
-      toast('Partner removed')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setDeleteTarget(null)
-  }
+  const addManualButton = (
+    <Button size="sm" onClick={openCreate}>
+      <Plus className="mr-1.5 h-4 w-4" />
+      Ajouter un prestataire de services
+    </Button>
+  )
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  if (loading) return <LoadingState label="Chargement des prestataires…" />
 
-  const exportColumns: { key: keyof Partner; label: string }[] = [
-    { key: 'name', label: t('common.name') },
-    { key: 'category', label: t('common.type') },
-    { key: 'location', label: t('common.location') },
-    { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'commission', label: t('partners.commission') },
-    { key: 'status', label: t('common.status') },
-    { key: 'rating', label: t('partners.rating') },
-    { key: 'bookings_count', label: t('partners.bookings') },
-  ]
+  const totalCount = serviceManualPartners.length + serviceMarketplacePartners.length
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold tracking-tight text-muted-foreground">{t('partners.title')}</p>
-        <div className="flex items-center gap-2">
-          <ExportButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns as { key: string; label: string }[]} filename={`partners-${new Date().toISOString().split('T')[0]}`} />
-          {editable && (
-            <Button variant="gold" size="sm" onClick={openCreate}>
-              <Plus className="w-4 h-4 mr-1" /> {t('partners.addPartner')}
-            </Button>
-          )}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+            Réseau
+          </p>
+          <h1 className="mt-1 text-lg font-semibold">Prestataires de services</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Chef, spa & bien-être, transport, yacht et activités pour les voyageurs.
+            Les intervenants techniques villa (ménage, piscine, jardin, travaux) se gèrent dans
+            Entretien & travaux.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/app/operations"
+            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-input bg-card px-3 text-sm font-medium hover:bg-muted"
+          >
+            <Wrench className="h-4 w-4" />
+            Intervenants ({intervenantCount})
+          </Link>
+          {addManualButton}
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            {query ? 'No partners match your search.' : 'No partners yet.'}
-          </p>
-          {!query && editable && <Button variant="gold" size="sm" onClick={openCreate}>Add partner</Button>}
-        </Card>
+      <div className="flex flex-wrap gap-2">
+        {tabs.map(option => {
+          const Icon = option.icon
+          const count = option.id === 'manual'
+            ? serviceManualPartners.length
+            : option.id === 'marketplace'
+              ? serviceMarketplacePartners.length
+              : totalCount
+
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setTab(option.id)}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                tab === option.id
+                  ? 'border-foreground/20 bg-foreground text-background'
+                  : 'border-border bg-card text-foreground hover:bg-muted'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {option.label}
+              <span className="font-mono text-xs opacity-80">({count})</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {tab === 'all' && totalCount === 0 ? (
+        <EmptyState
+          title="Aucun prestataire de services"
+          description="Ajoutez un chef, un spa, un chauffeur ou une activité pour les voyageurs."
+          action={addManualButton}
+        />
       ) : (
-        <>
-          <div className="lg:hidden space-y-3">
-            {paginated.map(p => (
-              <Card key={p.id} className="p-4 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{p.email || p.contact}</p>
-                  </div>
-                  {editable ? (
-                    <button onClick={() => toggleStatus(p.id, p.status)} className="shrink-0">
-                      <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
-                    </button>
-                  ) : (
-                    <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span>{p.category}</span>
-                  <span>{p.location}</span>
-                  <span className="font-mono">{p.commission}%</span>
-                  <span className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-current text-warning" />
-                    <span className="font-mono">{Number(p.rating).toFixed(1)}</span>
-                  </span>
-                  <span className="font-mono">{p.bookings_count} bookings</span>
-                </div>
-                {editable && (
-                  <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
-                    <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-
-          <Card className="overflow-hidden hidden lg:block">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Partner</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commission</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bookings</th>
-                    {editable && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginated.map(p => (
-                    <tr key={p.id} className="border-b border-border hover:bg-muted/50 transition-colors h-14">
-                      <td className="px-4">
-                        <p className="text-sm font-medium">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.email || p.contact}</p>
-                      </td>
-                      <td className="px-4 text-sm text-muted-foreground">{p.category}</td>
-                      <td className="px-4 text-sm text-muted-foreground">{p.location}</td>
-                      <td className="px-4 text-sm tabular-nums">{p.commission}%</td>
-                      <td className="px-4">
-                        {editable ? (
-                          <button onClick={() => toggleStatus(p.id, p.status)}>
-                            <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
-                          </button>
-                        ) : (
-                          <Badge variant={p.status === 'active' ? 'success' : 'muted'}>{p.status}</Badge>
-                        )}
-                      </td>
-                      <td className="px-4">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-current text-warning" />
-                          <span className="text-sm tabular-nums">{Number(p.rating).toFixed(1)}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 text-sm tabular-nums text-right">{p.bookings_count}</td>
-                      {editable && (
-                        <td className="px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteTarget({ id: p.id, name: p.name })} className="text-muted-foreground hover:text-destructive transition-colors">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>
-              <span className="text-xs tabular-nums text-muted-foreground">{page + 1} / {totalPages}</span>
-              <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</Button>
-            </div>
+        <div className="space-y-8">
+          {(tab === 'all' || tab === 'manual') && (
+            <PartnerSection
+              title="Prestataires habituels"
+              description="Services voyageur de confiance — commission, contacts et notes internes."
+              partners={visibleManual}
+              ownerId={user?.id}
+              emptyTitle="Aucun prestataire habituel"
+              emptyDescription="Ajoutez un chef, un spa, un chauffeur ou une activité avec la commission négociée."
+              onPartnerClick={openDetail}
+              onPartnerEdit={openEdit}
+              action={addManualButton}
+            />
           )}
-        </>
+
+          {(tab === 'all' || tab === 'marketplace') && (
+            <PartnerSection
+              title="Partenaires plateforme"
+              description={`Prestataires de services inscrits en ligne (${partnerSourceLabels.marketplace.toLowerCase()}). Fiches synchronisées — consultation uniquement.`}
+              partners={visibleMarketplace}
+              ownerId={user?.id}
+              emptyTitle="Aucun partenaire plateforme"
+              emptyDescription="Les prestataires de services qui s'inscrivent avec le profil « Partenaire » apparaîtront ici automatiquement."
+              onPartnerClick={openDetail}
+            />
+          )}
+        </div>
       )}
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title={editingId ? 'Edit Partner' : 'New Partner'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <Card className="border-dashed p-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <Input label="Name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Chef Martin" />
-            {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+            <p className="text-sm font-medium">Prestataires habituels</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Cliquez sur « Configurer » pour modifier commission, contacts ou notes à tout moment.
+            </p>
           </div>
-          <Select
-            label="Category"
-            value={form.category}
-            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            options={[
-              { value: 'Private Chef', label: 'Private Chef' },
-              { value: 'Car Rental', label: 'Car Rental' },
-              { value: 'Boat Rental', label: 'Boat Rental' },
-              { value: 'Wellness', label: 'Wellness' },
-              { value: 'Security', label: 'Security' },
-              { value: 'Event Planning', label: 'Event Planning' },
-              { value: 'Housekeeping', label: 'Housekeeping' },
-              { value: 'Transport', label: 'Transport' },
-              { value: 'Other', label: 'Other' },
-            ]}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-            <div>
-              <Input label="Commission (%)" type="number" min={0} max={100} value={form.commission} onChange={e => setForm(f => ({ ...f, commission: Number(e.target.value) }))} />
-              {errors.commission && <p className="text-xs text-destructive mt-1">{errors.commission}</p>}
-            </div>
+          <div>
+            <p className="text-sm font-medium">Partenaires plateforme</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Fiches en lecture seule, mises à jour automatiquement depuis le compte du prestataire.
+            </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-              {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
-            </div>
-            <Input label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-          </div>
-          <Input label="Contact Name" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              {editingId ? 'Save changes' : 'Add Partner'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      </Card>
 
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
-        title="Remove partner"
-        message={`Remove "${deleteTarget?.name}"? This action cannot be undone.`}
+      <PartnerFormModal
+        open={formOpen}
+        partner={editingPartner}
+        categoryScope="service"
+        onClose={() => {
+          setFormOpen(false)
+          setEditingPartner(null)
+        }}
+        onSaved={handleSaved}
+      />
+
+      <PartnerDetailModal
+        open={detailOpen}
+        partner={selectedPartner}
+        ownerId={user?.id}
+        onClose={() => setDetailOpen(false)}
+        onEdit={openEdit}
+        onDeleted={handleDeleted}
       />
     </div>
   )

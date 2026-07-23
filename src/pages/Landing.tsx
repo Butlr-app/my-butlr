@@ -34,7 +34,7 @@ export function Landing() {
   }
 
   return (
-    <div className="dark bg-background text-foreground min-h-screen">
+    <div className="bg-background text-foreground min-h-screen">
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 border-b border-border bg-card/90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto h-14 flex items-center justify-between px-6">

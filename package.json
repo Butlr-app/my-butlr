@@ -8,8 +8,14 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest",
-    "test:e2e": "playwright test"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "check": "npm run lint && npm run test && npm run build",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:cf": "wrangler deploy"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -21,13 +27,17 @@
     "i18next": "^26.3.2",
     "i18next-browser-languagedetector": "^8.2.1",
     "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.21.0",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-i18next": "^17.0.8",
     "react-router-dom": "^7.18.0",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.1"
+    "tailwindcss": "^4.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
@@ -38,10 +48,14 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
-    "jsdom": "^28.1.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
     "oxlint": "^1.69.0",
+    "supabase": "^2.109.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.112.0"
   }
 }

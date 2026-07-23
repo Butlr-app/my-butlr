@@ -12,6 +12,11 @@ import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
 import { useRoleFilter } from '@/lib/useRoleFilter'
+import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
+import { formatMaskedAmount } from '@/lib/permissions'
+import { formatDateForDisplay } from '@/lib/dateFormat'
+import { useReservationDetail } from '@/lib/reservationDetailContext'
 import { Plus, Loader2, Trash2, Pencil, Download, Filter } from 'lucide-react'
 
 const PAGE_SIZE = 20
@@ -32,6 +37,10 @@ export function Payments() {
   const { query, filters } = useSearch()
   const { t } = useTranslation()
   const { filterPayments, canEdit } = useRoleFilter()
+  const { profile } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const { openReservation } = useReservationDetail()
   const payments = filterPayments(rawPayments)
   const editable = canEdit('payments')
   const [showForm, setShowForm] = useState(false)
@@ -188,11 +197,11 @@ export function Payments() {
       <div className="grid sm:grid-cols-3 gap-4">
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Total Revenue</p>
-          <p className="text-2xl tabular-nums font-medium">€{totalRevenue.toLocaleString()}</p>
+          <p className="text-2xl tabular-nums font-medium">{formatMaskedAmount(totalRevenue, canViewAmounts)}</p>
         </Card>
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Pending</p>
-          <p className="text-2xl tabular-nums font-medium text-warning">€{totalPending.toLocaleString()}</p>
+          <p className="text-2xl tabular-nums font-medium text-warning">{formatMaskedAmount(totalPending, canViewAmounts)}</p>
         </Card>
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Transactions</p>
@@ -211,21 +220,27 @@ export function Payments() {
         <>
           <div className="lg:hidden space-y-3">
             {paginated.map(p => (
-              <Card key={p.id} className="p-4 space-y-2">
+              <Card
+                key={p.id}
+                className={`p-4 space-y-2 ${p.reservation_id ? 'cursor-pointer hover:bg-muted/50 transition-colors' : ''}`}
+                onClick={() => {
+                  if (p.reservation_id) openReservation(p.reservation_id)
+                }}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{p.guest_name}</p>
                     <p className="text-xs text-muted-foreground truncate">{p.property_name}</p>
                   </div>
-                  <p className="text-sm font-mono shrink-0">€{Number(p.amount).toLocaleString()}</p>
+                  <p className="text-sm font-mono shrink-0">{formatMaskedAmount(p.amount, canViewAmounts)}</p>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-mono">{p.date}</span>
+                    <span className="font-mono">{formatDateForDisplay(p.date, profile?.date_format)}</span>
                     <span className="capitalize">· {p.type}</span>
                   </div>
                   {editable ? (
-                    <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                    <button onClick={e => { e.stopPropagation(); handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid') }}>
                       <Badge variant={
                         p.status === 'paid' ? 'success' :
                         p.status === 'failed' ? 'destructive' :
@@ -246,10 +261,10 @@ export function Payments() {
                 </div>
                 {editable && (
                   <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
-                    <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                    <button onClick={e => { e.stopPropagation(); openEdit(p) }} className="text-muted-foreground hover:text-foreground transition-colors p-1">
                       <Pencil className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget({ id: p.id, name: p.guest_name }) }} className="text-muted-foreground hover:text-destructive transition-colors p-1">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -274,15 +289,33 @@ export function Payments() {
                 </thead>
                 <tbody>
                   {paginated.map(p => (
-                    <tr key={p.id} className="border-b border-border hover:bg-muted/50 transition-colors h-14">
-                      <td className="px-4 text-sm tabular-nums">{p.date}</td>
+                    <tr
+                      key={p.id}
+                      className={`border-b border-border transition-colors h-14 ${
+                        p.reservation_id ? 'cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring' : 'hover:bg-muted/50'
+                      }`}
+                      role={p.reservation_id ? 'button' : undefined}
+                      tabIndex={p.reservation_id ? 0 : undefined}
+                      aria-label={p.reservation_id ? `Voir la réservation de ${p.guest_name}` : undefined}
+                      onClick={() => {
+                        if (p.reservation_id) openReservation(p.reservation_id)
+                      }}
+                      onKeyDown={event => {
+                        if (!p.reservation_id) return
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openReservation(p.reservation_id)
+                        }
+                      }}
+                    >
+                      <td className="px-4 text-sm tabular-nums">{formatDateForDisplay(p.date, profile?.date_format)}</td>
                       <td className="px-4 text-sm font-medium">{p.guest_name}</td>
                       <td className="px-4 text-sm text-muted-foreground">{p.property_name}</td>
                       <td className="px-4 text-sm text-muted-foreground capitalize">{p.type}</td>
-                      <td className="px-4 text-sm tabular-nums text-right">€{Number(p.amount).toLocaleString()}</td>
+                      <td className="px-4 text-sm tabular-nums text-right">{formatMaskedAmount(p.amount, canViewAmounts)}</td>
                       <td className="px-4">
                         {editable ? (
-                          <button onClick={() => handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid')}>
+                          <button onClick={e => { e.stopPropagation(); handleStatusUpdate(p.id, p.status === 'paid' ? 'pending' : 'paid') }}>
                             <Badge variant={
                               p.status === 'paid' ? 'success' :
                               p.status === 'failed' ? 'destructive' :
@@ -304,10 +337,10 @@ export function Payments() {
                       {editable && (
                         <td className="px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => openEdit(p)} className="text-muted-foreground hover:text-foreground transition-colors">
+                            <button onClick={e => { e.stopPropagation(); openEdit(p) }} className="text-muted-foreground hover:text-foreground transition-colors">
                               <Pencil className="w-4 h-4" />
                             </button>
-                            <button onClick={() => setDeleteTarget({ id: p.id, name: p.guest_name })} className="text-muted-foreground hover:text-destructive transition-colors">
+                            <button onClick={e => { e.stopPropagation(); setDeleteTarget({ id: p.id, name: p.guest_name }) }} className="text-muted-foreground hover:text-destructive transition-colors">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>

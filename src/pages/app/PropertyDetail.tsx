@@ -1,210 +1,271 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { Modal } from '@/components/ui/Modal'
-import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { useProperties, useReservations, useTasks, usePropertyAmenities, usePropertyRooms, usePropertyImages, type PropertyRoom } from '@/lib/useSupabase'
-import { ImageUpload, ImageGallery } from '@/components/ui/ImageUpload'
-import { useToast } from '@/components/ui/Toast'
-import { AMENITY_CATEGORIES, ROOM_TYPES, BEDDING_TYPES } from '@/data/amenities'
-import {
-  ArrowLeft, Loader2, ChevronDown, ChevronRight, Check, Star, Bath, Tv, Thermometer,
-  Shield, Wifi, UtensilsCrossed, MapPin, Car, Waves, TreePine, BedDouble, Plus, Trash2, Save
-} from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { NumberStepper } from '@/components/ui/NumberStepper'
+import { AmenityPicker } from '@/components/ui/AmenityPicker'
+import { ImageUpload } from '@/components/ui/ImageUpload'
+import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete'
+import { EmptyState, LoadingState } from '@/components/EmptyState'
+import { PropertyOverviewSummary } from '@/components/property/PropertyDetailsPanel'
+import { StorageBucketSetupHint } from '@/components/property/StorageBucketSetupHint'
+import { PropertyColumnsSetupHint } from '@/components/property/PropertyColumnsSetupHint'
+import { PropertyPricingPanel } from '@/components/property/PropertyPricingPanel'
+import { PropertyTeamPanel } from '@/components/property/PropertyTeamPanel'
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
+import { useAuth } from '@/lib/authContext'
+import { supabase } from '@/lib/supabase'
+import { fetchOwnerReservations } from '@/lib/data'
+import { updateOwnerProperty } from '@/lib/createProperty'
+import { uploadPropertyImage } from '@/lib/uploadPropertyImage'
+import type { Property, Reservation } from '@/lib/types'
+import { formatDateForDisplay } from '@/lib/dateFormat'
+import { useReservationDetail } from '@/lib/reservationDetailContext'
 
-const tabs = ['Overview', 'Photos', 'Amenities', 'Rooms', 'Bookings', 'Tasks', 'Services', 'Documents']
+const tabs = [
+  { id: 'Overview', label: 'Aperçu' },
+  { id: 'Tarifs & calendrier', label: 'Tarifs & calendrier' },
+  { id: 'Bookings', label: 'Réservations' },
+  { id: 'Staff', label: 'Équipe' },
+]
 
-const statusMap: Record<string, { variant: 'success' | 'muted' | 'warning'; label: string }> = {
-  active: { variant: 'success', label: 'Active' },
-  inactive: { variant: 'muted', label: 'Inactive' },
-  maintenance: { variant: 'warning', label: 'Maintenance' },
+interface PropertyFormState {
+  name: string
+  location: string
+  type: string
+  status: string
+  bedrooms: number
+  bathrooms: number
+  maxGuests: number
+  surfaceSqm: number
+  address: string
+  amenities: string[]
+  description: string
+  marketplaceListed: boolean
+  marketplaceBookingUrl: string
+  marketplaceTagline: string
 }
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  essentials: <Star className="w-4 h-4" />,
-  bathroom_laundry: <Bath className="w-4 h-4" />,
-  entertainment: <Tv className="w-4 h-4" />,
-  heating_cooling: <Thermometer className="w-4 h-4" />,
-  security: <Shield className="w-4 h-4" />,
-  internet_office: <Wifi className="w-4 h-4" />,
-  kitchen_dining: <UtensilsCrossed className="w-4 h-4" />,
-  location_features: <MapPin className="w-4 h-4" />,
-  parking_facilities: <Car className="w-4 h-4" />,
-  pool_spa: <Waves className="w-4 h-4" />,
-  outdoor_activities: <TreePine className="w-4 h-4" />,
-  services: <BedDouble className="w-4 h-4" />,
+function toFormState(property: Property): PropertyFormState {
+  return {
+    name: property.name,
+    location: property.location ?? '',
+    type: property.type,
+    status: property.status,
+    bedrooms: property.bedrooms ?? 0,
+    bathrooms: property.bathrooms ?? 0,
+    maxGuests: property.max_guests ?? 0,
+    surfaceSqm: property.surface_m2 ?? 0,
+    address: property.address ?? '',
+    amenities: Array.isArray(property.amenities) ? property.amenities : [],
+    description: property.description ?? '',
+    marketplaceListed: property.marketplace_listed ?? false,
+    marketplaceBookingUrl: property.marketplace_booking_url ?? '',
+    marketplaceTagline: property.marketplace_tagline ?? '',
+  }
 }
 
 export function PropertyDetail() {
   const { id } = useParams()
-  const { data: properties, loading } = useProperties()
-  const { data: reservations } = useReservations()
-  const { data: tasks } = useTasks()
-  const { amenityKeys, loading: amenitiesLoading, saveAmenities } = usePropertyAmenities(id)
-  const { rooms, loading: roomsLoading, addRoom, updateRoom, removeRoom } = usePropertyRooms(id)
-  const { images, loading: imagesLoading, addImage, removeImage } = usePropertyImages(id)
-  const { toast } = useToast()
+  const { user, profile } = useAuth()
+  const { openReservation } = useReservationDetail()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [property, setProperty] = useState<Property | null>(null)
+  const [reservations, setReservations] = useState<Reservation[]>([])
   const [activeTab, setActiveTab] = useState('Overview')
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['essentials']))
-  const [editingAmenities, setEditingAmenities] = useState(false)
-  const [draftAmenityKeys, setDraftAmenityKeys] = useState<Set<string>>(new Set())
-  const [savingAmenities, setSavingAmenities] = useState(false)
-  const [showRoomModal, setShowRoomModal] = useState(false)
-  const [editingRoom, setEditingRoom] = useState<PropertyRoom | null>(null)
-  const [deleteRoomTarget, setDeleteRoomTarget] = useState<PropertyRoom | null>(null)
-  const [roomForm, setRoomForm] = useState({
-    room_type: 'bedroom',
-    room_name: '',
-    variant: 'private' as 'private' | 'shared',
-    bedding: [] as Array<{ type: string; count: number }>,
-  })
-  const [savingRoom, setSavingRoom] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState<PropertyFormState | null>(null)
+  const [error, setError] = useState('')
+  const [missingColumns, setMissingColumns] = useState<string[]>([])
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false)
+  const [canScrollTabsRight, setCanScrollTabsRight] = useState(false)
 
-  const property = properties.find(p => p.id === id)
-  const propReservations = reservations.filter(r => r.property_id === id)
-  const propTasks = tasks.filter(t => t.property_id === id)
-
-  const amenityKeySet = useMemo(() => new Set(amenityKeys), [amenityKeys])
-
-  const selectedCountByCategory = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const cat of AMENITY_CATEGORIES) {
-      const activeSet = editingAmenities ? draftAmenityKeys : amenityKeySet
-      counts[cat.key] = cat.items.filter(i => activeSet.has(i.key)).length
-    }
-    return counts
-  }, [amenityKeySet, draftAmenityKeys, editingAmenities])
-
-  const toggleCategory = (key: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
-      return next
-    })
-  }
-
-  const startEditAmenities = () => {
-    setDraftAmenityKeys(new Set(amenityKeys))
-    setEditingAmenities(true)
-  }
-
-  const toggleAmenity = (key: string) => {
-    setDraftAmenityKeys(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
-      return next
-    })
-  }
-
-  const handleSaveAmenities = async () => {
-    setSavingAmenities(true)
-    try {
-      await saveAmenities([...draftAmenityKeys])
-      setEditingAmenities(false)
-      toast('Amenities updated')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setSavingAmenities(false)
-  }
-
-  const openAddRoom = () => {
-    setEditingRoom(null)
-    setRoomForm({ room_type: 'bedroom', room_name: '', variant: 'private', bedding: [] })
-    setShowRoomModal(true)
-  }
-
-  const openEditRoom = (room: PropertyRoom) => {
-    setEditingRoom(room)
-    setRoomForm({
-      room_type: room.room_type,
-      room_name: room.room_name ?? '',
-      variant: room.variant,
-      bedding: room.bedding ?? [],
-    })
-    setShowRoomModal(true)
-  }
-
-  const addBeddingRow = () => {
-    setRoomForm(f => ({ ...f, bedding: [...f.bedding, { type: 'king', count: 1 }] }))
-  }
-
-  const updateBeddingRow = (index: number, field: 'type' | 'count', value: string | number) => {
-    setRoomForm(f => ({
-      ...f,
-      bedding: f.bedding.map((b, i) => i === index ? { ...b, [field]: value } : b),
-    }))
-  }
-
-  const removeBeddingRow = (index: number) => {
-    setRoomForm(f => ({ ...f, bedding: f.bedding.filter((_, i) => i !== index) }))
-  }
-
-  const handleSubmitRoom = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!id) return
-    setSavingRoom(true)
-    try {
-      if (editingRoom) {
-        await updateRoom(editingRoom.id, {
-          room_type: roomForm.room_type,
-          room_name: roomForm.room_name || null,
-          variant: roomForm.variant,
-          bedding: roomForm.bedding,
-        })
-        toast('Room updated')
-      } else {
-        await addRoom({
-          property_id: id,
-          room_type: roomForm.room_type,
-          room_name: roomForm.room_name || null,
-          variant: roomForm.variant,
-          bedding: roomForm.bedding,
-        })
-        toast('Room added')
-      }
-      setShowRoomModal(false)
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setSavingRoom(false)
-  }
-
-  const confirmDeleteRoom = async () => {
-    if (!deleteRoomTarget) return
-    try {
-      await removeRoom(deleteRoomTarget.id)
-      toast('Room deleted')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setDeleteRoomTarget(null)
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
+  const updateTabScrollState = useCallback(() => {
+    const element = tabsRef.current
+    if (!element) return
+    setCanScrollTabsLeft(element.scrollLeft > 4)
+    setCanScrollTabsRight(
+      element.scrollLeft + element.clientWidth < element.scrollWidth - 4,
     )
+  }, [])
+
+  useEffect(() => {
+    updateTabScrollState()
+    window.addEventListener('resize', updateTabScrollState)
+    return () => window.removeEventListener('resize', updateTabScrollState)
+  }, [updateTabScrollState])
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      tabsRef.current
+        ?.querySelector<HTMLElement>('[aria-selected="true"]')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      updateTabScrollState()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeTab, updateTabScrollState])
+
+  const scrollTabs = (direction: -1 | 1) => {
+    tabsRef.current?.scrollBy({
+      left: direction * Math.max(220, (tabsRef.current?.clientWidth ?? 0) * 0.65),
+      behavior: 'smooth',
+    })
   }
 
-  if (!property) {
+  const handleTabsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (editing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const currentIndex = tabs.findIndex(tab => tab.id === activeTab)
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tabs.length - 1
+        : Math.max(0, Math.min(
+          tabs.length - 1,
+          currentIndex + (event.key === 'ArrowRight' ? 1 : -1),
+        ))
+    setActiveTab(tabs[nextIndex].id)
+  }
+
+  useEffect(() => {
+    if (!user || !id) return
+    const userId = user.id
+
+    async function load() {
+      const [{ data: prop }, { data: res }] = await Promise.all([
+        supabase.from('properties').select('*').eq('id', id).single(),
+        fetchOwnerReservations(userId),
+      ])
+
+      const loaded = prop as Property | null
+      setProperty(loaded)
+      if (loaded) setForm(toFormState(loaded))
+      setReservations(((res as Reservation[]) ?? []).filter(r => r.property_id === id))
+      setLoading(false)
+    }
+
+    load()
+  }, [user, id])
+
+  const startEditing = (focusPhoto = false) => {
+    if (!property) return
+    setForm(toFormState(property))
+    setCoverFile(null)
+    setCoverPreview(property.image_url)
+    setError('')
+    setEditing(true)
+    if (focusPhoto && !property.image_url) {
+      setTimeout(() => {
+        document.getElementById('property-cover-upload')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }
+
+  const cancelEditing = () => {
+    if (coverPreview?.startsWith('blob:')) URL.revokeObjectURL(coverPreview)
+    setCoverFile(null)
+    setCoverPreview(null)
+    if (property) setForm(toFormState(property))
+    setError('')
+    setEditing(false)
+  }
+
+  const handleCoverChange = (file: File | null, previewUrl: string | null) => {
+    if (coverPreview?.startsWith('blob:') && coverPreview !== previewUrl) {
+      URL.revokeObjectURL(coverPreview)
+    }
+    setCoverFile(file)
+    setCoverPreview(previewUrl)
+  }
+
+  const handleSave = async () => {
+    if (!user || !property || !form) return
+
+    if (!form.name.trim() || !form.location.trim()) {
+      setError('Name and location are required.')
+      return
+    }
+    if (form.marketplaceListed && !/^https:\/\//i.test(form.marketplaceBookingUrl.trim())) {
+      setError('Ajoutez un lien de réservation HTTPS pour référencer ce bien.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+
+    let imageUrl: string | null = property.image_url
+
+    if (coverFile) {
+      const { url, error: uploadError } = await uploadPropertyImage(coverFile)
+      if (uploadError) {
+        setSaving(false)
+        setError(uploadError.message)
+        return
+      }
+      imageUrl = url
+    } else if (!coverPreview) {
+      imageUrl = null
+    }
+
+    const { property: updated, error: saveError, missingColumns: missing } = await updateOwnerProperty({
+      id: property.id,
+      ownerId: user.id,
+      name: form.name,
+      location: form.location,
+      type: form.type,
+      status: form.status,
+      bedrooms: form.bedrooms,
+      bathrooms: form.bathrooms,
+      maxGuests: form.maxGuests,
+      description: form.description,
+      address: form.address,
+      surfaceSqm: form.surfaceSqm,
+      amenities: form.amenities,
+      imageUrl,
+      marketplaceListed: form.marketplaceListed,
+      marketplaceBookingUrl: form.marketplaceBookingUrl,
+      marketplaceTagline: form.marketplaceTagline,
+    })
+
+    setSaving(false)
+
+    if (saveError || !updated) {
+      setError(saveError?.message ?? 'Failed to save changes.')
+      return
+    }
+
+    setProperty(updated)
+    setForm(toFormState(updated))
+    setCoverFile(null)
+    setCoverPreview(updated.image_url)
+    setMissingColumns(missing ?? [])
+
+    if (!missing || missing.length === 0) {
+      setEditing(false)
+    }
+  }
+
+  if (loading) return <LoadingState />
+
+  if (!property || !form) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Link to="/app/properties" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> Properties
         </Link>
-        <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground">Property not found.</p>
-        </Card>
+        <EmptyState title="Property not found" description="This property doesn't exist or you don't have access." />
       </div>
     )
   }
+
+  const displayImage = coverPreview ?? property.image_url
 
   return (
     <div className="space-y-6">
@@ -213,441 +274,261 @@ export function PropertyDetail() {
         Properties
       </Link>
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold">{property.name}</h2>
-          <p className="text-sm text-muted-foreground">{property.location || 'No location'}</p>
+          <h2 className="text-xl font-bold">{editing ? 'Edit property' : property.name}</h2>
+          <p className="text-sm text-muted-foreground">{editing ? property.name : property.location}</p>
         </div>
-        <Badge variant={statusMap[property.status]?.variant ?? 'muted'}>
-          {statusMap[property.status]?.label ?? property.status}
-        </Badge>
-      </div>
-
-      <div className="border-b border-border">
-        <div className="flex gap-0 overflow-x-auto">
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab}
-              {tab === 'Amenities' && amenityKeys.length > 0 && (
-                <span className="ml-1.5 text-xs bg-muted px-1.5 py-0.5 rounded-full">{amenityKeys.length}</span>
-              )}
-              {tab === 'Rooms' && rooms.length > 0 && (
-                <span className="ml-1.5 text-xs bg-muted px-1.5 py-0.5 rounded-full">{rooms.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── Overview Tab ───────────────────────────────────────────── */}
-      {activeTab === 'Overview' && (
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Bedrooms</p>
-            <p className="text-2xl tabular-nums font-medium">{property.bedrooms}</p>
-          </Card>
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Bathrooms</p>
-            <p className="text-2xl tabular-nums font-medium">{property.bathrooms}</p>
-          </Card>
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Max Guests</p>
-            <p className="text-2xl tabular-nums font-medium">{property.max_guests}</p>
-          </Card>
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Type</p>
-            <p className="text-lg font-medium capitalize">{property.type}</p>
-          </Card>
-          {property.surface_m2 > 0 && (
-            <Card className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Surface</p>
-              <p className="text-2xl tabular-nums font-medium">{property.surface_m2} <span className="text-sm">m²</span></p>
-            </Card>
-          )}
-          {property.units > 1 && (
-            <Card className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Units</p>
-              <p className="text-2xl tabular-nums font-medium">{property.units}</p>
-            </Card>
-          )}
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Reservations</p>
-            <p className="text-2xl tabular-nums font-medium">{propReservations.length}</p>
-          </Card>
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Open Tasks</p>
-            <p className="text-2xl tabular-nums font-medium">{propTasks.filter(t => t.status !== 'done').length}</p>
-          </Card>
-          {amenityKeys.length > 0 && (
-            <Card className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Amenities</p>
-              <p className="text-2xl tabular-nums font-medium">{amenityKeys.length}</p>
-            </Card>
-          )}
-          {property.description && (
-            <Card className="p-5 md:col-span-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Description</p>
-              <p className="text-sm text-muted-foreground">{property.description}</p>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* ─── Photos Tab ──────────────────────────────────────────── */}
-      {activeTab === 'Photos' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Photo Gallery {images.length > 0 && `(${images.length})`}
-            </p>
-          </div>
-          <ImageUpload
-            storagePath={`properties/${id}`}
-            onUploaded={async (url, storagePath) => {
-              try {
-                await addImage({ property_id: id!, url, storage_path: storagePath, caption: null, sort_order: images.length })
-                toast('Photo uploaded')
-              } catch (err) {
-                toast((err as Error).message, 'error')
-              }
-            }}
-          />
-          <ImageGallery
-            images={images}
-            loading={imagesLoading}
-            onRemove={async (imgId) => {
-              try {
-                await removeImage(imgId)
-                toast('Photo removed')
-              } catch (err) {
-                toast((err as Error).message, 'error')
-              }
-            }}
-          />
-        </div>
-      )}
-
-      {/* ─── Amenities Tab ──────────────────────────────────────────── */}
-      {activeTab === 'Amenities' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Equipment & Amenities {!editingAmenities && amenityKeys.length > 0 && `(${amenityKeys.length} selected)`}
-            </p>
-            {editingAmenities ? (
-              <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setEditingAmenities(false)}>Cancel</Button>
-                <Button size="sm" onClick={handleSaveAmenities} disabled={savingAmenities}>
-                  {savingAmenities ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
-                  Save
+        <div className="flex items-center gap-2 shrink-0">
+          {!editing && (
+            <>
+              <Badge variant={property.status === 'active' ? 'success' : 'warning'}>{property.status}</Badge>
+              {activeTab === 'Overview' && (
+                <Button variant="secondary" size="sm" onClick={() => startEditing()}>
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  Modifier
                 </Button>
-              </div>
-            ) : (
-              <Button size="sm" onClick={startEditAmenities}>Edit amenities</Button>
-            )}
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <nav
+        aria-label="Sections de la propriété"
+        className="sticky top-16 z-20 rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur"
+      >
+        <div className="relative">
+          {canScrollTabsLeft && (
+            <div className="absolute inset-y-0 left-0 z-10 flex items-center bg-gradient-to-r from-background via-background to-transparent pr-5">
+              <button
+                type="button"
+                onClick={() => scrollTabs(-1)}
+                aria-label="Afficher les sections précédentes"
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-border bg-card shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div
+            ref={tabsRef}
+            role="tablist"
+            aria-label="Navigation de la fiche villa"
+            onScroll={updateTabScrollState}
+            onKeyDown={handleTabsKeyDown}
+            className="flex touch-pan-x gap-1 overflow-x-auto scroll-smooth px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                tabIndex={activeTab === tab.id ? 0 : -1}
+                onClick={() => { if (!editing) setActiveTab(tab.id) }}
+                disabled={editing}
+                className={`min-h-11 shrink-0 cursor-pointer whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 ${
+                  activeTab === tab.id
+                    ? 'bg-foreground text-background shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {amenitiesLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {AMENITY_CATEGORIES.map(category => {
-                const isExpanded = expandedCategories.has(category.key)
-                const count = selectedCountByCategory[category.key]
-                const activeSet = editingAmenities ? draftAmenityKeys : amenityKeySet
-
-                return (
-                  <Card key={category.key} className="overflow-hidden">
-                    <button
-                      onClick={() => toggleCategory(category.key)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground">{categoryIcons[category.key]}</span>
-                        <span className="text-sm font-medium">{category.labelFr}</span>
-                        {count > 0 && (
-                          <span className="text-xs bg-foreground text-background px-2 py-0.5 rounded-full tabular-nums">
-                            {count}
-                          </span>
-                        )}
-                      </div>
-                      {isExpanded
-                        ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        : <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      }
-                    </button>
-                    {isExpanded && (
-                      <div className="border-t border-border px-4 pb-4 pt-3">
-                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {category.items.map(item => {
-                            const isSelected = activeSet.has(item.key)
-                            return editingAmenities ? (
-                              <label
-                                key={item.key}
-                                className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                                  isSelected
-                                    ? 'border-foreground bg-foreground/5'
-                                    : 'border-border hover:border-muted-foreground/50'
-                                }`}
-                              >
-                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                                  isSelected ? 'bg-foreground border-foreground' : 'border-muted-foreground/40'
-                                }`}>
-                                  {isSelected && <Check className="w-3 h-3 text-background" />}
-                                </div>
-                                <input
-                                  type="checkbox"
-                                  className="sr-only"
-                                  checked={isSelected}
-                                  onChange={() => toggleAmenity(item.key)}
-                                />
-                                <span className="text-sm">{item.labelFr}</span>
-                              </label>
-                            ) : (
-                              <div
-                                key={item.key}
-                                className={`flex items-center gap-3 p-2.5 rounded-lg ${
-                                  isSelected ? 'text-foreground' : 'text-muted-foreground/40'
-                                }`}
-                              >
-                                {isSelected ? (
-                                  <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                                ) : (
-                                  <div className="w-4 h-4 shrink-0" />
-                                )}
-                                <span className={`text-sm ${isSelected ? '' : 'line-through'}`}>{item.labelFr}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                )
-              })}
+          {canScrollTabsRight && (
+            <div className="absolute inset-y-0 right-0 z-10 flex items-center bg-gradient-to-l from-background via-background to-transparent pl-5">
+              <button
+                type="button"
+                onClick={() => scrollTabs(1)}
+                aria-label="Afficher les sections suivantes"
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-border bg-card shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           )}
         </div>
+      </nav>
+
+      {activeTab === 'Overview' && !editing && (
+        <PropertyOverviewSummary
+          property={property}
+          displayImage={displayImage}
+          onEdit={() => startEditing()}
+          onAddPhoto={() => startEditing(true)}
+        />
       )}
 
-      {/* ─── Rooms Tab ──────────────────────────────────────────────── */}
-      {activeTab === 'Rooms' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Rooms & Bedding {rooms.length > 0 && `(${rooms.length})`}
-            </p>
-            <Button size="sm" onClick={openAddRoom}>
-              <Plus className="w-4 h-4 mr-1" /> Add room
-            </Button>
+      {activeTab === 'Overview' && editing && (
+        <div className="space-y-4 max-w-2xl">
+          <div id="property-cover-upload">
+            <ImageUpload
+              label="Photo de couverture"
+              value={coverFile}
+              previewUrl={coverPreview}
+              onChange={handleCoverChange}
+            />
           </div>
 
-          {roomsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : rooms.length === 0 ? (
-            <Card className="p-12 text-center">
-              <p className="text-sm text-muted-foreground">No rooms configured yet.</p>
-              <Button variant="secondary" size="sm" className="mt-4" onClick={openAddRoom}>Add first room</Button>
-            </Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rooms.map(room => {
-                const roomDef = ROOM_TYPES.find(r => r.key === room.room_type)
-                return (
-                  <Card key={room.id} className="p-5 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {room.room_name || roomDef?.labelFr || room.room_type}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {roomDef?.labelFr || room.room_type} · {room.variant === 'private' ? 'Privé' : 'Partagé'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => openEditRoom(room)}
-                          className="p-1.5 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
-                          title="Edit"
-                        >
-                          <BedDouble className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteRoomTarget(room)}
-                          className="p-1.5 hover:bg-destructive/10 rounded transition-colors text-muted-foreground hover:text-destructive"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    {room.bedding && room.bedding.length > 0 && (
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bedding</p>
-                        {room.bedding.map((b, i) => {
-                          const bedDef = BEDDING_TYPES.find(bt => bt.key === b.type)
-                          return (
-                            <p key={i} className="text-xs text-muted-foreground">
-                              {b.count}x {bedDef?.labelFr || b.type}
-                            </p>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+          <Input label="Nom de la propriété" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          <Input label="Localisation" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Grimaud, France" required />
+          <AddressAutocomplete
+            label="Adresse"
+            value={form.address}
+            onChange={address => setForm({ ...form, address })}
+            context={form.location}
+            enabled={form.location.toLocaleLowerCase('fr').includes('france')}
+            placeholder="Commencez à saisir l’adresse…"
+          />
 
-      {/* ─── Bookings Tab ───────────────────────────────────────────── */}
-      {activeTab === 'Bookings' && (
-        <Card className="p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-4">Reservations for {property.name}</p>
-          {propReservations.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No reservations for this property.</p>
-          ) : (
-            <div className="space-y-3">
-              {propReservations.map(r => (
-                <div key={r.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{r.guest_name}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{r.arrival} → {r.departure}</p>
-                  </div>
-                  <Badge variant={r.status === 'confirmed' || r.status === 'completed' ? 'success' : r.status === 'cancelled' ? 'destructive' : 'warning'}>
-                    {r.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ─── Tasks Tab ──────────────────────────────────────────────── */}
-      {activeTab === 'Tasks' && (
-        <Card className="p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-4">Tasks for {property.name}</p>
-          {propTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No tasks for this property.</p>
-          ) : (
-            <div className="space-y-3">
-              {propTasks.map(t => (
-                <div key={t.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{t.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{t.status.replace('_', ' ')}</p>
-                  </div>
-                  <Badge variant={t.priority === 'high' ? 'destructive' : t.priority === 'medium' ? 'warning' : 'muted'}>
-                    {t.priority}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {(activeTab === 'Services' || activeTab === 'Documents') && (
-        <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground">{activeTab} for {property.name}</p>
-          <Button variant="secondary" size="sm" className="mt-4">Configure {activeTab.toLowerCase()}</Button>
-        </Card>
-      )}
-
-      {/* ─── Room Modal ─────────────────────────────────────────────── */}
-      <Modal open={showRoomModal} onClose={() => setShowRoomModal(false)} title={editingRoom ? 'Edit Room' : 'Add Room'}>
-        <form onSubmit={handleSubmitRoom} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
             <Select
-              label="Room type"
-              value={roomForm.room_type}
-              onChange={e => setRoomForm(f => ({ ...f, room_type: e.target.value }))}
-              options={ROOM_TYPES.map(r => ({ value: r.key, label: r.labelFr }))}
+              label="Type"
+              value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value })}
+              options={[
+                { value: 'villa', label: 'Villa' },
+                { value: 'yacht', label: 'Yacht' },
+                { value: 'apartment', label: 'Apartment' },
+                { value: 'chalet', label: 'Chalet' },
+              ]}
             />
             <Select
-              label="Access"
-              value={roomForm.variant}
-              onChange={e => setRoomForm(f => ({ ...f, variant: e.target.value as 'private' | 'shared' }))}
+              label="Status"
+              value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value })}
               options={[
-                { value: 'private', label: 'Privé' },
-                { value: 'shared', label: 'Partagé' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'maintenance', label: 'Maintenance' },
               ]}
             />
           </div>
-          <Input
-            label="Room name (optional)"
-            value={roomForm.room_name}
-            onChange={e => setRoomForm(f => ({ ...f, room_name: e.target.value }))}
-            placeholder="e.g. Master Suite, Blue Room..."
-          />
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bedding</p>
-              <button type="button" onClick={addBeddingRow} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <Plus className="w-3 h-3" /> Add bed
-              </button>
-            </div>
-            {roomForm.bedding.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">No bedding configured.</p>
-            ) : (
-              <div className="space-y-2">
-                {roomForm.bedding.map((b, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Select
-                      value={b.type}
-                      onChange={e => updateBeddingRow(i, 'type', e.target.value)}
-                      options={BEDDING_TYPES.map(bt => ({ value: bt.key, label: bt.labelFr }))}
-                    />
-                    <Input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={b.count}
-                      onChange={e => updateBeddingRow(i, 'count', Number(e.target.value))}
-                      className="w-20"
-                    />
-                    <button type="button" onClick={() => removeBeddingRow(i)} className="p-1.5 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <NumberStepper label="Bedrooms" value={form.bedrooms} onChange={v => setForm({ ...form, bedrooms: v })} min={0} max={30} />
+            <NumberStepper label="Bathrooms" value={form.bathrooms} onChange={v => setForm({ ...form, bathrooms: v })} min={0} max={30} />
+            <NumberStepper label="Max guests" value={form.maxGuests} onChange={v => setForm({ ...form, maxGuests: v })} min={1} max={50} />
+            <NumberStepper label="Surface m²" value={form.surfaceSqm} onChange={v => setForm({ ...form, surfaceSqm: v })} min={0} max={10000} />
+          </div>
+
+          <AmenityPicker value={form.amenities} onChange={amenities => setForm({ ...form, amenities })} />
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-foreground">Description</label>
+            <textarea
+              rows={5}
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              className="w-full px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info focus:ring-1 focus:ring-info/20"
+            />
+          </div>
+
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={form.marketplaceListed}
+                onChange={event => setForm({ ...form, marketplaceListed: event.target.checked })}
+                className="mt-1 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-foreground">
+                  Référencer ce bien sur My Butlr
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  Le bien pourra être recommandé aux voyageurs après leur séjour. Seules les informations publiques ci-dessous seront affichées.
+                </span>
+              </span>
+            </label>
+
+            {form.marketplaceListed && (
+              <div className="mt-4 space-y-4 border-t border-border pt-4">
+                <Input
+                  label="Lien de réservation public"
+                  type="url"
+                  value={form.marketplaceBookingUrl}
+                  onChange={event => setForm({ ...form, marketplaceBookingUrl: event.target.value })}
+                  placeholder="https://..."
+                />
+                <Input
+                  label="Accroche publique"
+                  value={form.marketplaceTagline}
+                  onChange={event => setForm({ ...form, marketplaceTagline: event.target.value })}
+                  placeholder="Une villa confidentielle face à la Méditerranée"
+                />
               </div>
             )}
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" type="button" onClick={() => setShowRoomModal(false)}>Cancel</Button>
-            <Button type="submit" disabled={savingRoom}>
-              {savingRoom ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              {editingRoom ? 'Save changes' : 'Add room'}
+          {error && (
+            <div className="space-y-2">
+              <p className="text-xs text-destructive">{error}</p>
+              <StorageBucketSetupHint error={error} />
+            </div>
+          )}
+
+          {missingColumns.length > 0 && <PropertyColumnsSetupHint columns={missingColumns} />}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" size="md" className="flex-1" onClick={cancelEditing} disabled={saving}>
+              Annuler
+            </Button>
+            <Button type="button" size="md" className="flex-1" onClick={handleSave} disabled={saving}>
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </div>
-        </form>
-      </Modal>
+        </div>
+      )}
 
-      <ConfirmModal
-        open={!!deleteRoomTarget}
-        onClose={() => setDeleteRoomTarget(null)}
-        onConfirm={confirmDeleteRoom}
-        title="Delete room"
-        message={`Delete "${deleteRoomTarget?.room_name || deleteRoomTarget?.room_type}"? This action cannot be undone.`}
-      />
+      {activeTab === 'Bookings' && (
+        <Card className="p-5">
+          {reservations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No reservations for this property yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {reservations.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => openReservation(r)}
+                  className="flex w-full cursor-pointer items-center justify-between border-b border-border py-3 text-left last:border-0 hover:bg-muted/30"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{r.guest_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateForDisplay(r.arrival, profile?.date_format)}
+                      {' — '}
+                      {formatDateForDisplay(r.departure, profile?.date_format)}
+                    </p>
+                  </div>
+                  <Badge variant={r.status === 'confirmed' ? 'success' : 'warning'}>{r.status}</Badge>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {activeTab === 'Tarifs & calendrier' && (
+        <PropertyPricingPanel propertyId={property.id} reservations={reservations} />
+      )}
+
+      {activeTab === 'Staff' && (
+        <PropertyTeamPanel
+          propertyId={property.id}
+          propertyName={property.name}
+          ownerId={property.owner_id}
+          userId={user?.id}
+          dateFormat={profile?.date_format}
+        />
+      )}
+
     </div>
   )
 }

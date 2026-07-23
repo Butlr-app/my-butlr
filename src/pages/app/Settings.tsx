@@ -1,776 +1,869 @@
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/Select'
-import { Modal } from '@/components/ui/Modal'
-import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { Switch } from '@/components/ui/Switch'
 import { useState, useEffect } from 'react'
-import { useProfile, useProperties, useServices, usePayments, type Property, type Service } from '@/lib/useSupabase'
-import { useToast } from '@/components/ui/Toast'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
-import { ImageUpload } from '@/components/ui/ImageUpload'
+import { useAuth } from '@/lib/authContext'
 import { useRole } from '@/lib/roleContext'
-import { useRolePermissions, CONFIGURABLE_PAGES, type RolePermissions } from '@/lib/useSupabase'
+import { usePermissions } from '@/lib/permissionsContext'
+import {
+  DEFAULT_AGENCY_PERMISSIONS,
+  DEFAULT_CONCIERGE_PERMISSIONS,
+  DEFAULT_HOUSE_MANAGER_PERMISSIONS,
+  DEFAULT_PARTNER_APP_PERMISSIONS,
+  HOUSE_MANAGER_CONFIGURABLE_CAPABILITIES,
+  OWNER_PERMISSIONS,
+  capabilityDescriptions,
+  capabilityLabels,
+  enabledCapabilities,
+  formatMaskedAmount,
+  roleLabelsFr,
+  roleVisibilityBlurb,
+  type AppCapability,
+  type PermissionMap,
+} from '@/lib/permissions'
+import type { Role } from '@/lib/roleContext'
+import {
+  dateFormatLabels,
+  dateFormats,
+  type DateFormat,
+} from '@/lib/dateFormat'
+import {
+  BillingNotConfiguredError,
+  fetchMySubscription,
+  startCheckout,
+  type Subscription,
+  type SubscriptionPlan,
+} from '@/lib/billing'
 
-const BASE_TABS = ['Account', 'Team', 'Properties', 'Payments', 'Services']
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Payment {
+  id: string
+  reservation_id: string | null
+  guest_name: string | null
+  property_name: string | null
+  type: string | null
+  amount: number | null
+  status: string | null
+  date: string | null
+}
+
+interface NotificationPrefs {
+  email_bookings: boolean
+  email_payments: boolean
+  email_team: boolean
+  push_bookings: boolean
+  push_payments: boolean
+  push_team: boolean
+  sms_bookings: boolean
+  sms_payments: boolean
+  sms_team: boolean
+}
+
+// ─── Spinner Component ───────────────────────────────────────────────────────
+
+function Spinner({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={`animate-spin h-4 w-4 ${className}`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  )
+}
+
+// ─── Toggle Component ────────────────────────────────────────────────────────
+
+function Toggle({ enabled, onChange, label }: { enabled: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+      <span className="text-sm text-foreground">{label}</span>
+      <button
+        type="button"
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+          enabled ? 'bg-foreground' : 'bg-muted'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            enabled ? 'translate-x-6' : 'translate-x-1'
+          }`}
+        />
+      </button>
+    </div>
+  )
+}
+
+// ─── Feedback Message ────────────────────────────────────────────────────────
+
+function Feedback({ message, type }: { message: string; type: 'success' | 'error' }) {
+  if (!message) return null
+  return (
+    <p className={`text-xs font-medium mt-2 ${type === 'success' ? 'text-green-500' : 'text-destructive'}`}>
+      {message}
+    </p>
+  )
+}
+
+// ─── Tab Button ──────────────────────────────────────────────────────────────
+
+const settingsTabs = [
+  { id: 'Account', label: 'Compte' },
+  { id: 'Team', label: 'Équipe' },
+  { id: 'Roles', label: 'Rôles' },
+  { id: 'Payments', label: 'Paiements' },
+  { id: 'Notifications', label: 'Notifications' },
+] as const
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState('Account')
-  const { profile, loading, updateProfile } = useProfile()
-  const { toast } = useToast()
+  const { user, refreshProfile } = useAuth()
   const { role } = useRole()
+  const { can } = usePermissions()
+  const visibleTabs = settingsTabs.filter(tab => {
+    if (tab.id === 'Team' || tab.id === 'Roles') return role === 'owner'
+    if (tab.id === 'Payments') return can('payments') || can('reservation_amounts')
+    return true
+  })
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('tab') === 'Roles' ? 'Roles' : 'Account'
+  })
 
-  const settingsTabs = role === 'owner' ? [...BASE_TABS, 'Permissions'] : BASE_TABS
+  useEffect(() => {
+    if (!visibleTabs.some(tab => tab.id === activeTab)) {
+      setActiveTab('Account')
+    }
+  }, [activeTab, visibleTabs])
 
   return (
     <div className="space-y-6">
-      <p className="text-xs font-semibold tracking-tight text-muted-foreground">Settings</p>
+      <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">Paramètres</p>
 
       <div className="border-b border-border">
         <div className="flex gap-0 overflow-x-auto">
-          {settingsTabs.map(tab => (
+          {visibleTabs.map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
+                activeTab === tab.id
                   ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {activeTab === 'Account' && <AccountTab profile={profile} loading={loading} updateProfile={updateProfile} toast={toast} />}
-      {activeTab === 'Team' && <TeamTab profile={profile} toast={toast} />}
-      {activeTab === 'Properties' && <PropertiesTab toast={toast} />}
+      {activeTab === 'Account' && (
+        <AccountTab userId={user?.id} refreshProfile={refreshProfile} isOwner={role === 'owner'} />
+      )}
+      {activeTab === 'Team' && role === 'owner' && <TeamTab />}
+      {activeTab === 'Roles' && role === 'owner' && <RolesTab />}
       {activeTab === 'Payments' && <PaymentsTab />}
-      {activeTab === 'Services' && <ServicesTab toast={toast} />}
-      {activeTab === 'Permissions' && <PermissionsTab toast={toast} />}
+      {activeTab === 'Notifications' && <NotificationsTab userId={user?.id} />}
+
+      <Card className="flex flex-wrap items-center justify-between gap-3 border-dashed p-4">
+        <p className="text-xs text-muted-foreground">
+          La gestion des services de conciergerie a été déplacée vers sa propre page.
+        </p>
+        <Link to="/app/services">
+          <Button variant="secondary" size="sm">Gérer la conciergerie</Button>
+        </Link>
+      </Card>
     </div>
   )
 }
 
-/* ─── Account Tab ────────────────────────────────────────────────────────── */
+// ─── 1. Account Tab ──────────────────────────────────────────────────────────
 
-function AccountTab({ profile, loading, updateProfile, toast }: {
-  profile: ReturnType<typeof useProfile>['profile']
-  loading: boolean
-  updateProfile: ReturnType<typeof useProfile>['updateProfile']
-  toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void
+function AccountTab({
+  userId,
+  refreshProfile,
+  isOwner,
+}: {
+  userId: string | undefined
+  refreshProfile: (options?: { silent?: boolean }) => Promise<void>
+  isOwner: boolean
 }) {
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [company, setCompany] = useState('')
+  const [dateFormat, setDateFormat] = useState<DateFormat>('DD/MM/YYYY')
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', company: '' })
-  const [pwForm, setPwForm] = useState({ current: '', password: '', confirm: '' })
-  const [pwLoading, setPwLoading] = useState(false)
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
-    if (profile) {
-      setForm({
-        full_name: profile.full_name ?? '',
-        email: profile.email ?? '',
-        phone: profile.phone ?? '',
-        company: profile.company ?? '',
-      })
+    if (!userId) return
+    const fetchProfile = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone, company, date_format')
+        .eq('id', userId)
+        .single()
+      if (!error && data) {
+        setFullName(data.full_name || '')
+        setEmail(data.email || '')
+        setPhone(data.phone || '')
+        setCompany(data.company || '')
+        setDateFormat((data.date_format as DateFormat | null) ?? 'DD/MM/YYYY')
+      }
+      setLoading(false)
     }
-  }, [profile])
+    fetchProfile()
+  }, [userId])
 
   const handleSave = async () => {
-    if (!form.full_name.trim()) { toast('Name is required', 'error'); return }
+    if (!userId) return
     setSaving(true)
-    try {
-      await updateProfile(form)
-      toast('Profile updated')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
+    setFeedback(null)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName, email, phone, company, date_format: dateFormat })
+      .eq('id', userId)
     setSaving(false)
-  }
-
-  const handlePasswordChange = async () => {
-    if (pwForm.password.length < 6) { toast('Password must be at least 6 characters', 'error'); return }
-    if (pwForm.password !== pwForm.confirm) { toast('Passwords do not match', 'error'); return }
-    setPwLoading(true)
-    const { error } = await supabase.auth.updateUser({ password: pwForm.password })
-    setPwLoading(false)
     if (error) {
-      toast(error.message, 'error')
+      setFeedback({ message: `Erreur : ${error.message}`, type: 'error' })
     } else {
-      toast('Password updated')
-      setPwForm({ current: '', password: '', confirm: '' })
+      await refreshProfile({ silent: true })
+      setFeedback({ message: 'Profil enregistré avec succès.', type: 'success' })
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
+      <Card className="p-6 max-w-xl">
+        <div className="flex items-center gap-3">
+          <Spinner />
+          <span className="text-sm text-muted-foreground">Chargement du profil…</span>
+        </div>
+      </Card>
     )
   }
 
   return (
     <div className="space-y-6 max-w-xl">
       <Card className="p-6">
-        <h3 className="text-base font-semibold mb-6">Profile</h3>
+        <h3 className="text-base font-semibold mb-6">Paramètres du compte</h3>
         <div className="space-y-4">
-          <ImageUpload
-            variant="avatar"
-            storagePath="avatars"
-            currentUrl={profile?.avatar_url}
-            onUploaded={async (url) => {
-              try {
-                await updateProfile({ avatar_url: url })
-                toast('Avatar updated')
-              } catch (err) {
-                toast((err as Error).message, 'error')
-              }
-            }}
+          <Input label="Nom complet" value={fullName} onChange={e => setFullName(e.target.value)} />
+          <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <PhoneInput label="Téléphone" value={phone} onChange={setPhone} />
+          <Input label="Société" value={company} onChange={e => setCompany(e.target.value)} />
+          <Select
+            label="Format des dates"
+            value={dateFormat}
+            onChange={event => setDateFormat(event.target.value as DateFormat)}
+            options={dateFormats.map(format => ({
+              value: format,
+              label: dateFormatLabels[format],
+            }))}
           />
-          <Input label="Full name" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} required />
-          <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          <Input label="Phone" type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-          <Input label="Company" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
+          <p className="text-xs text-muted-foreground">
+            Ce format sera utilisé dans les formulaires, les réservations et le calendrier.
+          </p>
           <Button size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-            Save changes
+            {saving && <Spinner className="mr-2" />}
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </Button>
+          {feedback && <Feedback message={feedback.message} type={feedback.type} />}
         </div>
       </Card>
-
-      <Card className="p-6">
-        <h3 className="text-base font-semibold mb-6">Change Password</h3>
-        <div className="space-y-4">
-          <Input label="New password" type="password" value={pwForm.password} onChange={e => setPwForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 characters" />
-          <Input label="Confirm password" type="password" value={pwForm.confirm} onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))} placeholder="Repeat password" />
-          <Button size="sm" onClick={handlePasswordChange} disabled={pwLoading}>
-            {pwLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-            Update password
-          </Button>
-        </div>
-      </Card>
+      {isOwner && <BillingCard />}
     </div>
   )
 }
 
-/* ─── Team Tab ───────────────────────────────────────────────────────────── */
-
-interface TeamMember {
-  id: string
-  full_name: string | null
-  email: string | null
-  role: string
+const PLAN_LABELS: Record<SubscriptionPlan, string> = {
+  starter: 'Starter',
+  pro: 'Pro',
 }
 
-function TeamTab({ profile, toast }: {
-  profile: ReturnType<typeof useProfile>['profile']
-  toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void
-}) {
-  const [members, setMembers] = useState<TeamMember[]>([])
+const STATUS_LABELS: Record<Subscription['status'], string> = {
+  trialing: 'Essai',
+  active: 'Actif',
+  past_due: 'Paiement en retard',
+  canceled: 'Annulé',
+  incomplete: 'Incomplet',
+}
+
+function BillingCard() {
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [editMember, setEditMember] = useState<TeamMember | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null)
-  const [inviteForm, setInviteForm] = useState({ email: '', role: 'concierge' })
+  const [checkoutPlan, setCheckoutPlan] = useState<SubscriptionPlan | null>(null)
+  const [billingConfigured, setBillingConfigured] = useState(true)
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase.from('profiles').select('id, full_name, email, role')
-      setMembers((data ?? []) as TeamMember[])
-      setLoading(false)
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      try {
+        const sub = await fetchMySubscription()
+        if (!cancelled) setSubscription(sub)
+      } catch (error) {
+        if (!cancelled) {
+          setFeedback({
+            message: error instanceof Error ? error.message : 'Impossible de charger l’abonnement.',
+            type: 'error',
+          })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    load()
+    void load()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const handleInvite = async () => {
-    if (!inviteForm.email.trim()) { toast('Email is required', 'error'); return }
-    const { error } = await supabase.auth.admin.inviteUserByEmail(inviteForm.email)
-    if (error) {
-      toast('Invitation sent (or user already exists)', 'info')
-    } else {
-      toast('Invitation sent')
-    }
-    setInviteOpen(false)
-    setInviteForm({ email: '', role: 'concierge' })
-  }
-
-  const handleRoleChange = async () => {
-    if (!editMember) return
-    const { error } = await supabase.from('profiles').update({ role: editMember.role }).eq('id', editMember.id)
-    if (error) {
-      toast(error.message, 'error')
-    } else {
-      toast('Role updated')
-      setMembers(prev => prev.map(m => m.id === editMember.id ? { ...m, role: editMember.role } : m))
-    }
-    setEditMember(null)
-  }
-
-  const handleRemove = async () => {
-    if (!deleteTarget) return
-    const { error } = await supabase.from('profiles').delete().eq('id', deleteTarget.id)
-    if (error) {
-      toast(error.message, 'error')
-    } else {
-      toast('Member removed')
-      setMembers(prev => prev.filter(m => m.id !== deleteTarget.id))
-    }
-    setDeleteTarget(null)
-  }
-
-  return (
-    <>
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-base font-semibold">Team Members</h3>
-          <Button size="sm" onClick={() => setInviteOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Invite member
-          </Button>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center h-20">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {members.map(member => (
-              <div key={member.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                <div>
-                  <p className="text-sm font-medium">{member.full_name ?? 'Unnamed'}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{member.role}</span>
-                  {member.id !== profile?.id && (
-                    <>
-                      <button onClick={() => setEditMember({ ...member })} className="p-1 rounded hover:bg-muted">
-                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                      </button>
-                      <button onClick={() => setDeleteTarget(member)} className="p-1 rounded hover:bg-muted">
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-            {members.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">No team members yet</p>
-            )}
-          </div>
-        )}
-      </Card>
-
-      <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite Team Member">
-        <div className="space-y-4">
-          <Input label="Email address" type="email" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))} required />
-          <Select
-            label="Role"
-            value={inviteForm.role}
-            onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}
-            options={[
-              { value: 'owner', label: 'Owner' },
-              { value: 'house_manager', label: 'House Manager' },
-              { value: 'concierge', label: 'Concierge' },
-              { value: 'agency', label: 'Agency' },
-              { value: 'partner', label: 'Partner' },
-            ]}
-          />
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" className="flex-1" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button className="flex-1" onClick={handleInvite}>Send invite</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={!!editMember} onClose={() => setEditMember(null)} title="Change Role">
-        {editMember && (
-          <div className="space-y-4">
-            <p className="text-sm">{editMember.full_name ?? editMember.email}</p>
-            <Select
-              label="Role"
-              value={editMember.role}
-              onChange={e => setEditMember(m => m ? { ...m, role: e.target.value } : null)}
-              options={[
-                { value: 'owner', label: 'Owner' },
-                { value: 'house_manager', label: 'House Manager' },
-                { value: 'concierge', label: 'Concierge' },
-                { value: 'agency', label: 'Agency' },
-                { value: 'partner', label: 'Partner' },
-              ]}
-            />
-            <div className="flex gap-3 pt-2">
-              <Button variant="secondary" className="flex-1" onClick={() => setEditMember(null)}>Cancel</Button>
-              <Button className="flex-1" onClick={handleRoleChange}>Save</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleRemove}
-        title="Remove team member"
-        message={`Remove ${deleteTarget?.full_name ?? deleteTarget?.email}? This action cannot be undone.`}
-      />
-    </>
-  )
-}
-
-/* ─── Properties Tab ─────────────────────────────────────────────────────── */
-
-function PropertiesTab({ toast }: { toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void }) {
-  const { data: properties, loading, insert, update, remove } = useProperties()
-  const [editProp, setEditProp] = useState<Property | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null)
-  const [form, setForm] = useState({ name: '', location: '', type: 'villa', status: 'active', bedrooms: '0', bathrooms: '0', max_guests: '0', surface_m2: '0', units: '1', description: '' })
-
-  const resetForm = () => setForm({ name: '', location: '', type: 'villa', status: 'active', bedrooms: '0', bathrooms: '0', max_guests: '0', surface_m2: '0', units: '1', description: '' })
-
-  const openEdit = (p: Property) => {
-    setForm({
-      name: p.name,
-      location: p.location ?? '',
-      type: p.type,
-      status: p.status,
-      bedrooms: p.bedrooms.toString(),
-      bathrooms: p.bathrooms.toString(),
-      max_guests: p.max_guests.toString(),
-      surface_m2: p.surface_m2.toString(),
-      units: p.units.toString(),
-      description: p.description ?? '',
-    })
-    setEditProp(p)
-  }
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { toast('Name is required', 'error'); return }
-    const payload = {
-      name: form.name,
-      location: form.location || null,
-      type: form.type as Property['type'],
-      status: form.status as Property['status'],
-      bedrooms: Number(form.bedrooms),
-      bathrooms: Number(form.bathrooms),
-      max_guests: Number(form.max_guests),
-      surface_m2: Number(form.surface_m2),
-      units: Number(form.units),
-      description: form.description || null,
-    }
+  const handleCheckout = async (plan: SubscriptionPlan) => {
+    setCheckoutPlan(plan)
+    setFeedback(null)
     try {
-      if (editProp) {
-        await update(editProp.id, payload)
-        toast('Property updated')
-      } else {
-        await insert(payload)
-        toast('Property created')
+      await startCheckout(plan)
+    } catch (error) {
+      if (error instanceof BillingNotConfiguredError) {
+        setBillingConfigured(false)
       }
-      setEditProp(null)
-      setAddOpen(false)
-      resetForm()
-    } catch (err) {
-      toast((err as Error).message, 'error')
+      setFeedback({
+        message: error instanceof Error ? error.message : 'Impossible de démarrer le paiement.',
+        type: 'error',
+      })
+      setCheckoutPlan(null)
     }
   }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await remove(deleteTarget.id)
-      toast('Property deleted')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setDeleteTarget(null)
-  }
-
-  const isOpen = addOpen || !!editProp
-
-  return (
-    <>
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-base font-semibold">Properties</h3>
-          <Button size="sm" onClick={() => { resetForm(); setAddOpen(true) }}>
-            <Plus className="w-4 h-4 mr-1" /> Add property
-          </Button>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center h-20"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-        ) : (
-          <div className="space-y-3">
-            {properties.map(p => (
-              <div key={p.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                <div>
-                  <p className="text-sm font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.location} &middot; {p.type} &middot; {p.bedrooms} bed &middot; {p.max_guests} guests</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium uppercase tracking-wide ${p.status === 'active' ? 'text-success' : 'text-muted-foreground'}`}>{p.status}</span>
-                  <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                  <button onClick={() => setDeleteTarget(p)} className="p-1 rounded hover:bg-muted"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
-                </div>
-              </div>
-            ))}
-            {properties.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No properties</p>}
-          </div>
-        )}
-      </Card>
-
-      <Modal open={isOpen} onClose={() => { setEditProp(null); setAddOpen(false); resetForm() }} title={editProp ? 'Edit Property' : 'Add Property'}>
-        <div className="space-y-4">
-          <Input label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
-          <Input label="Location" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select label="Type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} options={[
-              { value: 'villa', label: 'Villa' }, { value: 'yacht', label: 'Yacht' }, { value: 'apartment', label: 'Apartment' }, { value: 'chalet', label: 'Chalet' },
-            ]} />
-            <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={[
-              { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'maintenance', label: 'Maintenance' },
-            ]} />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Input label="Bedrooms" type="number" min="0" value={form.bedrooms} onChange={e => setForm(f => ({ ...f, bedrooms: e.target.value }))} />
-            <Input label="Bathrooms" type="number" min="0" value={form.bathrooms} onChange={e => setForm(f => ({ ...f, bathrooms: e.target.value }))} />
-            <Input label="Max guests" type="number" min="0" value={form.max_guests} onChange={e => setForm(f => ({ ...f, max_guests: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Surface (m2)" type="number" min="0" value={form.surface_m2} onChange={e => setForm(f => ({ ...f, surface_m2: e.target.value }))} />
-            <Input label="Units" type="number" min="1" value={form.units} onChange={e => setForm(f => ({ ...f, units: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-foreground">Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full h-20 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info focus:ring-1 focus:ring-info/20 resize-none"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" className="flex-1" onClick={() => { setEditProp(null); setAddOpen(false); resetForm() }}>Cancel</Button>
-            <Button className="flex-1" onClick={handleSave}>{editProp ? 'Update' : 'Create'}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete property" message={`Delete "${deleteTarget?.name}"? This cannot be undone.`} />
-    </>
-  )
-}
-
-/* ─── Payments Tab ───────────────────────────────────────────────────────── */
-
-function PaymentsTab() {
-  const { data: payments, loading } = usePayments()
-
-  const totalRevenue = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
-  const pendingAmount = payments.filter(p => p.status === 'pending').reduce((s, p) => s + Number(p.amount), 0)
 
   return (
     <Card className="p-6">
-      <h3 className="text-base font-semibold mb-6">Billing & Payments</h3>
-
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 bg-muted/50 rounded-md">
-          <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-          <p className="text-lg font-bold">{totalRevenue.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-        </div>
-        <div className="p-4 bg-muted/50 rounded-md">
-          <p className="text-xs text-muted-foreground mb-1">Pending</p>
-          <p className="text-lg font-bold">{pendingAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-        </div>
-        <div className="p-4 bg-muted/50 rounded-md">
-          <p className="text-xs text-muted-foreground mb-1">Transactions</p>
-          <p className="text-lg font-bold">{payments.length}</p>
-        </div>
-      </div>
+      <h3 className="text-base font-semibold mb-2">Abonnement</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Gérez votre formule My Butlr. Le paiement se fait via Stripe Checkout.
+      </p>
 
       {loading ? (
-        <div className="flex items-center justify-center h-20"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        <div className="flex items-center gap-3">
+          <Spinner />
+          <span className="text-sm text-muted-foreground">Chargement de l’abonnement…</span>
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="py-2 pr-4">Date</th>
-                <th className="py-2 pr-4">Guest</th>
-                <th className="py-2 pr-4">Property</th>
-                <th className="py-2 pr-4">Type</th>
-                <th className="py-2 pr-4 text-right">Amount</th>
-                <th className="py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.slice(0, 20).map(p => (
-                <tr key={p.id} className="border-b border-border/50">
-                  <td className="py-2.5 pr-4 text-muted-foreground">{p.date}</td>
-                  <td className="py-2.5 pr-4">{p.guest_name}</td>
-                  <td className="py-2.5 pr-4 text-muted-foreground">{p.property_name ?? '-'}</td>
-                  <td className="py-2.5 pr-4 tabular-nums text-xs uppercase">{p.type}</td>
-                  <td className="py-2.5 pr-4 text-right tabular-nums">{Number(p.amount).toLocaleString('fr-FR')} EUR</td>
-                  <td className="py-2.5">
-                    <span className={`text-xs tabular-nums uppercase ${p.status === 'paid' ? 'text-success' : p.status === 'pending' ? 'text-warning' : 'text-destructive'}`}>
-                      {p.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {payments.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No payments yet</p>}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Formule</p>
+              <p className="mt-1 text-sm font-medium">
+                {subscription ? PLAN_LABELS[subscription.plan] : 'Aucun abonnement actif'}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Statut</p>
+              <p className="mt-1 text-sm font-medium">
+                {subscription ? STATUS_LABELS[subscription.status] : '—'}
+              </p>
+            </div>
+          </div>
+
+          {!billingConfigured && (
+            <p className="text-xs text-muted-foreground rounded-md border border-dashed border-border p-3">
+              La facturation n’est pas configurée sur cet environnement. Ajoutez les secrets Stripe
+              côté Supabase pour activer Checkout.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={subscription?.plan === 'starter' ? 'primary' : 'secondary'}
+              disabled={checkoutPlan !== null}
+              onClick={() => void handleCheckout('starter')}
+            >
+              {checkoutPlan === 'starter' && <Spinner className="mr-2" />}
+              Starter
+            </Button>
+            <Button
+              size="sm"
+              variant={subscription?.plan === 'pro' ? 'primary' : 'secondary'}
+              disabled={checkoutPlan !== null}
+              onClick={() => void handleCheckout('pro')}
+            >
+              {checkoutPlan === 'pro' && <Spinner className="mr-2" />}
+              Pro
+            </Button>
+          </div>
+
+          {feedback && <Feedback message={feedback.message} type={feedback.type} />}
         </div>
       )}
     </Card>
   )
 }
 
-/* ─── Services Tab ───────────────────────────────────────────────────────── */
+// ─── 2. Team Tab ────────────────────────────────────────────────────────────
 
-function ServicesTab({ toast }: { toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void }) {
-  const { data: services, loading, insert, update, remove } = useServices()
-  const [editSvc, setEditSvc] = useState<Service | null>(null)
-  const [addOpen, setAddOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', category: '', starting_price: '0', commission: '0', available: 'true' })
+function TeamTab() {
+  const { role } = useRole()
 
-  const resetForm = () => setForm({ name: '', description: '', category: '', starting_price: '0', commission: '0', available: 'true' })
-
-  const openEdit = (s: Service) => {
-    setForm({
-      name: s.name,
-      description: s.description ?? '',
-      category: s.category ?? '',
-      starting_price: s.starting_price.toString(),
-      commission: s.commission.toString(),
-      available: s.available ? 'true' : 'false',
-    })
-    setEditSvc(s)
+  if (role !== 'owner') {
+    return (
+      <Card className="p-6 space-y-2">
+        <h3 className="text-base font-semibold">Équipe</h3>
+        <p className="text-sm text-muted-foreground">
+          Seul le propriétaire peut gérer les accès. Les invitations se font villa par villa
+          depuis la fiche propriété → Équipe.
+        </p>
+      </Card>
+    )
   }
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { toast('Name is required', 'error'); return }
-    const payload = {
-      name: form.name,
-      description: form.description || null,
-      category: form.category || null,
-      starting_price: Number(form.starting_price),
-      commission: Number(form.commission),
-      available: form.available === 'true',
-    }
-    try {
-      if (editSvc) {
-        await update(editSvc.id, payload)
-        toast('Service updated')
-      } else {
-        await insert(payload)
-        toast('Service created')
-      }
-      setEditSvc(null)
-      setAddOpen(false)
-      resetForm()
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await remove(deleteTarget.id)
-      toast('Service deleted')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setDeleteTarget(null)
-  }
-
-  const isOpen = addOpen || !!editSvc
 
   return (
-    <>
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-base font-semibold">Service Catalog</h3>
-          <Button size="sm" onClick={() => { resetForm(); setAddOpen(true) }}>
-            <Plus className="w-4 h-4 mr-1" /> Add service
-          </Button>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center h-20"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-        ) : (
-          <div className="space-y-3">
-            {services.map(s => (
-              <div key={s.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                <div>
-                  <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">{s.category} &middot; From {s.starting_price} EUR &middot; {s.commission}% commission</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium uppercase tracking-wide ${s.available ? 'text-success' : 'text-muted-foreground'}`}>
-                    {s.available ? 'Available' : 'Unavailable'}
-                  </span>
-                  <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                  <button onClick={() => setDeleteTarget(s)} className="p-1 rounded hover:bg-muted"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
-                </div>
-              </div>
-            ))}
-            {services.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No services</p>}
-          </div>
-        )}
-      </Card>
-
-      <Modal open={isOpen} onClose={() => { setEditSvc(null); setAddOpen(false); resetForm() }} title={editSvc ? 'Edit Service' : 'Add Service'}>
-        <div className="space-y-4">
-          <Input label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
-          <Input label="Category" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-foreground">Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full h-20 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info focus:ring-1 focus:ring-info/20 resize-none"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Input label="Starting price (EUR)" type="number" min="0" value={form.starting_price} onChange={e => setForm(f => ({ ...f, starting_price: e.target.value }))} />
-            <Input label="Commission (%)" type="number" min="0" max="100" value={form.commission} onChange={e => setForm(f => ({ ...f, commission: e.target.value }))} />
-            <Select label="Available" value={form.available} onChange={e => setForm(f => ({ ...f, available: e.target.value }))} options={[
-              { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' },
-            ]} />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" className="flex-1" onClick={() => { setEditSvc(null); setAddOpen(false); resetForm() }}>Cancel</Button>
-            <Button className="flex-1" onClick={handleSave}>{editSvc ? 'Update' : 'Create'}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete service" message={`Delete "${deleteTarget?.name}"? This cannot be undone.`} />
-    </>
+    <Card className="p-6 space-y-3">
+      <h3 className="text-base font-semibold">Équipe par propriété</h3>
+      <p className="text-sm text-muted-foreground">
+        Invitez house managers, conciergeries, agences ou prestataires depuis chaque villa
+        (Propriétés → détail → Équipe). Les invitations en attente sont acceptées
+        automatiquement à la création du compte.
+      </p>
+      <Link to="/app/properties">
+        <Button size="sm">Ouvrir les propriétés</Button>
+      </Link>
+    </Card>
   )
 }
 
-/* ─── Permissions Tab ────────────────────────────────────────────────────── */
+// ─── 3. Roles Tab ────────────────────────────────────────────────────────────
 
-const PAGE_LABELS: Record<string, string> = {
-  payments: 'Payments',
-  partners: 'Partners',
-  contracts: 'Contracts',
-  invoices: 'Invoices',
-  apa: 'APA',
-  reports: 'Reports',
-  notifications: 'Notifications',
-}
+function RolesTab() {
+  const { role } = useRole()
+  const {
+    ownerHouseManagerTemplate,
+    saveOwnerHouseManagerTemplate,
+    loading: permissionsLoading,
+  } = usePermissions()
+  const [draft, setDraft] = useState<PermissionMap>(DEFAULT_HOUSE_MANAGER_PERMISSIONS)
+  const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-function PermissionsTab({ toast }: { toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void }) {
-  const { permissions, loading, saving, savePermissions, DEFAULT_PERMISSIONS } = useRolePermissions()
-  const [local, setLocal] = useState<RolePermissions>(permissions)
+  useEffect(() => {
+    if (ownerHouseManagerTemplate) setDraft(ownerHouseManagerTemplate)
+  }, [ownerHouseManagerTemplate])
 
-  useEffect(() => { setLocal(permissions) }, [permissions])
+  const roleCards: Array<{ role: Role; permissions: PermissionMap }> = [
+    { role: 'owner', permissions: OWNER_PERMISSIONS },
+    { role: 'house_manager', permissions: draft },
+    { role: 'concierge', permissions: DEFAULT_CONCIERGE_PERMISSIONS },
+    { role: 'agency', permissions: DEFAULT_AGENCY_PERMISSIONS },
+    { role: 'partner', permissions: DEFAULT_PARTNER_APP_PERMISSIONS },
+  ]
 
-  const toggle = (role: string, page: string, field: 'view' | 'edit') => {
-    setLocal(prev => {
-      const updated = JSON.parse(JSON.stringify(prev)) as RolePermissions
-      if (!updated[role]) updated[role] = {}
-      if (!updated[role][page]) updated[role][page] = { view: false, edit: false }
-      updated[role][page][field] = !updated[role][page][field]
-      if (field === 'view' && !updated[role][page].view) {
-        updated[role][page].edit = false
-      }
-      if (field === 'edit' && updated[role][page].edit) {
-        updated[role][page].view = true
-      }
-      return updated
-    })
-  }
-
-  const handleSave = async () => {
-    const err = await savePermissions(local)
-    if (err) {
-      toast(err.message, 'error')
-    } else {
-      toast('Permissions saved')
-    }
-  }
-
-  const handleReset = () => {
-    setLocal(DEFAULT_PERMISSIONS)
-  }
-
-  if (loading) {
+  if (role !== 'owner') {
     return (
-      <div className="flex items-center justify-center h-32">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <Card className="p-6">
+          <h3 className="text-base font-semibold mb-2">Rôles & permissions</h3>
+          <p className="text-sm text-muted-foreground">
+            Seul le propriétaire peut configurer les droits du house manager.
+            Voici la visibilité par défaut de chaque profil.
+          </p>
+        </Card>
+        <RoleVisibilityGrid
+          cards={[
+            { role: 'concierge', permissions: DEFAULT_CONCIERGE_PERMISSIONS },
+            { role: 'agency', permissions: DEFAULT_AGENCY_PERMISSIONS },
+            { role: 'house_manager', permissions: DEFAULT_HOUSE_MANAGER_PERMISSIONS },
+            { role: 'partner', permissions: DEFAULT_PARTNER_APP_PERMISSIONS },
+          ]}
+        />
       </div>
     )
   }
 
-  const roles = ['house_manager', 'concierge'] as const
-  const roleLabels: Record<string, string> = { house_manager: 'House Manager', concierge: 'Concierge' }
+  const toggle = (key: AppCapability, value: boolean) => {
+    setDraft(current => ({
+      ...current,
+      [key]: value,
+      properties_delete: false,
+    }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setFeedback(null)
+    const { error } = await saveOwnerHouseManagerTemplate(draft)
+    setSaving(false)
+    if (error) {
+      setFeedback({ message: error, type: 'error' })
+      return
+    }
+    setFeedback({ message: 'Droits house manager enregistrés.', type: 'success' })
+  }
+
+  const handleReset = () => {
+    setDraft({ ...DEFAULT_HOUSE_MANAGER_PERMISSIONS })
+    setFeedback(null)
+  }
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
-        <h3 className="text-base font-semibold mb-2">Role Permissions</h3>
-        <p className="text-sm text-muted-foreground mb-6">Configure which pages each role can view and edit.</p>
+      <Card className="p-6 space-y-4">
+        <div>
+          <h3 className="text-base font-semibold mb-1">Droits du house manager</h3>
+          <p className="text-sm text-muted-foreground">
+            Par défaut : exploitation villa sans montants ni contrats.
+            La suppression de propriété et la gestion d’équipe restent interdites.
+          </p>
+        </div>
 
-        {roles.map(role => (
-          <div key={role} className="mb-8 last:mb-0">
-            <h4 className="text-sm font-semibold mb-3 text-foreground">{roleLabels[role]}</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Page</th>
-                    <th className="text-center py-2 px-4 font-medium text-muted-foreground">Can View</th>
-                    <th className="text-center py-2 px-4 font-medium text-muted-foreground">Can Edit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {CONFIGURABLE_PAGES.map(page => {
-                    const perm = local[role]?.[page] ?? { view: false, edit: false }
-                    return (
-                      <tr key={page} className="border-b border-border/50">
-                        <td className="py-2.5 pr-4 font-medium">{PAGE_LABELS[page]}</td>
-                        <td className="text-center py-2.5 px-4">
-                          <input
-                            type="checkbox"
-                            checked={perm.view}
-                            onChange={() => toggle(role, page, 'view')}
-                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
-                          />
-                        </td>
-                        <td className="text-center py-2.5 px-4">
-                          <input
-                            type="checkbox"
-                            checked={perm.edit}
-                            onChange={() => toggle(role, page, 'edit')}
-                            disabled={!perm.view}
-                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer disabled:opacity-30"
-                          />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+        {permissionsLoading ? (
+          <p className="text-sm text-muted-foreground">Chargement…</p>
+        ) : (
+          <div className="divide-y divide-border rounded-lg border border-border">
+            {HOUSE_MANAGER_CONFIGURABLE_CAPABILITIES.map(key => (
+              <div key={key} className="flex items-start justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{capabilityLabels[key]}</p>
+                  {capabilityDescriptions[key] && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{capabilityDescriptions[key]}</p>
+                  )}
+                </div>
+                <Switch
+                  checked={Boolean(draft[key])}
+                  onCheckedChange={value => toggle(key, value)}
+                  aria-label={capabilityLabels[key]}
+                />
+              </div>
+            ))}
+            <div className="flex items-start justify-between gap-4 px-4 py-3 bg-muted/30">
+              <div>
+                <p className="text-sm font-medium">{capabilityLabels.properties_delete}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Toujours désactivé pour le house manager.
+                </p>
+              </div>
+              <Switch
+                checked={false}
+                disabled
+                onCheckedChange={() => {}}
+                aria-label="Suppression propriété interdite"
+              />
             </div>
           </div>
-        ))}
+        )}
 
-        <div className="flex items-center gap-3 pt-4 border-t border-border">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</> : 'Save Permissions'}
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Button onClick={handleSave} disabled={saving || permissionsLoading}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
-          <Button variant="secondary" onClick={handleReset}>Reset to Defaults</Button>
+          <Button variant="secondary" onClick={handleReset} disabled={saving}>
+            Réinitialiser les défauts
+          </Button>
+        </div>
+        {feedback && <Feedback message={feedback.message} type={feedback.type} />}
+      </Card>
+
+      <div>
+        <h3 className="mb-3 text-base font-semibold">Visibilité par profil</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Conciergerie et agence immobilière ont des accès fixes. Le prestataire utilise l’espace{' '}
+          <code className="text-xs">/partner</code>.
+        </p>
+        <RoleVisibilityGrid cards={roleCards} />
+      </div>
+    </div>
+  )
+}
+
+function RoleVisibilityGrid({
+  cards,
+}: {
+  cards: Array<{ role: Role; permissions: PermissionMap }>
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {cards.map(({ role, permissions }) => {
+        const enabled = enabledCapabilities(permissions)
+        return (
+          <Card key={role} className="p-4">
+            <p className="text-sm font-semibold">{roleLabelsFr[role]}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {roleVisibilityBlurb[role]}
+            </p>
+            {role === 'partner' ? (
+              <p className="mt-3 text-xs font-medium text-foreground">
+                Shell dédié : tableau de bord, missions, planning, paiements, fiche.
+              </p>
+            ) : (
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {enabled.slice(0, 12).map(key => (
+                  <li
+                    key={key}
+                    className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                  >
+                    {capabilityLabels[key]}
+                  </li>
+                ))}
+                {enabled.length > 12 && (
+                  <li className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                    +{enabled.length - 12}
+                  </li>
+                )}
+              </ul>
+            )}
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── 4. Payments Tab ─────────────────────────────────────────────────────────
+
+function PaymentsTab() {
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('payments')
+        .select('id, reservation_id, guest_name, property_name, type, amount, status, date')
+        .order('date', { ascending: false })
+        .limit(50)
+      if (error) {
+        setFeedback({ message: `Error loading payments: ${error.message}`, type: 'error' })
+      } else {
+        setPayments(data as Payment[])
+      }
+      setLoading(false)
+    }
+    fetchPayments()
+  }, [])
+
+  const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  const paidCount = payments.filter(p => p.status === 'paid').length
+  const pendingCount = payments.filter(p => p.status === 'pending').length
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center gap-3">
+          <Spinner />
+          <span className="text-sm text-muted-foreground">Loading payments…</span>
         </div>
       </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {feedback && <Feedback message={feedback.message} type={feedback.type} />}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">Total Volume</p>
+          <p className="text-2xl font-semibold mt-1">
+            {formatMaskedAmount(totalAmount, canViewAmounts)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">Paid</p>
+          <p className="text-2xl font-semibold mt-1 text-green-500">{paidCount}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">Pending</p>
+          <p className="text-2xl font-semibold mt-1 text-yellow-500">{pendingCount}</p>
+        </Card>
+      </div>
+
+      {/* Payments Table */}
+      <Card className="p-6">
+        <h3 className="text-base font-semibold mb-4">Recent Payments</h3>
+        {payments.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No payments found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Date</th>
+                  <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Guest</th>
+                  <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Property</th>
+                  <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Type</th>
+                  <th className="text-right py-2 pr-3 font-medium text-muted-foreground">Amount</th>
+                  <th className="text-center py-2 font-medium text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map(p => (
+                  <tr key={p.id} className="border-b border-border/50">
+                    <td className="py-2.5 pr-3 text-foreground">{p.date || '—'}</td>
+                    <td className="py-2.5 pr-3 text-foreground">{p.guest_name || '—'}</td>
+                    <td className="py-2.5 pr-3 text-muted-foreground">{p.property_name || '—'}</td>
+                    <td className="py-2.5 pr-3 text-muted-foreground">{p.type || '—'}</td>
+                    <td className="py-2.5 pr-3 text-right font-medium text-foreground">
+                      {formatMaskedAmount(p.amount, canViewAmounts)}
+                    </td>
+                    <td className="py-2.5 text-center">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider ${
+                          p.status === 'paid'
+                            ? 'bg-green-500/10 text-green-500'
+                            : p.status === 'pending'
+                            ? 'bg-yellow-500/10 text-yellow-500'
+                            : 'bg-red-500/10 text-red-500'
+                        }`}
+                      >
+                        {p.status || '—'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
+  )
+}
+
+// ─── 5. Notifications Tab ────────────────────────────────────────────────────
+
+const DEFAULT_PREFS: NotificationPrefs = {
+  email_bookings: true,
+  email_payments: true,
+  email_team: false,
+  push_bookings: true,
+  push_payments: false,
+  push_team: true,
+  sms_bookings: false,
+  sms_payments: false,
+  sms_team: false,
+}
+
+const NOTIFICATION_LABELS: Record<keyof NotificationPrefs, string> = {
+  email_bookings: 'Email — Booking notifications',
+  email_payments: 'Email — Payment alerts',
+  email_team: 'Email — Team updates',
+  push_bookings: 'Push — Booking notifications',
+  push_payments: 'Push — Payment alerts',
+  push_team: 'Push — Team updates',
+  sms_bookings: 'SMS — Booking notifications',
+  sms_payments: 'SMS — Payment alerts',
+  sms_team: 'SMS — Team updates',
+}
+
+function NotificationsTab({ userId }: { userId: string | undefined }) {
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  useEffect(() => {
+    if (!userId) return
+    const fetchPrefs = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('notification_prefs')
+        .eq('id', userId)
+        .single()
+      if (!error && data && data.notification_prefs) {
+        setPrefs({ ...DEFAULT_PREFS, ...(data.notification_prefs as Record<string, boolean>) })
+      }
+      setLoading(false)
+    }
+    fetchPrefs()
+  }, [userId])
+
+  const handleToggle = (key: keyof NotificationPrefs, value: boolean) => {
+    setPrefs(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleSave = async () => {
+    if (!userId) return
+    setSaving(true)
+    setFeedback(null)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ notification_prefs: prefs })
+      .eq('id', userId)
+    setSaving(false)
+    if (error) {
+      setFeedback({ message: `Error: ${error.message}`, type: 'error' })
+    } else {
+      setFeedback({ message: 'Notification preferences saved.', type: 'success' })
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card className="p-6 max-w-xl">
+        <div className="flex items-center gap-3">
+          <Spinner />
+          <span className="text-sm text-muted-foreground">Loading preferences…</span>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-6 max-w-xl">
+      <h3 className="text-base font-semibold mb-2">Notification Preferences</h3>
+      <p className="text-xs text-muted-foreground mb-6">
+        Choose how and when you want to receive notifications.
+      </p>
+
+      <div className="space-y-0">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">Email</p>
+        <Toggle enabled={prefs.email_bookings} onChange={v => handleToggle('email_bookings', v)} label={NOTIFICATION_LABELS.email_bookings} />
+        <Toggle enabled={prefs.email_payments} onChange={v => handleToggle('email_payments', v)} label={NOTIFICATION_LABELS.email_payments} />
+        <Toggle enabled={prefs.email_team} onChange={v => handleToggle('email_team', v)} label={NOTIFICATION_LABELS.email_team} />
+
+        <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mt-4 mb-2">Push</p>
+        <Toggle enabled={prefs.push_bookings} onChange={v => handleToggle('push_bookings', v)} label={NOTIFICATION_LABELS.push_bookings} />
+        <Toggle enabled={prefs.push_payments} onChange={v => handleToggle('push_payments', v)} label={NOTIFICATION_LABELS.push_payments} />
+        <Toggle enabled={prefs.push_team} onChange={v => handleToggle('push_team', v)} label={NOTIFICATION_LABELS.push_team} />
+
+        <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mt-4 mb-2">SMS</p>
+        <Toggle enabled={prefs.sms_bookings} onChange={v => handleToggle('sms_bookings', v)} label={NOTIFICATION_LABELS.sms_bookings} />
+        <Toggle enabled={prefs.sms_payments} onChange={v => handleToggle('sms_payments', v)} label={NOTIFICATION_LABELS.sms_payments} />
+        <Toggle enabled={prefs.sms_team} onChange={v => handleToggle('sms_team', v)} label={NOTIFICATION_LABELS.sms_team} />
+      </div>
+
+      <div className="mt-6">
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          {saving && <Spinner className="mr-2" />}
+          {saving ? 'Saving…' : 'Save Preferences'}
+        </Button>
+        {feedback && <Feedback message={feedback.message} type={feedback.type} />}
+      </div>
+    </Card>
   )
 }

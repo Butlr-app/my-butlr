@@ -1,476 +1,248 @@
+import { useEffect, useState } from 'react'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { useDashboardKPIs, useReservations, useTasks, usePayments, useProperties, usePartners, useServices, useServiceRequests } from '@/lib/useSupabase'
-import { ArrowRight, Loader2, Euro, Percent, Building2, CalendarCheck, ClipboardList, Plane, LogOut, ConciergeBell, CheckCircle2, CalendarClock, Star, Sparkles, CreditCard, Handshake, Inbox, Briefcase, ShoppingBag, HelpCircle, CalendarDays, CalendarRange, AlertTriangle, Smartphone, X } from 'lucide-react'
+import { EmptyState, LoadingState } from '@/components/EmptyState'
+import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRole } from '@/lib/roleContext'
-import { useRoleFilter } from '@/lib/useRoleFilter'
-import { useTranslation } from '@/i18n/LanguageContext'
-import { useState, useEffect } from 'react'
-import { BarChart, LineChart } from '@/components/charts/Charts'
 import { useAuth } from '@/lib/authContext'
-import { AiInsightsWidget } from '@/components/ai/AiInsightsWidget'
+import { usePermissions } from '@/lib/permissionsContext'
+import { formatMaskedAmount } from '@/lib/permissions'
+import {
+  fetchOwnerReservations,
+  fetchOwnerPayments,
+  fetchOwnerProperties,
+  todayISO,
+} from '@/lib/data'
+import { fetchOwnerTasks } from '@/lib/tasks'
+import type { Reservation, Task, Payment } from '@/lib/types'
+import {
+  isCommercialReservation,
+  isPendingAgencyClientRequest,
+  reservationStatusLabels,
+} from '@/lib/reservationWorkflow'
+import { useReservationDetail } from '@/lib/reservationDetailContext'
 
-function OwnerDashboard() {
-  const { t } = useTranslation()
-  const { kpis } = useDashboardKPIs()
-  const { data: payments } = usePayments()
-  const { data: properties } = useProperties()
-  const { data: reservations } = useReservations()
-
-  const activeReservations = reservations.filter(r => r.status === 'confirmed' || r.status === 'in_progress').length
-  const totalRevenue = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
-
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const currentMonth = new Date().getMonth()
-  const monthlyData = months.slice(0, currentMonth + 1).map(month => {
-    const monthIdx = months.indexOf(month)
-    const rev = payments
-      .filter(p => p.status === 'paid' && new Date(p.date).getMonth() === monthIdx)
-      .reduce((s, p) => s + Number(p.amount), 0)
-    return { label: month, value: rev }
-  })
-
-  return (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label={t('dashboard.totalRevenue')} value={totalRevenue} prefix="€" icon={Euro} tone="success" />
-        <MetricCard label={t('dashboard.occupancyRate')} value={`${kpis.occupancyRate}%`} icon={Percent} tone="primary" />
-        <MetricCard label={t('dashboard.totalProperties')} value={properties.length} icon={Building2} tone="info" />
-        <MetricCard label={t('dashboard.activeReservations')} value={activeReservations} icon={CalendarCheck} tone="warning" />
-      </div>
-      <Card className="p-5">
-        <BarChart data={monthlyData} label={t('dashboard.monthlyRevenue')} />
-      </Card>
-    </>
-  )
+const RESERVATION_STATUS_LABELS: Record<string, string> = {
+  pending: reservationStatusLabels.pending,
+  confirmed: 'Confirmée',
+  in_progress: 'En cours',
+  completed: 'Terminée',
+  cancelled: 'Annulée',
 }
 
-const HM_ONBOARDING_KEY = 'butlr-hm-onboarding-dismissed'
-
-function HmOnboardingCard() {
-  const { t } = useTranslation()
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(HM_ONBOARDING_KEY) === 'true')
-
-  if (dismissed) return null
-
-  const dismiss = () => {
-    localStorage.setItem(HM_ONBOARDING_KEY, 'true')
-    setDismissed(true)
-  }
-
-  const items = [
-    { to: '/app/day-sheet', icon: CalendarDays, label: t('hmOnboarding.daySheet') },
-    { to: '/app/tasks', icon: ClipboardList, label: t('hmOnboarding.tasks') },
-    { to: '/app/team-planning', icon: CalendarRange, label: t('hmOnboarding.teamPlanning') },
-    { to: '/app/incidents', icon: AlertTriangle, label: t('hmOnboarding.incidents') },
-    { to: '/hm', icon: Smartphone, label: t('hmOnboarding.mobile') },
-  ]
-
-  return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold">{t('hmOnboarding.title')}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('hmOnboarding.subtitle')}</p>
-        </div>
-        <button onClick={dismiss} aria-label={t('hmOnboarding.dismiss')} className="p-1.5 rounded-full hover:bg-muted transition-colors">
-          <X className="w-4 h-4 text-muted-foreground" />
-        </button>
-      </div>
-      <div className="mt-4 space-y-2">
-        {items.map(item => (
-          <Link key={item.to} to={item.to} className="flex items-center gap-3 p-2.5 rounded-md border border-border hover:bg-muted/50 transition-colors">
-            <item.icon className="w-4 h-4 text-info flex-shrink-0" />
-            <span className="flex-1 text-sm">{item.label}</span>
-            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-          </Link>
-        ))}
-      </div>
-      <button onClick={dismiss} className="mt-4 text-xs font-medium text-info hover:underline">
-        {t('hmOnboarding.dismiss')}
-      </button>
-    </Card>
-  )
+const TASK_PRIORITY_LABELS: Record<string, string> = {
+  high: 'Haute',
+  medium: 'Moyenne',
+  low: 'Basse',
 }
 
-function HouseManagerDashboard() {
-  const { t } = useTranslation()
-  const { filterTasks, filterReservations, filterProperties, filterPayments, filterPartners } = useRoleFilter()
-  const { data: rawTasks } = useTasks()
-  const { data: rawReservations } = useReservations()
-  const { data: rawProperties } = useProperties()
-  const { data: rawPayments } = usePayments()
-  const { data: rawPartners } = usePartners()
-
-  const tasks = filterTasks(rawTasks)
-  const reservations = filterReservations(rawReservations)
-  const properties = filterProperties(rawProperties)
-  const payments = filterPayments(rawPayments)
-  const partners = filterPartners(rawPartners)
-
-  const today = new Date().toISOString().split('T')[0]
-  const tasksInProgress = tasks.filter(t => t.status === 'in_progress').length
-  const arrivalsToday = reservations.filter(r => r.arrival === today && (r.status === 'confirmed' || r.status === 'pending')).length
-  const departuresToday = reservations.filter(r => r.departure === today && (r.status === 'confirmed' || r.status === 'in_progress')).length
-  const pendingPayments = payments.filter(p => p.status === 'pending').length
-  const activePartners = partners.filter(p => p.status === 'active').length
-
-  const weekData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => {
-    const dayTasks = tasks.filter(t => {
-      const created = new Date(t.created_at).getDay()
-      return created === (i + 1) % 7
-    }).length
-    return { label: d, value: dayTasks }
-  })
-
-  return (
-    <>
-      <HmOnboardingCard />
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.tasksInProgress')} value={tasksInProgress} icon={ClipboardList} tone="primary" />
-        <MetricCard label={t('dashboard.arrivalsToday')} value={arrivalsToday} icon={Plane} tone="success" />
-        <MetricCard label={t('dashboard.departuresToday')} value={departuresToday} icon={LogOut} tone="warning" />
-        <MetricCard label={t('dashboard.managedProperties')} value={properties.length} icon={Building2} tone="info" />
-        <MetricCard label={t('dashboard.pendingPayments')} value={pendingPayments} icon={CreditCard} tone="warning" />
-        <MetricCard label={t('dashboard.activePartners')} value={activePartners} icon={Handshake} tone="success" />
-      </div>
-      <Card className="p-5">
-        <BarChart data={weekData} label={t('dashboard.tasksInProgress')} />
-      </Card>
-    </>
-  )
-}
-
-function ConciergeDashboard() {
-  const { t } = useTranslation()
-  const { data: tasks } = useTasks()
-  const { data: reservations } = useReservations()
-  const { data: payments } = usePayments()
-  const { data: partners } = usePartners()
-  const { data: services } = useServices()
-
-  const today = new Date().toISOString().split('T')[0]
-  const pendingRequests = tasks.filter(t => t.status === 'todo').length
-  const weekStart = new Date()
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-  const completedThisWeek = tasks.filter(t => t.status === 'done' && new Date(t.updated_at) >= weekStart).length
-  const upcomingArrivals = reservations.filter(r => r.arrival > today && (r.status === 'confirmed' || r.status === 'pending')).length
-  const activePartners = partners.filter(p => p.status === 'active').length
-  const availableServices = services.filter(s => s.available).length
-  const pendingPayments = payments.filter(p => p.status === 'pending').length
-
-  const statusData = [
-    { label: 'Todo', value: tasks.filter(t => t.status === 'todo').length },
-    { label: 'WIP', value: tasks.filter(t => t.status === 'in_progress').length },
-    { label: 'Wait', value: tasks.filter(t => t.status === 'waiting').length },
-    { label: 'Done', value: tasks.filter(t => t.status === 'done').length },
-  ]
-
-  return (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.pendingRequests')} value={pendingRequests} icon={ConciergeBell} tone="warning" />
-        <MetricCard label={t('dashboard.completedThisWeek')} value={completedThisWeek} icon={CheckCircle2} tone="success" />
-        <MetricCard label={t('dashboard.upcomingArrivals')} value={upcomingArrivals} icon={CalendarClock} tone="primary" />
-        <MetricCard label={t('dashboard.activePartners')} value={activePartners} icon={Handshake} tone="info" />
-        <MetricCard label={t('dashboard.availableServices')} value={availableServices} icon={Inbox} tone="success" />
-        <MetricCard label={t('dashboard.pendingPayments')} value={pendingPayments} icon={CreditCard} tone="warning" />
-      </div>
-      <Card className="p-5">
-        <BarChart data={statusData} label={t('dashboard.openTasks')} />
-      </Card>
-    </>
-  )
-}
-
-function PartnerDashboard() {
-  const { t } = useTranslation()
-  const { data: partners } = usePartners()
-  const { data: services } = useServices()
-  const { data: payments } = usePayments()
-
-  const monthCommissions = payments
-    .filter(p => p.type === 'commission' && p.status === 'paid' && new Date(p.date).getMonth() === new Date().getMonth())
-    .reduce((s, p) => s + Number(p.amount), 0)
-  const totalServices = services.filter(s => s.available).length
-  const avgRating = partners.length > 0 ? (partners.reduce((s, p) => s + p.rating, 0) / partners.length).toFixed(1) : '0'
-
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-  const commData = months.map(month => {
-    const monthIdx = months.indexOf(month)
-    const rev = payments
-      .filter(p => p.type === 'commission' && p.status === 'paid' && new Date(p.date).getMonth() === monthIdx)
-      .reduce((s, p) => s + Number(p.amount), 0)
-    return { label: month, value: rev }
-  })
-
-  return (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.monthlyCommissions')} value={monthCommissions} prefix="€" icon={Euro} tone="success" />
-        <MetricCard label={t('dashboard.servicesProvided')} value={totalServices} icon={ConciergeBell} tone="primary" />
-        <MetricCard label={t('dashboard.averageRating')} value={avgRating} icon={Star} tone="warning" />
-      </div>
-      <Card className="p-5">
-        <LineChart data={commData} label={t('dashboard.monthlyCommissions')} />
-      </Card>
-    </>
-  )
-}
-
-function AgencyDashboard() {
-  const { t } = useTranslation()
-  const { data: properties } = useProperties()
-  const { data: reservations } = useReservations()
-  const { data: services } = useServices()
-  const { requests } = useServiceRequests()
-  const { user } = useAuth()
-
-  const today = new Date().toISOString().split('T')[0]
-  const activeProps = properties.filter(p => p.status === 'active')
-
-  const propsWithAvailability = activeProps.filter(prop => {
-    const propRes = reservations.filter(r =>
-      r.property_id === prop.id && r.status !== 'cancelled' && r.arrival <= today && r.departure >= today,
-    )
-    return propRes.length === 0
-  }).length
-
-  const myRequests = requests.filter(r => r.guest_user_id === user?.id)
-  const pendingInquiries = myRequests.filter(r => r.service_name.startsWith('Inquiry:') && r.status === 'pending').length
-  const bookedServices = myRequests.filter(r => !r.service_name.startsWith('Inquiry:')).length
-  const availableServices = services.filter(s => s.available).length
-
-  const monthlyAvailability = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() + i)
-    const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
-    const monthEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
-    const totalSlots = activeProps.length * daysInMonth
-    let occupiedSlots = 0
-    for (const prop of activeProps) {
-      const propRes = reservations.filter(r =>
-        r.property_id === prop.id && r.status !== 'cancelled' && r.arrival <= monthEnd && r.departure >= monthStart,
-      )
-      const occupiedDays = new Set<string>()
-      for (const r of propRes) {
-        const start = r.arrival < monthStart ? new Date(monthStart) : new Date(r.arrival)
-        const end = r.departure > monthEnd ? new Date(monthEnd) : new Date(r.departure)
-        for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
-          occupiedDays.add(cur.toISOString().split('T')[0])
-        }
-      }
-      occupiedSlots += occupiedDays.size
-    }
-    const availRate = totalSlots > 0 ? Math.round(((totalSlots - occupiedSlots) / totalSlots) * 100) : 100
-    return { label: d.toLocaleString('default', { month: 'short' }), value: availRate }
-  })
-
-  return (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label={t('conciergePortal.propertiesAvailable')} value={`${propsWithAvailability}/${activeProps.length}`} icon={Building2} tone="success" />
-        <MetricCard label={t('conciergePortal.pendingInquiries')} value={pendingInquiries} icon={HelpCircle} tone="warning" />
-        <MetricCard label={t('conciergePortal.bookedServices')} value={bookedServices} icon={ShoppingBag} tone="primary" />
-        <MetricCard label={t('dashboard.availableServices')} value={availableServices} icon={ConciergeBell} tone="info" />
-      </div>
-
-      <Card className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold">{t('conciergePortal.availability')}</h3>
-          <Link to="/app/concierge-portal" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-        <BarChart data={monthlyAvailability} label={t('conciergePortal.availability') + ' (%)'} />
-      </Card>
-
-      <Link
-        to="/app/concierge-portal"
-        className="block rounded-xl border border-primary/20 bg-primary/5 p-5 hover:bg-primary/10 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/20 text-primary">
-            <Briefcase className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">{t('nav.conciergePortal')}</p>
-            <p className="text-xs text-muted-foreground">{t('conciergePortal.subtitle')}</p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto" />
-        </div>
-      </Link>
-    </>
-  )
-}
-
-function GuestDashboard() {
-  const { t } = useTranslation()
-  const { data: reservations } = useReservations()
-  const { data: services } = useServices()
-
-  const today = new Date().toISOString().split('T')[0]
-  const currentRes = reservations.find(r =>
-    r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress')
-  )
-  const availableServices = services.filter(s => s.available).length
-
-  return (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label={t('dashboard.currentReservation')} value={currentRes ? '1' : '0'} icon={CalendarCheck} tone="primary" />
-        <MetricCard label={t('dashboard.availableServices')} value={availableServices} icon={ConciergeBell} tone="info" />
-        <MetricCard label={t('dashboard.propertyInfo')} value={currentRes?.property?.name ?? '—'} icon={Building2} tone="success" />
-      </div>
-      {currentRes && (
-        <Card className="p-5">
-          <h3 className="text-sm font-semibold mb-3">{t('dashboard.currentReservation')}</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t('reservations.arrival')}</span>
-              <span className="tabular-nums">{currentRes.arrival}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t('reservations.departure')}</span>
-              <span className="tabular-nums">{currentRes.departure}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t('common.status')}</span>
-              <Badge variant="success">{currentRes.status}</Badge>
-            </div>
-          </div>
-        </Card>
-      )}
-    </>
-  )
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  paid: 'Payé',
+  pending: 'En attente',
 }
 
 export function Dashboard() {
   const { role } = useRole()
-  const { t } = useTranslation()
-  const { filterReservations, filterTasks, filterPayments } = useRoleFilter()
-  const { kpis } = useDashboardKPIs()
-  const { data: rawReservations, loading: loadingRes } = useReservations()
-  const { data: rawTasks, loading: loadingTasks } = useTasks()
-  const { data: rawPayments, loading: loadingPay } = usePayments()
-  const { data: properties } = useProperties()
-  const [animateIn, setAnimateIn] = useState(false)
-
-  const reservations = filterReservations(rawReservations)
-  const tasks = filterTasks(rawTasks)
-  const payments = filterPayments(rawPayments)
-
-  const loading = loadingRes || loadingTasks || loadingPay
+  const { user } = useAuth()
+  const { can } = usePermissions()
+  const canViewAmounts = can('reservation_amounts')
+  const { openReservation } = useReservationDetail()
+  const [loading, setLoading] = useState(true)
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [propertyCount, setPropertyCount] = useState(0)
 
   useEffect(() => {
-    setAnimateIn(false)
-    const timer = setTimeout(() => setAnimateIn(true), 50)
-    return () => clearTimeout(timer)
-  }, [role])
+    if (!user) return
+    const userId = user.id
 
-  const titleKey = `dashboard.${role === 'house_manager' ? 'houseManagerTitle' : role === 'owner' ? 'ownerTitle' : role === 'concierge' ? 'conciergeTitle' : role === 'agency' ? 'agencyTitle' : role === 'partner' ? 'partnerTitle' : 'guestTitle'}`
+    async function load() {
+      const [resResult, taskResult, payResult, propResult] = await Promise.all([
+        fetchOwnerReservations(userId),
+        fetchOwnerTasks(userId),
+        fetchOwnerPayments(userId),
+        fetchOwnerProperties(userId),
+      ])
+
+      setReservations((resResult.data as Reservation[]) ?? [])
+      setTasks((taskResult.data as Task[]) ?? [])
+      setPayments((payResult.data as Payment[]) ?? [])
+      setPropertyCount((propResult.data ?? []).length)
+      setLoading(false)
+    }
+
+    load()
+  }, [user])
+
+  if (loading) return <LoadingState />
+
+  const today = todayISO()
+  const commercialReservations = reservations.filter(isCommercialReservation)
+  const pendingAgencyRequests = reservations.filter(isPendingAgencyClientRequest)
+  const activeStays = commercialReservations.filter(r => r.status === 'in_progress').length
+  const upcomingArrivals = commercialReservations.filter(
+    r => r.arrival >= today && r.status === 'confirmed',
+  ).length
+  const pendingTasks = tasks.filter(t => t.status === 'todo').length
+  const serviceRevenue = payments
+    .filter(p => p.status === 'paid' && p.type === 'service')
+    .reduce((sum, p) => sum + Number(p.amount), 0)
+
+  const handleReservationUpdated = (updated: Reservation) => {
+    setReservations(current => current.map(r => (r.id === updated.id ? updated : r)))
+  }
+
+  const roleLabels: Record<string, string> = {
+    owner: 'Tableau de bord propriétaire',
+    house_manager: 'Tableau de bord house manager',
+    concierge: 'Tableau de bord conciergerie',
+    agency: 'Tableau de bord agence immobilière',
+    partner: 'Tableau de bord prestataire',
+    guest: 'Tableau de bord voyageur',
+  }
+
+  if (propertyCount === 0) {
+    return (
+      <div className="space-y-6">
+        <span className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+          {roleLabels[role]}
+        </span>
+        <EmptyState
+          title="Bienvenue sur butlr"
+          description="Votre tableau de bord se remplira dès que vous aurez ajouté des propriétés et des réservations."
+          action={
+            <Link to="/app/properties">
+              <span className="text-sm text-foreground hover:underline">Aller aux propriétés</span>
+            </Link>
+          }
+        />
+      </div>
+    )
+  }
 
   return (
-    <div className={`space-y-6 transition-all duration-300 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-soft text-primary shrink-0">
-          <Sparkles className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold tracking-tight leading-tight">{t(titleKey)}</h2>
-          <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
-        </div>
-        {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-1" />}
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+          {roleLabels[role]}
+        </span>
       </div>
 
-      {role === 'owner' && <OwnerDashboard />}
-      {role === 'house_manager' && <HouseManagerDashboard />}
-      {role === 'concierge' && <ConciergeDashboard />}
-      {(role === 'agency') && <AgencyDashboard />}
-      {role === 'partner' && <PartnerDashboard />}
-      {role === 'guest' && <GuestDashboard />}
-
-      {/* AI Insights — visible for management roles */}
-      {role !== 'guest' && role !== 'partner' && (
-        <AiInsightsWidget
-          occupancyRate={kpis.occupancyRate}
-          revenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)}
-          previousRevenue={payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0) * 0.88 /* mock placeholder until historical data available */}
-          upcomingArrivals={reservations.filter(r => {
-            const arrival = new Date(r.arrival)
-            const now = new Date()
-            const weekLater = new Date(now.getTime() + 7 * 86400000)
-            return arrival >= now && arrival <= weekLater && r.status !== 'cancelled'
-          }).length}
-          pendingTasks={tasks.filter(t => t.status === 'todo' || t.status === 'in_progress').length}
-          propertiesCount={properties.length}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <MetricCard label="Séjours en cours" value={activeStays} />
+        <MetricCard label="Arrivées à venir" value={upcomingArrivals} />
+        <MetricCard label="Demandes agence" value={pendingAgencyRequests.length} />
+        <MetricCard label="Propriétés" value={propertyCount} />
+        <MetricCard
+          label="Revenu conciergerie"
+          value={canViewAmounts ? serviceRevenue : '•••'}
+          prefix={canViewAmounts ? '€' : undefined}
         />
-      )}
+        <MetricCard label="Tâches en attente" value={pendingTasks} />
+      </div>
 
-      {/* Common sections for non-guest roles */}
-      {role !== 'guest' && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Card className="p-5">
+      <div className="grid lg:grid-cols-2 gap-6">
+        {(role === 'owner' || pendingAgencyRequests.length > 0) && (
+          <Card className="p-5 lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">{t('dashboard.recentReservations')}</h3>
+              <h3 className="text-sm font-semibold">Demandes agence à valider</h3>
               <Link to="/app/reservations" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
+                Tout voir <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
+            {pendingAgencyRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune demande en attente</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingAgencyRequests.slice(0, 5).map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => openReservation(r, { onUpdated: handleReservationUpdated })}
+                    className="flex w-full cursor-pointer items-center justify-between border-b border-border py-2 text-left last:border-0 hover:bg-muted/30"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{r.guest_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.properties?.name} · {r.arrival} → {r.departure}
+                      </p>
+                    </div>
+                    <Badge variant="warning">À valider</Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold">Arrivées à venir</h3>
+            <Link to="/app/reservations" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              Tout voir <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          {upcomingArrivals === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune arrivée à venir</p>
+          ) : (
             <div className="space-y-3">
-              {reservations.slice(0, 3).map(r => (
-                <div key={r.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              {commercialReservations.filter(r => r.arrival >= today).slice(0, 3).map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => openReservation(r, { onUpdated: handleReservationUpdated })}
+                  className="flex w-full cursor-pointer items-center justify-between border-b border-border py-2 text-left last:border-0 hover:bg-muted/30"
+                >
                   <div>
                     <p className="text-sm font-medium">{r.guest_name}</p>
-                    <p className="text-xs text-muted-foreground">{r.property?.name ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">{r.properties?.name}</p>
                   </div>
-                  <Badge variant={r.status === 'confirmed' || r.status === 'completed' ? 'success' : r.status === 'cancelled' ? 'destructive' : 'warning'}>
-                    {r.status}
-                  </Badge>
-                </div>
+                  <Badge variant="success">{RESERVATION_STATUS_LABELS[r.status] ?? r.status}</Badge>
+                </button>
               ))}
-              {reservations.length === 0 && !loadingRes && (
-                <p className="text-xs text-muted-foreground py-4 text-center">{t('common.noData')}</p>
-              )}
             </div>
-          </Card>
+          )}
+        </Card>
 
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">{t('dashboard.openTasks')}</h3>
-              <Link to="/app/tasks" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold">Tâches en attente</h3>
+            <Link to="/app/tasks" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              Tout voir <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          {pendingTasks === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune tâche en attente</p>
+          ) : (
             <div className="space-y-3">
-              {tasks.filter(t => t.status === 'todo' || t.status === 'in_progress').slice(0, 3).map(t => (
+              {tasks.filter(t => t.status === 'todo').slice(0, 3).map(t => (
                 <div key={t.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div>
                     <p className="text-sm font-medium">{t.title}</p>
-                    <p className="text-xs text-muted-foreground">{t.status.replace('_', ' ')}</p>
+                    <p className="text-xs text-muted-foreground">{t.properties?.name}</p>
                   </div>
-                  <Badge variant={t.priority === 'high' ? 'destructive' : t.priority === 'medium' ? 'warning' : 'muted'}>
-                    {t.priority}
+                  <Badge variant={t.priority === 'high' ? 'destructive' : 'muted'}>
+                    {TASK_PRIORITY_LABELS[t.priority] ?? t.priority}
                   </Badge>
                 </div>
               ))}
-              {tasks.length === 0 && !loadingTasks && (
-                <p className="text-xs text-muted-foreground py-4 text-center">{t('common.noData')}</p>
-              )}
             </div>
-          </Card>
+          )}
+        </Card>
 
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">{t('dashboard.recentPayments')}</h3>
-              <Link to="/app/payments" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                {t('common.viewAll')} <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
+        <Card className="p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold">Paiements récents</h3>
+            <Link to="/app/payments" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              Tout voir <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          {payments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucun paiement pour l'instant</p>
+          ) : (
             <div className="space-y-3">
               {payments.slice(0, 3).map(p => (
                 <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
@@ -479,44 +251,19 @@ export function Dashboard() {
                     <p className="text-xs text-muted-foreground">{p.property_name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm tabular-nums font-medium">{'\u20AC'}{Number(p.amount).toLocaleString()}</p>
+                    <p className="text-sm font-mono font-medium">
+                      {formatMaskedAmount(p.amount, canViewAmounts)}
+                    </p>
                     <Badge variant={p.status === 'paid' ? 'success' : 'warning'} className="mt-1">
-                      {p.status}
+                      {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                     </Badge>
                   </div>
                 </div>
               ))}
-              {payments.length === 0 && !loadingPay && (
-                <p className="text-xs text-muted-foreground py-4 text-center">{t('common.noData')}</p>
-              )}
             </div>
-          </Card>
-
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">{t('dashboard.quickStats')}</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-border">
-                <span className="text-sm text-muted-foreground">{t('dashboard.totalReservations')}</span>
-                <span className="text-sm tabular-nums font-medium">{reservations.length}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-border">
-                <span className="text-sm text-muted-foreground">{t('dashboard.tasksDone')}</span>
-                <span className="text-sm tabular-nums font-medium">{tasks.filter(t => t.status === 'done').length}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-border">
-                <span className="text-sm text-muted-foreground">{t('dashboard.paidPayments')}</span>
-                <span className="text-sm tabular-nums font-medium">{payments.filter(p => p.status === 'paid').length}</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-muted-foreground">{t('dashboard.totalRevenue')}</span>
-                <span className="text-sm tabular-nums font-medium">{'\u20AC'}{payments.reduce((s, p) => p.status === 'paid' ? s + Number(p.amount) : s, 0).toLocaleString()}</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
+          )}
+        </Card>
+      </div>
     </div>
   )
 }

@@ -11,6 +11,14 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+coverage
+playwright-report
+test-results
+
+# Cursor / Supabase local
+.cursor/
+supabase/.temp/
 
 # Editor directories and files
 .vscode/*

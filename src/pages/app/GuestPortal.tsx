@@ -1,478 +1,217 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { CheckCircle2, Circle, ExternalLink } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { ChatThread } from '@/components/ChatThread'
-import { Button } from '@/components/ui/Button'
+import { EmptyState, LoadingState } from '@/components/EmptyState'
 import { Badge } from '@/components/ui/Badge'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
-import { Modal } from '@/components/ui/Modal'
-import { CheckInForm } from '@/components/CheckInForm'
-import { useReservations, useServices, useContracts, useServiceRequests } from '@/lib/useSupabase'
+import { PropertyGuestPortalPanel } from '@/components/property/PropertyGuestPortalPanel'
 import { useAuth } from '@/lib/authContext'
-import { useRole } from '@/lib/roleContext'
-import { useToast } from '@/components/ui/Toast'
+import { fetchOwnerProperties } from '@/lib/data'
 import {
-  Wifi, BookOpen, Plane, Phone, Loader2, Calendar, Download,
-  MessageSquare, FileText, Plus, Clock
-} from 'lucide-react'
+  countPublishedGuides,
+  defaultGuestPortalSettings,
+  fetchGuestPortalSettings,
+  fetchPropertyGuides,
+} from '@/lib/guestPortal'
+import { guestPortalSetupProgress } from '@/lib/guestPortalSetup'
+import type { Property } from '@/lib/types'
+import type { GuestGuide, GuestPortalSettings } from '@/lib/guestPortal'
+
+interface PropertyPortalSummary {
+  settings: GuestPortalSettings
+  guides: GuestGuide[]
+  progress: ReturnType<typeof guestPortalSetupProgress>
+}
 
 export function GuestPortal() {
-  const { data: reservations, loading: lRes } = useReservations()
-  const { data: services, loading: lSvc } = useServices()
-  const { data: contracts } = useContracts()
   const { user } = useAuth()
-  const { role } = useRole()
-  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [properties, setProperties] = useState<Property[]>([])
+  const [selectedPropertyId, setSelectedPropertyId] = useState('')
+  const [summaries, setSummaries] = useState<Record<string, PropertyPortalSummary>>({})
 
-  const loading = lRes || lSvc
+  useEffect(() => {
+    if (!user) return
 
-  const [activeSection, setActiveSection] = useState<'overview' | 'check-in' | 'services' | 'messages'>('overview')
-  const [showRequestModal, setShowRequestModal] = useState(false)
-  const [requestForm, setRequestForm] = useState({
-    service_name: '',
-    details: '',
-    preferred_date: '',
-    preferred_time: '',
-  })
-  const [requestErrors, setRequestErrors] = useState<Record<string, string>>({})
-  const [savingRequest, setSavingRequest] = useState(false)
+    fetchOwnerProperties(user.id).then(async ({ data }) => {
+      const items = (data as Property[]) ?? []
+      setProperties(items)
+      setSelectedPropertyId(current => current || items[0]?.id || '')
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+      const nextSummaries: Record<string, PropertyPortalSummary> = {}
+      await Promise.all(items.map(async property => {
+        const [settingsResult, guidesResult] = await Promise.all([
+          fetchGuestPortalSettings(property.id),
+          fetchPropertyGuides(property.id),
+        ])
+        const settings = settingsResult.data ?? defaultGuestPortalSettings(property.id)
+        const guides = (guidesResult.data ?? []) as GuestGuide[]
+        nextSummaries[property.id] = {
+          settings,
+          guides,
+          progress: guestPortalSetupProgress(settings, guides),
+        }
+      }))
 
-  const today = new Date().toISOString().split('T')[0]
+      setSummaries(nextSummaries)
+      setLoading(false)
+    })
+  }, [user])
 
-  const guestReservations = role === 'guest'
-    ? reservations.filter(r => r.guest_email === user?.email)
-    : reservations
+  const selectedProperty = properties.find(property => property.id === selectedPropertyId)
+  const selectedSummary = selectedPropertyId ? summaries[selectedPropertyId] : undefined
 
-  const activeReservation = guestReservations.find(r =>
-    r.arrival <= today && r.departure >= today && (r.status === 'confirmed' || r.status === 'in_progress')
+  const sortedProperties = useMemo(
+    () => [...properties].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    [properties],
   )
 
-  const upcomingReservations = guestReservations.filter(r =>
-    r.arrival > today && (r.status === 'confirmed' || r.status === 'pending')
-  ).slice(0, 3)
-
-  const pastReservations = guestReservations.filter(r =>
-    r.departure < today || r.status === 'completed'
-  ).slice(0, 3)
-
-  const currentReservation = activeReservation ?? guestReservations[0]
-  const availableServices = services.filter(s => s.available).slice(0, 8)
-
-  const reservationContracts = currentReservation
-    ? contracts.filter(c => c.reservation_id === currentReservation.id)
-    : []
-
-  const daysBetween = (a: string, b: string) => {
-    const d1 = new Date(a).getTime()
-    const d2 = new Date(b).getTime()
-    return Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24))
-  }
-
-  const exportReservationsCSV = () => {
-    const headers = ['Guest', 'Property', 'Arrival', 'Departure', 'Guests', 'Status', 'Amount']
-    const rows = guestReservations.map(r => [r.guest_name, r.property?.name ?? '', r.arrival, r.departure, String(r.guests_count), r.status, String(r.total_amount)])
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `reservations-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const validateRequest = () => {
-    const errs: Record<string, string> = {}
-    if (!requestForm.service_name.trim()) errs.service_name = 'Service is required'
-    setRequestErrors(errs)
-    return Object.keys(errs).length === 0
-  }
+  if (loading) return <LoadingState label="Chargement des portails voyageur…" />
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold tracking-tight text-muted-foreground">Guest Portal</p>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={exportReservationsCSV}>
-            <Download className="w-4 h-4 mr-1" /> Export
-          </Button>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <p className="text-xs font-mono font-medium uppercase tracking-[.14em] text-muted-foreground">
+            Portail voyageur
+          </p>
+          <h1 className="mt-1 text-lg font-semibold">Configuration du portail invité</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Organisez l’expérience voyageur en 5 blocs : activation, accueil, séjour, règlement et guides pratiques.
+          </p>
         </div>
-      </div>
-
-      {activeReservation ? (
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-xl font-bold mb-1">Welcome, {activeReservation.guest_name}</h2>
-              <p className="text-sm text-muted-foreground">{activeReservation.property?.name ?? 'Property'}</p>
-              <p className="text-xs text-muted-foreground mt-1">{activeReservation.arrival} — {activeReservation.departure}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {(() => {
-                  const totalNights = daysBetween(activeReservation.arrival, activeReservation.departure)
-                  const currentDay = Math.min(Math.max(daysBetween(activeReservation.arrival, today) + 1, 1), totalNights)
-                  return `Day ${currentDay} of ${totalNights}`
-                })()}
-              </p>
-              <Badge variant="success" className="mt-1">Active Stay</Badge>
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <Card className="p-6 text-center">
-          <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium">No active stay</p>
-          <p className="text-xs text-muted-foreground mt-1">There is no guest currently checked in.</p>
-        </Card>
-      )}
-
-      <div className="flex gap-2 border-b border-border pb-0">
-        {(['overview', 'check-in', 'services', 'messages'] as const).map(section => (
-          <button
-            key={section}
-            onClick={() => setActiveSection(section)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
-              activeSection === section
-                ? 'border-foreground text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+        {selectedProperty && (
+          <Link
+            to={`/app/properties/${selectedProperty.id}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
           >
-            {section === 'overview' && 'Overview'}
-            {section === 'check-in' && 'Check-in'}
-            {section === 'services' && 'Services'}
-            {section === 'messages' && 'Messages'}
-          </button>
-        ))}
+            Fiche propriété
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        )}
       </div>
 
-      {activeSection === 'overview' && (
-        <>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { icon: Wifi, label: 'Wi-Fi', value: 'Check property details' },
-              { icon: BookOpen, label: 'House Rules', value: 'Quiet hours 22h-8h' },
-              { icon: Plane, label: 'Check-in Info', value: 'See reservation details' },
-              { icon: Phone, label: 'Emergency', value: '+33 4 94 00 00 00' },
-            ].map(item => (
-              <Card key={item.label} className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
-                    <item.icon className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
-                    <p className="text-sm font-medium mt-0.5">{item.value}</p>
-                  </div>
+      {properties.length === 0 ? (
+        <EmptyState
+          title="Aucune propriété"
+          description="Créez une propriété pour configurer son portail voyageur."
+        />
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+          <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+            <Card className="overflow-hidden p-0">
+              <div className="border-b border-border bg-muted/40 px-3 py-2">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                  Villas
+                </p>
+              </div>
+              <div className="space-y-1 p-2">
+                {sortedProperties.map(property => {
+                  const summary = summaries[property.id]
+                  const isSelected = property.id === selectedPropertyId
+                  const enabled = summary?.settings.enabled ?? true
+                  const progress = summary?.progress.percent ?? 0
+
+                  return (
+                    <button
+                      key={property.id}
+                      type="button"
+                      onClick={() => setSelectedPropertyId(property.id)}
+                      className={`relative flex w-full cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                        isSelected
+                          ? 'border-foreground/20 bg-info-soft/40 ring-1 ring-border'
+                          : 'border-transparent hover:border-border hover:bg-muted/60'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-info" aria-hidden />
+                      )}
+                      {property.image_url ? (
+                        <img
+                          src={property.image_url}
+                          alt=""
+                          className="mt-0.5 h-10 w-10 shrink-0 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-muted-foreground">
+                          {property.name.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{property.name}</span>
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <Badge variant={enabled ? 'success' : 'muted'} className="text-[10px]">
+                            {enabled ? 'Actif' : 'Off'}
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground">
+                            {progress}% prêt
+                          </span>
+                        </span>
+                        <span className="mt-2 block h-1 overflow-hidden rounded-full bg-muted">
+                          <span
+                            className={`block h-full rounded-full transition-all ${isSelected ? 'bg-info' : 'bg-foreground/30'}`}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </Card>
+
+            {selectedSummary && (
+              <Card className="overflow-hidden p-0">
+                <div className="h-1 w-full bg-info" aria-hidden />
+                <div className="space-y-3 p-4">
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                    Avancement
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">
+                    {selectedSummary.progress.percent}%
+                  </p>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-foreground transition-all"
+                    style={{ width: `${selectedSummary.progress.percent}%` }}
+                  />
+                </div>
+                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                    {selectedSummary.progress.complete} section{selectedSummary.progress.complete > 1 ? 's' : ''} complète{selectedSummary.progress.complete > 1 ? 's' : ''}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Circle className="h-3.5 w-3.5" />
+                    {countPublishedGuides(selectedSummary.guides)} guide{countPublishedGuides(selectedSummary.guides) > 1 ? 's' : ''} publié{countPublishedGuides(selectedSummary.guides) > 1 ? 's' : ''}
+                  </li>
+                </ul>
                 </div>
               </Card>
-            ))}
-          </div>
+            )}
+          </aside>
 
-          {reservationContracts.length > 0 && (
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Contracts & Documents
-              </h3>
-              <div className="space-y-3">
-                {reservationContracts.map(c => (
-                  <div key={c.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                    <div>
-                      <p className="text-sm font-medium capitalize">{c.type} Contract</p>
-                      <p className="text-xs text-muted-foreground">{c.date}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={c.status === 'signed' ? 'success' : c.status === 'sent' ? 'warning' : 'muted'}>
-                        {c.status}
-                      </Badge>
-                      {c.document_url && (
-                        <a
-                          href={c.document_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded hover:bg-muted transition-colors"
-                        >
-                          <Download className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
+          {selectedProperty && (
+            <PropertyGuestPortalPanel
+              propertyId={selectedProperty.id}
+              propertyName={selectedProperty.name}
+              propertyImageUrl={selectedProperty.image_url}
+              onSummaryChange={(settings, guides) => {
+                setSummaries(current => ({
+                  ...current,
+                  [selectedProperty.id]: {
+                    settings,
+                    guides,
+                    progress: guestPortalSetupProgress(settings, guides),
+                  },
+                }))
+              }}
+            />
           )}
-
-          {upcomingReservations.length > 0 && (
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold mb-4">Upcoming Reservations</h3>
-              <div className="space-y-3">
-                {upcomingReservations.map(r => (
-                  <div key={r.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{r.guest_name}</p>
-                      <p className="text-xs text-muted-foreground">{r.property?.name ?? 'Property'} — {r.arrival} to {r.departure}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={r.status === 'confirmed' ? 'success' : 'warning'}>{r.status}</Badge>
-                      <p className="text-xs tabular-nums mt-1">&euro;{Number(r.total_amount).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {pastReservations.length > 0 && (
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold mb-4">Past Stays</h3>
-              <div className="space-y-3">
-                {pastReservations.map(r => (
-                  <div key={r.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{r.guest_name}</p>
-                      <p className="text-xs text-muted-foreground">{r.property?.name ?? 'Property'} — {r.arrival} to {r.departure}</p>
-                    </div>
-                    <Badge variant="muted">{r.status}</Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-        </>
+        </div>
       )}
-
-      {activeSection === 'check-in' && currentReservation && (
-        <CheckInForm reservation={currentReservation} />
-      )}
-
-      {activeSection === 'check-in' && !currentReservation && (
-        <Card className="p-12 text-center">
-          <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium">No reservation to check in</p>
-          <p className="text-xs text-muted-foreground mt-1">Check-in is linked to a reservation.</p>
-        </Card>
-      )}
-
-      {activeSection === 'services' && (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Available Services
-            </p>
-            <Button size="sm" onClick={() => setShowRequestModal(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Request Service
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {availableServices.map(svc => (
-              <div
-                key={svc.id}
-                className="border border-border rounded-md p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => {
-                  setRequestForm(f => ({ ...f, service_name: svc.name }))
-                  setShowRequestModal(true)
-                }}
-              >
-                <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center mb-3">
-                  <Plus className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <p className="text-xs font-medium">{svc.name}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">From &euro;{Number(svc.starting_price).toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-
-          {currentReservation && (
-            <ServiceRequestsList reservationId={currentReservation.id} />
-          )}
-        </>
-      )}
-
-      {activeSection === 'messages' && currentReservation && (
-        <ChatThread
-          reservationId={currentReservation.id}
-          userId={user?.id}
-          senderName={currentReservation.guest_name || 'Guest'}
-          senderRole={role}
-          subtitle="Chat with your house manager"
-        />
-      )}
-
-      {activeSection === 'messages' && !currentReservation && (
-        <Card className="p-12 text-center">
-          <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium">No active reservation</p>
-          <p className="text-xs text-muted-foreground mt-1">Messages are linked to reservations.</p>
-        </Card>
-      )}
-
-      <Modal open={showRequestModal} onClose={() => setShowRequestModal(false)} title="Request a Service">
-        <ServiceRequestForm
-          currentReservation={currentReservation}
-          userId={user?.id}
-          services={services}
-          form={requestForm}
-          setForm={setRequestForm}
-          errors={requestErrors}
-          saving={savingRequest}
-          onSubmit={async () => {
-            if (!validateRequest()) return
-            setSavingRequest(true)
-            // handled by the form component
-          }}
-          onClose={() => setShowRequestModal(false)}
-          toast={toast}
-          setSaving={setSavingRequest}
-        />
-      </Modal>
     </div>
-  )
-}
-
-function ServiceRequestForm({ currentReservation, userId, services, form, setForm, errors, saving, onClose, toast, setSaving }: {
-  currentReservation: { id: string } | undefined
-  userId: string | undefined
-  services: Array<{ id: string; name: string }>
-  form: { service_name: string; details: string; preferred_date: string; preferred_time: string }
-  setForm: React.Dispatch<React.SetStateAction<typeof form>>
-  errors: Record<string, string>
-  saving: boolean
-  onSubmit: () => void
-  onClose: () => void
-  toast: (msg: string, variant?: 'success' | 'error' | 'warning' | 'info') => void
-  setSaving: (v: boolean) => void
-}) {
-  const { addRequest } = useServiceRequests(currentReservation?.id)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.service_name.trim()) {
-      toast('Service name is required', 'error')
-      return
-    }
-    setSaving(true)
-    try {
-      const matchedService = services.find(s => s.name === form.service_name)
-      await addRequest({
-        reservation_id: currentReservation?.id ?? null,
-        guest_user_id: userId ?? null,
-        service_id: matchedService?.id ?? null,
-        service_name: form.service_name,
-        details: form.details || null,
-        preferred_date: form.preferred_date || null,
-        preferred_time: form.preferred_time || null,
-        status: 'pending',
-      })
-      toast('Service requested')
-      setForm({ service_name: '', details: '', preferred_date: '', preferred_time: '' })
-      onClose()
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-    setSaving(false)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Select
-          label="Service"
-          value={form.service_name}
-          onChange={e => setForm(f => ({ ...f, service_name: e.target.value }))}
-          options={[
-            { value: '', label: 'Select a service...' },
-            ...services.map(s => ({ value: s.name, label: s.name })),
-          ]}
-        />
-        {errors.service_name && <p className="text-xs text-destructive mt-1">{errors.service_name}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <label className="block text-sm font-medium">Details / Special requests</label>
-        <textarea
-          value={form.details}
-          onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
-          className="w-full h-20 px-3 py-2 bg-card border border-input rounded-sm text-sm focus:outline-none focus:border-info resize-none"
-          placeholder="Any special requirements..."
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Preferred date"
-          type="date"
-          value={form.preferred_date}
-          onChange={e => setForm(f => ({ ...f, preferred_date: e.target.value }))}
-        />
-        <Input
-          label="Preferred time"
-          type="time"
-          value={form.preferred_time}
-          onChange={e => setForm(f => ({ ...f, preferred_time: e.target.value }))}
-        />
-      </div>
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
-        <Button type="submit" disabled={saving}>
-          {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-          Submit Request
-        </Button>
-      </div>
-    </form>
-  )
-}
-
-function ServiceRequestsList({ reservationId }: { reservationId: string }) {
-  const { requests, loading } = useServiceRequests(reservationId)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-20">
-        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  if (requests.length === 0) return null
-
-  const statusVariant = (s: string) => {
-    if (s === 'completed') return 'success' as const
-    if (s === 'cancelled') return 'destructive' as const
-    if (s === 'in_progress' || s === 'approved') return 'warning' as const
-    return 'muted' as const
-  }
-
-  return (
-    <Card className="p-5">
-      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-        <Clock className="w-4 h-4" /> My Requests
-      </h3>
-      <div className="space-y-3">
-        {requests.map(req => (
-          <div key={req.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-            <div>
-              <p className="text-sm font-medium">{req.service_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {req.preferred_date && `${req.preferred_date} `}
-                {req.preferred_time && `at ${req.preferred_time}`}
-                {!req.preferred_date && !req.preferred_time && 'No date preference'}
-              </p>
-              {req.details && <p className="text-xs text-muted-foreground mt-0.5">{req.details}</p>}
-              {req.quoted_price != null && (
-                <p className="text-xs text-foreground mt-0.5">Quote: €{Number(req.quoted_price).toLocaleString()}</p>
-              )}
-            </div>
-            <Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge>
-          </div>
-        ))}
-      </div>
-    </Card>
   )
 }

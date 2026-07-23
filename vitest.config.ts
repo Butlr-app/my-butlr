@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import path from 'node:path'
 
 export default defineConfig({
   plugins: [react()],
@@ -10,10 +10,20 @@ export default defineConfig({
     },
   },
   test: {
-    globals: true,
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
     css: false,
+    restoreMocks: true,
+    clearMocks: true,
+    maxWorkers: 1,
+    coverage: {
+      reporter: ['text', 'html'],
+      include: [
+        'src/lib/reservationWorkflow.ts',
+        'src/components/reservation/ReservationCreateModal.tsx',
+        'src/pages/app/Reservations.tsx',
+      ],
+    },
   },
 })

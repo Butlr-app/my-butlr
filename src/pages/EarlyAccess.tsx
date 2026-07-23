@@ -2,11 +2,51 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/Select'
+import { supabase } from '@/lib/supabase'
 import { ArrowLeft, Check } from 'lucide-react'
 
 export function EarlyAccess() {
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [company, setCompany] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [role, setRole] = useState('')
+  const [propertiesCount, setPropertiesCount] = useState('')
+  const [message, setMessage] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const parsedPropertiesCount = propertiesCount.trim()
+      ? Number.parseInt(propertiesCount, 10)
+      : null
+
+    const { error: insertError } = await supabase.from('early_access_leads').insert({
+      full_name: fullName.trim() || null,
+      email: email.trim(),
+      company: company.trim() || null,
+      phone: phone.trim() || null,
+      role: role || null,
+      properties_count: Number.isFinite(parsedPropertiesCount) ? parsedPropertiesCount : null,
+      message: message.trim() || null,
+    })
+
+    setLoading(false)
+
+    if (insertError) {
+      setError(insertError.message || 'Unable to submit your request. Please try again.')
+      return
+    }
+
+    setSubmitted(true)
+  }
 
   if (submitted) {
     return (
@@ -37,36 +77,68 @@ export function EarlyAccess() {
         <p className="text-muted-foreground mb-8">Join the private beta of My Butlr.</p>
 
         <form
-          onSubmit={(e) => { e.preventDefault(); setSubmitted(true) }}
+          onSubmit={handleSubmit}
           className="space-y-5"
         >
-          <Input label="Full name" placeholder="Jean Dupont" required />
-          <Input label="Company name" placeholder="Your company" />
-          <Input label="Email" type="email" placeholder="jean@company.com" required />
-          <Input label="Phone" type="tel" placeholder="+33 6 00 00 00 00" />
+          <Input
+            label="Full name"
+            placeholder="Jean Dupont"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
+          <Input
+            label="Company name"
+            placeholder="Your company"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+          />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="jean@company.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <PhoneInput label="Phone" value={phone} onChange={setPhone} />
           <Select
-            label="Profile type"
+            label="Type de profil"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
             options={[
-              { value: '', label: 'Select a profile' },
-              { value: 'villa_owner', label: 'Villa owner' },
+              { value: '', label: 'Choisir un profil' },
+              { value: 'villa_owner', label: 'Propriétaire de villa' },
               { value: 'house_manager', label: 'House manager' },
-              { value: 'concierge', label: 'Concierge' },
+              { value: 'concierge', label: 'Conciergerie' },
               { value: 'family_office', label: 'Family office' },
-              { value: 'real_estate', label: 'Real estate agency' },
-              { value: 'partner', label: 'Service partner' },
-              { value: 'other', label: 'Other' },
+              { value: 'agency', label: 'Agence immobilière' },
+              { value: 'partner', label: 'Prestataire de services' },
+              { value: 'other', label: 'Autre' },
             ]}
           />
-          <Input label="Number of properties" type="number" placeholder="1" min={1} />
+          <Input
+            label="Number of properties"
+            type="number"
+            placeholder="1"
+            min={1}
+            value={propertiesCount}
+            onChange={(e) => setPropertiesCount(e.target.value)}
+          />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium">Message</label>
             <textarea
               className="w-full h-24 px-3 py-2 bg-card border border-input rounded-sm text-sm resize-none focus:outline-none focus:border-info focus:ring-1 focus:ring-info/20 placeholder:text-muted-foreground"
               placeholder="Tell us about your needs..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
             />
           </div>
-          <Button type="submit" size="lg" className="w-full">
-            Submit request
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
+          <Button type="submit" size="lg" className="w-full" disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit request'}
           </Button>
         </form>
       </div>

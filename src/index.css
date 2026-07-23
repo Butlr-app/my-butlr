@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @layer base {
@@ -152,6 +152,7 @@
   --shadow-floating: var(--shadow-float);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
 }
 
 /* Mobile Airbnb-style utilities */

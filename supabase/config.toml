@@ -1,0 +1,19 @@
+project_id = "my-butlr"
+
+[functions.signing-envelope]
+verify_jwt = true
+
+[functions.signing-ceremony]
+verify_jwt = false
+
+[functions.contract-vision]
+verify_jwt = true
+
+[functions.saas-assistant]
+verify_jwt = true
+
+[functions.password-reset]
+verify_jwt = false
+
+[functions.magic-link]
+verify_jwt = false

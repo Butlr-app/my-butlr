@@ -1,68 +1,246 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { supabase } from './supabase'
 import type { User, Session } from '@supabase/supabase-js'
+import type { Profile } from './types'
+import type { Role } from './roleContext'
+import { formatAuthError, isEmailRateLimitError } from './authErrors'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
+  profile: Profile | null
   loading: boolean
-  signUp: (email: string, password: string, fullName: string, role?: string) => Promise<{ error: Error | null; needsConfirmation: boolean }>
+  profileLoading: boolean
+  signUp: (email: string, password: string, fullName: string, role: Role) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInWithMagicLink: (email: string) => Promise<{ error: Error | null; rateLimited?: boolean }>
+  requestPasswordReset: (email: string) => Promise<{ error: Error | null; rateLimited?: boolean }>
+  updatePassword: (password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
+  resendVerificationEmail: (email: string) => Promise<{ error: Error | null }>
+  refreshProfile: (options?: { silent?: boolean }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
+  profile: null,
   loading: true,
-  signUp: async (_e, _p, _f, _r) => ({ error: null, needsConfirmation: false }),
+  profileLoading: true,
+  signUp: async () => ({ error: null }),
   signIn: async () => ({ error: null }),
+  signInWithMagicLink: async () => ({ error: null }),
+  requestPasswordReset: async () => ({ error: null }),
+  updatePassword: async () => ({ error: null }),
   signOut: async () => {},
+  resendVerificationEmail: async () => ({ error: null }),
+  refreshProfile: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(true)
+
+  const fetchProfile = useCallback(async (userId: string, options?: { silent?: boolean }) => {
+    if (!options?.silent) setProfileLoading(true)
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, phone, company, role, onboarding_completed, date_format, house_manager_permissions')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      // Fallback if onboarding_completed column is not migrated yet
+      const { data: fallback } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone, company, role')
+        .eq('id', userId)
+        .single()
+
+      setProfile(fallback ? {
+        ...fallback,
+        onboarding_completed: false,
+        date_format: 'DD/MM/YYYY',
+      } as Profile : null)
+    } else {
+      setProfile({
+        ...(data as Profile),
+        onboarding_completed: data?.onboarding_completed ?? false,
+        date_format: data?.date_format ?? 'DD/MM/YYYY',
+      })
+    }
+
+    if (!options?.silent) setProfileLoading(false)
+  }, [])
+
+  const refreshProfile = useCallback(async (options?: { silent?: boolean }) => {
+    if (user) await fetchProfile(user.id, options)
+  }, [user, fetchProfile])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+        setProfileLoading(false)
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+        setProfileLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [fetchProfile])
 
-  const signUp = async (email: string, password: string, fullName: string, role?: string) => {
-    const { data, error } = await supabase.auth.signUp({
+  const signUp = async (email: string, password: string, fullName: string, role: Role) => {
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role: role || 'owner' },
+        data: { full_name: fullName, role },
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     })
-    return { error: error as Error | null, needsConfirmation: !error && !data?.session }
+
+    if (!error) {
+      await supabase.auth.signOut()
+    }
+
+    return { error: error as Error | null }
+  }
+
+  const resendVerificationEmail = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    })
+    return { error: error as Error | null }
   }
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return {
+      error: error ? new Error(formatAuthError(error.message)) : null,
+    }
+  }
+
+  const signInWithMagicLink = async (email: string) => {
+    const redirectTo = `${window.location.origin}/auth/callback`
+    const trimmedEmail = email.trim()
+
+    const { data, error: functionError } = await supabase.functions.invoke('magic-link', {
+      body: { email: trimmedEmail, redirectTo },
+    })
+
+    if (!functionError && data?.ok) {
+      return { error: null }
+    }
+
+    let useFallback = Boolean(data?.fallback)
+    if (functionError?.context && typeof functionError.context.json === 'function') {
+      try {
+        const body = await functionError.context.json() as { fallback?: boolean }
+        useFallback = useFallback || Boolean(body?.fallback)
+      } catch {
+        useFallback = true
+      }
+    }
+
+    if (!useFallback && functionError) {
+      return {
+        error: new Error(formatAuthError(functionError.message)),
+        rateLimited: isEmailRateLimitError(functionError.message),
+      }
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: {
+        emailRedirectTo: redirectTo,
+        shouldCreateUser: false,
+      },
+    })
+
+    if (!error) return { error: null }
+
+    const message = formatAuthError(error.message)
+    return {
+      error: new Error(message),
+      rateLimited: isEmailRateLimitError(error.message),
+    }
+  }
+
+  const requestPasswordReset = async (email: string) => {
+    const redirectTo = `${window.location.origin}/reset-password`
+    const trimmedEmail = email.trim()
+
+    const { data, error: functionError } = await supabase.functions.invoke('password-reset', {
+      body: { email: trimmedEmail, redirectTo },
+    })
+
+    if (!functionError && data?.ok) {
+      return { error: null }
+    }
+
+    let useFallback = Boolean(data?.fallback)
+    if (functionError?.context && typeof functionError.context.json === 'function') {
+      try {
+        const body = await functionError.context.json() as { fallback?: boolean }
+        useFallback = useFallback || Boolean(body?.fallback)
+      } catch {
+        useFallback = true
+      }
+    }
+
+    if (!useFallback && functionError) {
+      return { error: functionError as Error }
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, { redirectTo })
+    if (!error) return { error: null }
+
+    const message = formatAuthError(error.message)
+    return {
+      error: new Error(message),
+      rateLimited: isEmailRateLimitError(error.message),
+    }
+  }
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
     return { error: error as Error | null }
   }
 
   const signOut = async () => {
     await supabase.auth.signOut()
+    setProfile(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{
+      user, session, profile, loading, profileLoading,
+      signUp, signIn, signInWithMagicLink, requestPasswordReset, updatePassword, signOut, resendVerificationEmail, refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   )

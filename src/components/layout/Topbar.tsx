@@ -14,6 +14,8 @@ interface TopbarProps {
 
 const ROLE_VALUES: Role[] = ['owner', 'house_manager', 'concierge', 'agency', 'partner', 'guest']
 
+const THEME_KEY = 'my-butlr-theme'
+
 const typeIcons: Record<Notification['type'], string> = {
   reservation: 'R',
   task: 'T',
@@ -41,7 +43,7 @@ const typeColors: Record<Notification['type'], string> = {
 }
 
 export function Topbar({ title, onMenuClick }: TopbarProps) {
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const { role, setRole, canPreviewRoles } = useRole()
@@ -59,8 +61,10 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   }
 
   const toggleTheme = () => {
-    setDark(!dark)
-    document.documentElement.classList.toggle('dark')
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem(THEME_KEY, next ? 'dark' : 'light')
   }
 
   useEffect(() => {
@@ -87,7 +91,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
     <header className="h-14 border-b border-border flex items-center justify-between px-3 sm:px-6 bg-card/80 backdrop-blur-sm sticky top-0 z-30">
       <div className="flex items-center gap-3">
         {onMenuClick && (
-          <button onClick={onMenuClick} className="p-2 rounded-md hover:bg-muted transition-colors lg:hidden">
+          <button onClick={onMenuClick} className="p-2 rounded-md hover:bg-muted transition-colors lg:hidden" aria-label="Ouvrir le menu">
             <Menu className="w-5 h-5" />
           </button>
         )}
@@ -95,7 +99,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-3">
-        {canPreviewRoles && (
+        {canPreviewRoles ? (
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
@@ -105,6 +109,10 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
               <option key={r} value={r}>{t(`roles.${r}`)}</option>
             ))}
           </select>
+        ) : (
+          <span className="h-8 px-2 bg-muted rounded-md text-xs font-medium hidden sm:flex items-center">
+            {t(`roles.${role}`)}
+          </span>
         )}
 
         <div className="relative hidden sm:block">
@@ -219,7 +227,11 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
           <span>{language === 'fr' ? 'FR' : 'EN'}</span>
         </button>
 
-        <button onClick={toggleTheme} className="p-2 rounded-md hover:bg-muted transition-colors">
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-md hover:bg-muted transition-colors"
+          aria-label={dark ? 'Activer le thème clair' : 'Activer le thème sombre'}
+        >
           {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
@@ -227,7 +239,11 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
           <User className="w-4 h-4" />
         </button>
 
-        <button onClick={handleSignOut} className="p-2 rounded-md hover:bg-muted transition-colors" title="Sign out">
+        <button
+          onClick={handleSignOut}
+          className="p-2 rounded-md hover:bg-muted transition-colors"
+          aria-label="Se déconnecter"
+        >
           <LogOut className="w-4 h-4" />
         </button>
       </div>

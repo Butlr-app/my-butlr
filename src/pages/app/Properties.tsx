@@ -11,6 +11,7 @@ import { CsvImportModal } from '@/components/CsvImportModal'
 import { FilterSidebar } from '@/components/FilterSidebar'
 import { useProperties, type Property } from '@/lib/useSupabase'
 import { useAuth } from '@/lib/authContext'
+import { usePermissions } from '@/lib/permissionsContext'
 import { useToast } from '@/components/ui/Toast'
 import { useSearch } from '@/lib/searchContext'
 import { useTranslation } from '@/i18n/LanguageContext'
@@ -42,6 +43,7 @@ const emptyForm = {
 export function Properties() {
   const { data: rawProperties, loading, insert, update, remove } = useProperties()
   const { user } = useAuth()
+  const { can } = usePermissions()
   const { toast } = useToast()
   const { query, filters } = useSearch()
   const { filterProperties } = useRoleFilter()
@@ -186,9 +188,11 @@ export function Properties() {
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="w-4 h-4 mr-1" /> {t('common.import')}
           </Button>
-          <Button variant="gold" size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> {t('properties.addProperty')}
-          </Button>
+          {can('properties_create') && (
+            <Button variant="gold" size="sm" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-1" /> {t('properties.addProperty')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -197,7 +201,7 @@ export function Properties() {
           <p className="text-sm text-muted-foreground mb-4">
             {query ? 'No properties match your search.' : 'No properties yet. Add your first property to get started.'}
           </p>
-          {!query && <Button variant="gold" size="sm" onClick={openCreate}>Add property</Button>}
+          {!query && can('properties_create') && <Button variant="gold" size="sm" onClick={openCreate}>Add property</Button>}
         </Card>
       ) : (
         <>
@@ -252,9 +256,11 @@ export function Properties() {
                     <Button variant="secondary" size="sm" onClick={() => openEdit(property)}>
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={() => setDeleteTarget({ id: property.id, name: property.name })}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    {can('properties_delete') && (
+                      <Button variant="secondary" size="sm" onClick={() => setDeleteTarget({ id: property.id, name: property.name })}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
